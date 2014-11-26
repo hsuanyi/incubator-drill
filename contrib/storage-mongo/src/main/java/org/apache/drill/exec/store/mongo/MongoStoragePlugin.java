@@ -19,6 +19,7 @@ package org.apache.drill.exec.store.mongo;
 
 import java.io.IOException;
 import java.util.Set;
+import java.util.concurrent.ExecutorService;
 
 import net.hydromatic.optiq.SchemaPlus;
 
@@ -63,8 +64,8 @@ public class MongoStoragePlugin extends AbstractStoragePlugin {
   }
 
   @Override
-  public void registerSchemas(UserSession session, SchemaPlus parent) {
-    schemaFactory.registerSchemas(session, parent);
+  public void registerSchemas(UserSession session, SchemaPlus parent, ExecutorService executor) {
+    schemaFactory.registerSchemas(session, parent, executor);
   }
 
   @Override

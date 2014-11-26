@@ -29,6 +29,11 @@ import net.hydromatic.optiq.Schema;
 import net.hydromatic.optiq.SchemaPlus;
 import net.hydromatic.optiq.Table;
 
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.TimeoutException;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import org.apache.drill.exec.planner.logical.CreateTableEntry;
 
 import com.google.common.base.Joiner;
@@ -41,11 +46,15 @@ public abstract class AbstractSchema implements Schema{
   protected final String name;
   private static final Expression EXPRESSION = new DefaultExpression(Object.class);
 
-  public AbstractSchema(List<String> parentSchemaPath, String name) {
+  protected ExecutorService executor;
+  private int responseTime = 10 * 60;
+
+  public AbstractSchema(List<String> parentSchemaPath, String name, ExecutorService executor) {
     schemaPath = Lists.newArrayList();
     schemaPath.addAll(parentSchemaPath);
     schemaPath.add(name);
     this.name = name;
+    this.executor = executor;
   }
 
   public String getName() {
@@ -111,12 +120,53 @@ public abstract class AbstractSchema implements Schema{
   }
 
   @Override
-  public Table getTable(String name){
+  public final Table getTable(String name) {
+    final String tableName = name;
+    Callable<Table> getTableJob = new Callable<Table>() {
+      @Override
+      public Table call() {
+        return safeGetTable(tableName);
+      }
+    };
+
+    Future<Table> reqeustTable = executor.submit(getTableJob);
+    try {
+      return reqeustTable.get(responseTime, TimeUnit.SECONDS);
+    } catch (TimeoutException e) {
+      logger.error("Schema does not respond in {} seconds", responseTime);
+      return null;
+    } catch (Error | Exception e) {
+      logger.error("Failure to get table");
+      return null;
+    }
+  }
+
+  protected Table safeGetTable(String name) {
     return null;
   }
 
   @Override
-  public Set<String> getTableNames() {
+  public final Set<String> getTableNames() {
+    Callable<Set<String>> getTableListJob = new Callable<Set<String>> () {
+      @Override
+      public Set<String> call() {
+        return safeGetTableNames();
+      }
+    };
+
+    Future<Set<String>> reqeustTableList = executor.submit(getTableListJob);
+    try {
+      return reqeustTableList.get(responseTime, TimeUnit.SECONDS);
+    } catch (TimeoutException e) {
+      logger.error("Schema does not respond in {} seconds", responseTime);
+      return Collections.emptySet();
+    } catch (Error | Exception e) {
+      logger.error("Failure to get table names");
+      return Collections.emptySet();
+    }
+  }
+
+  protected Set<String> safeGetTableNames() {
     return Collections.emptySet();
   }
 

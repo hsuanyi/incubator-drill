@@ -26,6 +26,8 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.drill.common.config.DrillConfig;
@@ -114,12 +116,13 @@ public class Foreman implements Runnable, Closeable, Comparable<Object> {
   private final CountDownLatch acceptExternalEvents = new CountDownLatch(1);
   private final StateListener stateListener = new StateListener();
   private final ResponseSendListener responseListener = new ResponseSendListener();
+  private ExecutorService executor = Executors.newCachedThreadPool();
 
   public Foreman(WorkerBee bee, DrillbitContext dContext, UserClientConnection connection, QueryId queryId,
       RunQuery queryRequest) {
     this.queryId = queryId;
     this.queryRequest = queryRequest;
-    this.context = new QueryContext(connection.getSession(), queryId, dContext);
+    this.context = new QueryContext(connection.getSession(), queryId, dContext, executor);
 
     // set up queuing
     this.queuingEnabled = context.getOptions().getOption(ExecConstants.ENABLE_QUEUE_KEY).bool_val;
@@ -531,7 +534,7 @@ public class Foreman implements Runnable, Closeable, Comparable<Object> {
 
   private void setupRootFragment(PlanFragment rootFragment, UserClientConnection rootClient, FragmentRoot rootOperator) throws ExecutionSetupException {
     FragmentContext rootContext = new FragmentContext(bee.getContext(), rootFragment, rootClient, bee.getContext()
-        .getFunctionImplementationRegistry());
+        .getFunctionImplementationRegistry(), executor);
 
     IncomingBuffers buffers = new IncomingBuffers(rootOperator, rootContext);
 

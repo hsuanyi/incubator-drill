@@ -20,6 +20,7 @@ package org.apache.drill.exec.store.hive;
 import java.io.IOException;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.ExecutorService;
 import com.google.common.collect.ImmutableSet;
 
 import net.hydromatic.optiq.Schema.TableType;
@@ -81,8 +82,8 @@ public class HiveStoragePlugin extends AbstractStoragePlugin {
   }
 
   @Override
-  public void registerSchemas(UserSession session, SchemaPlus parent) {
-    schemaFactory.registerSchemas(session, parent);
+  public void registerSchemas(UserSession session, SchemaPlus parent, ExecutorService executor) {
+    schemaFactory.registerSchemas(session, parent, executor);
   }
   public Set<StoragePluginOptimizerRule> getOptimizerRules() {
     return ImmutableSet.of(HivePushPartitionFilterIntoScan.HIVE_FILTER_ON_PROJECT, HivePushPartitionFilterIntoScan.HIVE_FILTER_ON_SCAN);

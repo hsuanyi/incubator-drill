@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 
 import net.hydromatic.optiq.Schema;
@@ -186,8 +187,8 @@ public class HiveSchemaFactory implements SchemaFactory {
   }
 
   @Override
-  public void registerSchemas(UserSession session, SchemaPlus parent) {
-    HiveSchema schema = new HiveSchema(schemaName);
+  public void registerSchemas(UserSession session, SchemaPlus parent, ExecutorService executor) {
+    HiveSchema schema = new HiveSchema(schemaName, executor);
     SchemaPlus hPlus = parent.add(schemaName, schema);
     schema.setHolder(hPlus);
   }
@@ -196,8 +197,8 @@ public class HiveSchemaFactory implements SchemaFactory {
 
     private HiveDatabaseSchema defaultSchema;
 
-    public HiveSchema(String name) {
-      super(ImmutableList.<String>of(), name);
+    public HiveSchema(String name, ExecutorService executor) {
+      super(ImmutableList.<String>of(), name, executor);
       getSubSchema("default");
     }
 
@@ -211,7 +212,7 @@ public class HiveSchemaFactory implements SchemaFactory {
           return null;
         }
         tables = tableNameLoader.get(name);
-        HiveDatabaseSchema schema = new HiveDatabaseSchema(tables, this, name);
+        HiveDatabaseSchema schema = new HiveDatabaseSchema(tables, this, name, executor);
         if (name.equals("default")) {
           this.defaultSchema = schema;
         }
@@ -247,7 +248,7 @@ public class HiveSchemaFactory implements SchemaFactory {
     }
 
     @Override
-    public net.hydromatic.optiq.Table getTable(String name) {
+    protected net.hydromatic.optiq.Table safeGetTable(String name) {
       if (defaultSchema == null) {
         return super.getTable(name);
       }
@@ -255,7 +256,7 @@ public class HiveSchemaFactory implements SchemaFactory {
     }
 
     @Override
-    public Set<String> getTableNames() {
+    protected Set<String> safeGetTableNames() {
       if (defaultSchema == null) {
         return super.getTableNames();
       }

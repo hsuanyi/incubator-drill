@@ -20,6 +20,7 @@ package org.apache.drill.exec.store.hbase;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.Set;
+import java.util.concurrent.ExecutorService;
 
 import net.hydromatic.optiq.Schema;
 import net.hydromatic.optiq.SchemaPlus;
@@ -46,16 +47,16 @@ public class HBaseSchemaFactory implements SchemaFactory {
   }
 
   @Override
-  public void registerSchemas(UserSession session, SchemaPlus parent) {
-    HBaseSchema schema = new HBaseSchema(schemaName);
+  public void registerSchemas(UserSession session, SchemaPlus parent, ExecutorService executor) {
+    HBaseSchema schema = new HBaseSchema(schemaName, executor);
     SchemaPlus hPlus = parent.add(schemaName, schema);
     schema.setHolder(hPlus);
   }
 
   class HBaseSchema extends AbstractSchema {
 
-    public HBaseSchema(String name) {
-      super(ImmutableList.<String>of(), name);
+    public HBaseSchema(String name, ExecutorService executor) {
+      super(ImmutableList.<String>of(), name, executor);
     }
 
     public void setHolder(SchemaPlus plusOfThis) {
@@ -72,13 +73,13 @@ public class HBaseSchemaFactory implements SchemaFactory {
     }
 
     @Override
-    public Table getTable(String name) {
+    protected Table safeGetTable(String name) {
       HBaseScanSpec scanSpec = new HBaseScanSpec(name);
       return new DrillHBaseTable(schemaName, plugin, scanSpec);
     }
 
     @Override
-    public Set<String> getTableNames() {
+    protected Set<String> safeGetTableNames() {
       try(HBaseAdmin admin = new HBaseAdmin(plugin.getConfig().getHBaseConf())) {
         HTableDescriptor[] tables = admin.listTables();
         Set<String> tableNames = Sets.newHashSet();

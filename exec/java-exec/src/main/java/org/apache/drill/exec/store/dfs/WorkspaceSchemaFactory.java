@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ExecutorService;
 import java.util.regex.Pattern;
 
 import com.google.common.base.Strings;
@@ -122,8 +123,8 @@ public class WorkspaceSchemaFactory implements ExpandingConcurrentMap.MapValueFa
     return new Path(config.getLocation() + '/' + name + ".view.drill");
   }
 
-  public WorkspaceSchema createSchema(List<String> parentSchemaPath, UserSession session) {
-    return new WorkspaceSchema(parentSchemaPath, schemaName, session);
+  public WorkspaceSchema createSchema(List<String> parentSchemaPath, UserSession session, ExecutorService executor) {
+    return new WorkspaceSchema(parentSchemaPath, schemaName, session, executor);
   }
 
   @Override
@@ -198,8 +199,8 @@ public class WorkspaceSchemaFactory implements ExpandingConcurrentMap.MapValueFa
 
     private UserSession session;
 
-    public WorkspaceSchema(List<String> parentSchemaPath, String name, UserSession session) {
-      super(parentSchemaPath, name);
+    public WorkspaceSchema(List<String> parentSchemaPath, String name, UserSession session, ExecutorService executor) {
+      super(parentSchemaPath, name, executor);
       this.session = session;
     }
 
@@ -235,7 +236,7 @@ public class WorkspaceSchemaFactory implements ExpandingConcurrentMap.MapValueFa
     }
 
     @Override
-    public Set<String> getTableNames() {
+    protected Set<String> safeGetTableNames() {
       return Sets.union(tables.keySet(), getViews());
     }
 
@@ -245,7 +246,7 @@ public class WorkspaceSchemaFactory implements ExpandingConcurrentMap.MapValueFa
     }
 
     @Override
-    public Table getTable(String name) {
+    protected Table safeGetTable(String name) {
       // first check existing tables.
       if(tables.alreadyContainsKey(name)) {
         return tables.get(name);

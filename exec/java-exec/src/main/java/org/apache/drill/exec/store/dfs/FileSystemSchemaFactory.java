@@ -21,6 +21,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ExecutorService;
 
 import net.hydromatic.optiq.Function;
 import net.hydromatic.optiq.Schema;
@@ -55,8 +56,8 @@ public class FileSystemSchemaFactory implements SchemaFactory{
   }
 
   @Override
-  public void registerSchemas(UserSession session, SchemaPlus parent) {
-    FileSystemSchema schema = new FileSystemSchema(schemaName, session);
+  public void registerSchemas(UserSession session, SchemaPlus parent, ExecutorService executor) {
+    FileSystemSchema schema = new FileSystemSchema(schemaName, session, executor);
     SchemaPlus plusOfThis = parent.add(schema.getName(), schema);
     schema.setPlus(plusOfThis);
   }
@@ -66,10 +67,10 @@ public class FileSystemSchemaFactory implements SchemaFactory{
     private final WorkspaceSchema defaultSchema;
     private final Map<String, WorkspaceSchema> schemaMap = Maps.newHashMap();
 
-    public FileSystemSchema(String name, UserSession session) {
-      super(ImmutableList.<String>of(), name);
+    public FileSystemSchema(String name, UserSession session, ExecutorService executor) {
+      super(ImmutableList.<String>of(), name, executor);
       for(WorkspaceSchemaFactory f :  factories){
-        WorkspaceSchema s = f.createSchema(getSchemaPath(), session);
+        WorkspaceSchema s = f.createSchema(getSchemaPath(), session, executor);
         schemaMap.put(s.getName(), s);
       }
 
@@ -93,7 +94,7 @@ public class FileSystemSchemaFactory implements SchemaFactory{
     }
 
     @Override
-    public Table getTable(String name) {
+    protected Table safeGetTable(String name) {
       return defaultSchema.getTable(name);
     }
 
@@ -118,7 +119,7 @@ public class FileSystemSchemaFactory implements SchemaFactory{
     }
 
     @Override
-    public Set<String> getTableNames() {
+    protected Set<String> safeGetTableNames() {
       return defaultSchema.getTableNames();
     }
 

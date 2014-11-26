@@ -18,11 +18,11 @@
 package org.apache.drill.exec.store;
 
 import net.hydromatic.optiq.SchemaPlus;
-
 import org.apache.drill.exec.rpc.user.UserSession;
+import java.util.concurrent.ExecutorService;
 
 public interface SchemaFactory {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(SchemaFactory.class);
 
-  public void registerSchemas(UserSession session, SchemaPlus parent);
+  public void registerSchemas(UserSession session, SchemaPlus parent, ExecutorService executor);
 }

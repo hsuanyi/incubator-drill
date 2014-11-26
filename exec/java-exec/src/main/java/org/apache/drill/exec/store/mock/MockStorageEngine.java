@@ -20,6 +20,7 @@ package org.apache.drill.exec.store.mock;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
 
 import net.hydromatic.optiq.SchemaPlus;
 
@@ -55,7 +56,7 @@ public class MockStorageEngine extends AbstractStoragePlugin {
   }
 
   @Override
-  public void registerSchemas(UserSession session, SchemaPlus parent) {
+  public void registerSchemas(UserSession session, SchemaPlus parent, ExecutorService executor) {
   }
 
   @Override

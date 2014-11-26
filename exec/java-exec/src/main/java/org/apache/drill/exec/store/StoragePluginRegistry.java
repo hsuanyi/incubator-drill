@@ -29,6 +29,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 
 import net.hydromatic.optiq.SchemaPlus;
@@ -301,7 +302,7 @@ public class StoragePluginRegistry implements Iterable<Map.Entry<String, Storage
   public class DrillSchemaFactory implements SchemaFactory {
 
     @Override
-    public void registerSchemas(UserSession session, SchemaPlus parent) {
+    public void registerSchemas(UserSession session, SchemaPlus parent, ExecutorService executor) {
       Stopwatch watch = new Stopwatch();
       watch.start();
 
@@ -325,7 +326,7 @@ public class StoragePluginRegistry implements Iterable<Map.Entry<String, Storage
 
         // finally register schemas with the refreshed plugins
         for (StoragePlugin plugin : plugins.values()) {
-          plugin.registerSchemas(session, parent);
+          plugin.registerSchemas(session, parent, executor);
         }
       } catch (ExecutionSetupException e) {
         throw new DrillRuntimeException("Failure while updating storage plugins", e);
@@ -371,7 +372,7 @@ public class StoragePluginRegistry implements Iterable<Map.Entry<String, Storage
         } catch (ClassCastException e) {
           throw new RuntimeException(String.format("Schema '%s' is not expected under root schema", schema.getName()));
         }
-        SubSchemaWrapper wrapper = new SubSchemaWrapper(drillSchema);
+        SubSchemaWrapper wrapper = new SubSchemaWrapper(drillSchema, executor);
         parent.add(wrapper.getName(), wrapper);
       }
 

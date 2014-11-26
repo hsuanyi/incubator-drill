@@ -23,6 +23,7 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
 
 import net.hydromatic.optiq.SchemaPlus;
 import net.hydromatic.optiq.jdbc.SimpleOptiqSchema;
@@ -76,14 +77,22 @@ public class FragmentContext implements Closeable {
   private final OptionManager fragmentOptions;
   private final UserCredentials credentials;
   private LongObjectOpenHashMap<DrillBuf> managedBuffers = new LongObjectOpenHashMap<>();
+  private ExecutorService executor;
 
   private volatile Throwable failureCause;
   private volatile FragmentContextState state = FragmentContextState.OK;
+
 
   private static enum FragmentContextState {
     OK,
     FAILED,
     CANCELED
+  }
+
+  public FragmentContext(DrillbitContext dbContext, PlanFragment fragment, UserClientConnection connection,
+                           FunctionImplementationRegistry funcRegistry, ExecutorService executor) throws OutOfMemoryException, ExecutionSetupException {
+    this(dbContext, fragment, connection, funcRegistry);
+    this.executor = executor;
   }
 
   public FragmentContext(DrillbitContext dbContext, PlanFragment fragment, UserClientConnection connection,
@@ -162,7 +171,7 @@ public class FragmentContext implements Closeable {
       return null;
     } else {
       SchemaPlus root = SimpleOptiqSchema.createRootSchema(false);
-      context.getStorage().getSchemaFactory().registerSchemas(connection.getSession(), root);
+      context.getStorage().getSchemaFactory().registerSchemas(connection.getSession(), root, executor);
       return root;
     }
   }

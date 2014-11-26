@@ -19,6 +19,7 @@ package org.apache.drill.exec.store.mongo.schema;
 
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.ExecutorService;
 
 import net.hydromatic.optiq.Table;
 
@@ -35,19 +36,19 @@ public class MongoDatabaseSchema extends AbstractSchema {
   private final Set<String> tables;
 
   public MongoDatabaseSchema(List<String> tableList, MongoSchema mongoSchema,
-      String name) {
-    super(mongoSchema.getSchemaPath(), name);
+      String name,  ExecutorService executor) {
+    super(mongoSchema.getSchemaPath(), name, executor);
     this.mongoSchema = mongoSchema;
     this.tables = Sets.newHashSet(tableList);
   }
 
   @Override
-  public Table getTable(String tableName) {
+  protected Table safeGetTable(String tableName) {
     return mongoSchema.getDrillTable(this.name, tableName);
   }
 
   @Override
-  public Set<String> getTableNames() {
+  protected Set<String> safeGetTableNames() {
     return tables;
   }
 

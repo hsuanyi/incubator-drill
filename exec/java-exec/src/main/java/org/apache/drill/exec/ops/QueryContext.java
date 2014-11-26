@@ -18,6 +18,7 @@
 package org.apache.drill.exec.ops;
 
 import java.util.Collection;
+import java.util.concurrent.ExecutorService;
 
 import net.hydromatic.optiq.SchemaPlus;
 import net.hydromatic.optiq.jdbc.SimpleOptiqSchema;
@@ -50,8 +51,9 @@ public class QueryContext{
   public final Multitimer<QuerySetup> timer;
   private final PlannerSettings plannerSettings;
   private final DrillOperatorTable table;
+  private ExecutorService executor;
 
-  public QueryContext(UserSession session, QueryId queryId, DrillbitContext drllbitContext) {
+  public QueryContext(UserSession session, QueryId queryId, DrillbitContext drllbitContext, ExecutorService executor) {
     super();
     this.queryId = queryId;
     this.drillbitContext = drllbitContext;
@@ -62,6 +64,7 @@ public class QueryContext{
     this.plannerSettings = new PlannerSettings(queryOptions, getFunctionRegistry());
     this.plannerSettings.setNumEndPoints(this.getActiveEndpoints().size());
     this.table = new DrillOperatorTable(getFunctionRegistry());
+    this.executor = executor;
   }
 
   public PStoreProvider getPersistentStoreProvider(){
@@ -88,7 +91,7 @@ public class QueryContext{
 
   public SchemaPlus getRootSchema(){
     SchemaPlus rootSchema = SimpleOptiqSchema.createRootSchema(false);
-    drillbitContext.getSchemaFactory().registerSchemas(session, rootSchema);
+    drillbitContext.getSchemaFactory().registerSchemas(session, rootSchema, executor);
     return rootSchema;
   }
 

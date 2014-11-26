@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ExecutorService;
 
 import net.hydromatic.optiq.SchemaPlus;
 import net.hydromatic.optiq.Table;
@@ -67,15 +68,15 @@ public class InfoSchemaStoragePlugin extends AbstractStoragePlugin{
   }
 
   @Override
-  public void registerSchemas(UserSession session, SchemaPlus parent) {
-    ISchema s = new ISchema(parent, this);
+  public void registerSchemas(UserSession session, SchemaPlus parent, ExecutorService executor) {
+    ISchema s = new ISchema(parent, this, executor);
     parent.add(s.getName(), s);
   }
 
   private class ISchema extends AbstractSchema{
     private Map<String, InfoSchemaDrillTable> tables;
-    public ISchema(SchemaPlus parent, InfoSchemaStoragePlugin plugin){
-      super(ImmutableList.<String>of(), "INFORMATION_SCHEMA");
+    public ISchema(SchemaPlus parent, InfoSchemaStoragePlugin plugin, ExecutorService executor){
+      super(ImmutableList.<String>of(), "INFORMATION_SCHEMA", executor);
       Map<String, InfoSchemaDrillTable> tbls = Maps.newHashMap();
       for(SelectedTable tbl : SelectedTable.values()){
         tbls.put(tbl.name(), new InfoSchemaDrillTable(plugin, "INFORMATION_SCHEMA", tbl, config));
@@ -84,12 +85,12 @@ public class InfoSchemaStoragePlugin extends AbstractStoragePlugin{
     }
 
     @Override
-    public Table getTable(String name) {
+    protected Table safeGetTable(String name) {
       return tables.get(name);
     }
 
     @Override
-    public Set<String> getTableNames() {
+    protected Set<String> safeGetTableNames() {
       return tables.keySet();
     }
 

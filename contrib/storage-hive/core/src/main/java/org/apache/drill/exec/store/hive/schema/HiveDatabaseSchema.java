@@ -19,6 +19,7 @@ package org.apache.drill.exec.store.hive.schema;
 
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.ExecutorService;
 
 import net.hydromatic.optiq.Table;
 
@@ -37,19 +38,19 @@ public class HiveDatabaseSchema extends AbstractSchema{
   public HiveDatabaseSchema( //
       List<String> tableList, //
       HiveSchema hiveSchema, //
-      String name) {
-    super(hiveSchema.getSchemaPath(), name);
+      String name, ExecutorService executor) {
+    super(hiveSchema.getSchemaPath(), name, executor);
     this.hiveSchema = hiveSchema;
     this.tables = Sets.newHashSet(tableList);
   }
 
   @Override
-  public Table getTable(String tableName) {
+  protected Table safeGetTable(String tableName) {
     return hiveSchema.getDrillTable(this.name, tableName);
   }
 
   @Override
-  public Set<String> getTableNames() {
+  protected Set<String> safeGetTableNames() {
     return tables;
   }
 

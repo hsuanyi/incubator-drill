@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.ExecutorService;
 
 import net.hydromatic.optiq.SchemaPlus;
 
@@ -52,7 +53,7 @@ public class SystemTablePlugin extends AbstractStoragePlugin{
     this.name = name;
   }
 
-  private SystemSchema schema = new SystemSchema();
+  private SystemSchema schema;
 
   @Override
   public StoragePluginConfig getConfig() {
@@ -60,7 +61,8 @@ public class SystemTablePlugin extends AbstractStoragePlugin{
   }
 
   @Override
-  public void registerSchemas(UserSession session, SchemaPlus parent) {
+  public void registerSchemas(UserSession session, SchemaPlus parent, ExecutorService executor) {
+    schema = new SystemSchema(executor);
     parent.add(schema.getName(), schema);
   }
 
@@ -89,8 +91,8 @@ public class SystemTablePlugin extends AbstractStoragePlugin{
 
     private Set<String> tableNames;
 
-    public SystemSchema() {
-      super(ImmutableList.<String>of(), "sys");
+    public SystemSchema(ExecutorService executor) {
+      super(ImmutableList.<String>of(), "sys", executor);
       Set<String> names = Sets.newHashSet();
       for(SystemTable t : SystemTable.values()){
         names.add(t.getTableName());
@@ -99,13 +101,13 @@ public class SystemTablePlugin extends AbstractStoragePlugin{
     }
 
     @Override
-    public Set<String> getTableNames() {
+    protected Set<String> safeGetTableNames() {
       return tableNames;
     }
 
 
     @Override
-    public DrillTable getTable(String name) {
+    protected DrillTable safeGetTable(String name) {
       for(SystemTable table : SystemTable.values()){
         if(table.getTableName().equalsIgnoreCase(name)){
           return new StaticDrillTable(table.getType(), SystemTablePlugin.this.name, SystemTablePlugin.this, table);

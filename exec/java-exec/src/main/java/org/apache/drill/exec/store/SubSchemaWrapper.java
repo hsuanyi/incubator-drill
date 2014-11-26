@@ -19,6 +19,7 @@ package org.apache.drill.exec.store;
 
 import java.util.Collection;
 import java.util.Set;
+import java.util.concurrent.ExecutorService;
 
 import net.hydromatic.optiq.Function;
 import net.hydromatic.optiq.Schema;
@@ -32,8 +33,8 @@ public class SubSchemaWrapper extends AbstractSchema {
 
   private final AbstractSchema innerSchema;
 
-  public SubSchemaWrapper(AbstractSchema innerSchema) {
-    super(ImmutableList.<String>of(), innerSchema.getFullSchemaName());
+  public SubSchemaWrapper(AbstractSchema innerSchema, ExecutorService executor) {
+    super(ImmutableList.<String>of(), innerSchema.getFullSchemaName(), executor);
     this.innerSchema = innerSchema;
   }
 
@@ -78,12 +79,12 @@ public class SubSchemaWrapper extends AbstractSchema {
   }
 
   @Override
-  public Table getTable(String name) {
+  protected Table safeGetTable(String name) {
     return innerSchema.getTable(name);
   }
 
   @Override
-  public Set<String> getTableNames() {
+  protected Set<String> safeGetTableNames() {
     return innerSchema.getTableNames();
   }
 

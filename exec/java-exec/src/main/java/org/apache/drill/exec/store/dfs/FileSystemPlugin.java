@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ExecutorService;
 
 import net.hydromatic.optiq.SchemaPlus;
 
@@ -125,8 +126,8 @@ public class FileSystemPlugin extends AbstractStoragePlugin{
   }
 
   @Override
-  public void registerSchemas(UserSession session, SchemaPlus parent) {
-    schemaFactory.registerSchemas(session, parent);
+  public void registerSchemas(UserSession session, SchemaPlus parent, ExecutorService executor) {
+    schemaFactory.registerSchemas(session, parent, executor);
   }
 
   public FormatPlugin getFormatPlugin(String name) {

@@ -23,6 +23,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 
 import net.hydromatic.optiq.Schema;
@@ -118,16 +119,16 @@ public class MongoSchemaFactory implements SchemaFactory {
   }
 
   @Override
-  public void registerSchemas(UserSession session, SchemaPlus parent) {
-    MongoSchema schema = new MongoSchema(schemaName);
+  public void registerSchemas(UserSession session, SchemaPlus parent, ExecutorService executor) {
+    MongoSchema schema = new MongoSchema(schemaName, executor);
     SchemaPlus hPlus = parent.add(schemaName, schema);
     schema.setHolder(hPlus);
   }
 
   class MongoSchema extends AbstractSchema {
 
-    public MongoSchema(String name) {
-      super(ImmutableList.<String> of(), name);
+    public MongoSchema(String name, ExecutorService executor) {
+      super(ImmutableList.<String> of(), name, executor);
     }
 
     @Override
@@ -135,7 +136,7 @@ public class MongoSchemaFactory implements SchemaFactory {
       List<String> tables;
       try {
         tables = tableNameLoader.get(name);
-        return new MongoDatabaseSchema(tables, this, name);
+        return new MongoDatabaseSchema(tables, this, name, executor);
       } catch (ExecutionException e) {
         logger.warn("Failure while attempting to access MongoDataBase '{}'.",
             name, e.getCause());

@@ -260,8 +260,7 @@ public class ProjectRecordBatch extends AbstractSingleRecordBatch<Project> {
       return false;
     }
     NameSegment expr = ((SchemaPath)ex.getExpr()).getRootSegment();
-    NameSegment ref = ex.getRef().getRootSegment();
-    return ref.getPath().equals("*") && expr.getPath().equals("*");
+    return expr.getPath().contains(StarColumnHelper.STAR_COLUMN);
   }
 
   @Override
@@ -292,7 +291,7 @@ public class ProjectRecordBatch extends AbstractSingleRecordBatch<Project> {
 
     IntOpenHashSet transferFieldIds = new IntOpenHashSet();
 
-    boolean isAnyWildcard = false;
+    boolean isAnyWildcard = isAnyWildcard(exprs);
 
     ClassifierResult result = new ClassifierResult();
     boolean classify = isClassificationNeeded(exprs);
@@ -305,7 +304,6 @@ public class ProjectRecordBatch extends AbstractSingleRecordBatch<Project> {
         classifyExpr(namedExpression, incoming, result);
 
         if (result.isStar) {
-          isAnyWildcard = true;
           Integer value = result.prefixMap.get(result.prefix);
           if (value != null && value.intValue() == 1) {
             int k = 0;

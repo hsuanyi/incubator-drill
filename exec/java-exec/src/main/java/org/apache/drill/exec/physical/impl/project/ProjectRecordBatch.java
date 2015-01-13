@@ -641,16 +641,6 @@ public class ProjectRecordBatch extends AbstractSingleRecordBatch<Project> {
       }
     }
 
-    // input is wildcard and it is not the first wildcard
-    else if(exprIsStar) {
-      result.outputNames = Lists.newArrayList();
-      for (VectorWrapper<?> wrapper : incoming) {
-        ValueVector vvIn = wrapper.getValueVector();
-        String incomingName = vvIn.getField().getPath().getRootSegment().getPath();
-        addToResultMaps(incomingName, result, true); // allow dups since this is likely top-level project
-      }
-    }
-
     // only the output has prefix
     else if (!exprHasPrefix && refHasPrefix) {
       result.outputNames = Lists.newArrayList();
@@ -698,6 +688,11 @@ public class ProjectRecordBatch extends AbstractSingleRecordBatch<Project> {
       assert false : "Unexpected project expression or reference";  // not handled yet
     }
     else {
+      assert(!exprContainsStar);
+      assert(!refContainsStar);
+      assert(!refHasPrefix);
+      assert(!exprHasPrefix);
+
       // if the incoming schema's column name matches the expression name of the Project,
       // then we just want to pick the ref name as the output column name
       result.outputNames = Lists.newArrayListWithCapacity(incomingSchemaSize);
@@ -714,7 +709,7 @@ public class ProjectRecordBatch extends AbstractSingleRecordBatch<Project> {
           String newName = ref.getPath();
           if (!result.outputMap.containsKey(newName)) {
             result.outputNames.set(k, newName);
-            result.outputMap.put(newName,  newName);
+            result.outputMap.put(newName, newName);
           }
         }
         k++;

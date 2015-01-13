@@ -17,11 +17,21 @@
  */
 package org.apache.drill;
 
+import org.apache.drill.common.util.FileUtils;
 import org.junit.Test;
 import org.apache.drill.exec.rpc.RpcException;
 
 public class TestStarQueries extends BaseTestQuery{
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TestStarQueries.class);
+
+  @Test // see DRILL-1874
+  public void testSelStarWithExpression() throws Exception {
+    test("select *, n_nationkey + 1 from cp.`tpch/nation.parquet` limit 2;");
+    test("select * from cp.`tpch/nation.parquet` limit 2;");
+
+    test("select *, n_nationkey + 1 from cp.`tpch/nation.parquet`;");
+    test("select * from cp.`tpch/nation.parquet`;");
+  }
 
   @Test // see DRILL-1828
   public void testSelStarMultipleStars() throws Exception {
@@ -31,7 +41,7 @@ public class TestStarQueries extends BaseTestQuery{
 
   @Test // see DRILL-1825
   public void testSelStarWithAdditionalColumnLimit() throws Exception {
-    test("select *, first_name, *, last_name from cp.`employee.json` limit 2;");
+    test("select *, n_name, *, n_name, n_name from cp.`tpch/nation.parquet` limit 2;");
   }
 
   @Test

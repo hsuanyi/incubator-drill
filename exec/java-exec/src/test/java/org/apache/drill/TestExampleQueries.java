@@ -26,6 +26,11 @@ import org.junit.Test;
 public class TestExampleQueries extends BaseTestQuery{
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TestExampleQueries.class);
 
+  @Test // see DRILL-1877
+  public void testConcatOperator() throws Exception {
+    test("select cast(n_nationkey as varchar(3)) || cast(n_name as varchar(20)), n_nationkey, n_name from cp.`tpch/nation.parquet`;");
+  }
+
   @Test // see DRILL-985
   public void testViewFileName() throws Exception {
     test("use dfs.tmp");

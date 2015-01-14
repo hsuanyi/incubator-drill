@@ -40,10 +40,10 @@ public class FunctionCallFactory {
     opToFuncTable.put("%", "modulo");
     opToFuncTable.put("^", "xor");
 
-    opToFuncTable.put("||", "booleanOr");
+    opToFuncTable.put("||", "concat");
     opToFuncTable.put("or", "booleanOr");
     opToFuncTable.put("and", "booleanAnd");
-    opToFuncTable.put("&&", "booleanAnd");
+
     opToFuncTable.put(">", "greater_than");
     opToFuncTable.put("<", "less_than");
     opToFuncTable.put("==", "equal");

@@ -21,16 +21,28 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.drill.exec.planner.sql.DrillOperatorTable;
+import org.eigenbase.rel.AggregateRel;
 import org.eigenbase.rel.ProjectRel;
 import org.eigenbase.rel.RelNode;
 import org.eigenbase.rel.RelShuttleImpl;
+import org.eigenbase.rel.TableAccessRelBase;
+import org.eigenbase.rel.TableFunctionRelBase;
+import org.eigenbase.rel.ValuesRel;
+import org.eigenbase.rel.FilterRel;
+import org.eigenbase.rel.JoinRel;
+import org.eigenbase.rel.SortRel;
+import org.eigenbase.rel.AggregateCall;
 import org.eigenbase.reltype.RelDataTypeFactory;
+import org.eigenbase.rex.RexVisitor;
+import org.eigenbase.rex.RexVisitorImpl;
 import org.eigenbase.rex.RexBuilder;
 import org.eigenbase.rex.RexCall;
 import org.eigenbase.rex.RexLiteral;
 import org.eigenbase.rex.RexNode;
 import org.eigenbase.sql.SqlFunction;
 import org.eigenbase.sql.SqlOperator;
+import org.eigenbase.sql.fun.SqlSingleValueAggFunction;
+import org.eigenbase.sql.type.SqlTypeName;
 import org.eigenbase.util.NlsString;
 
 /**
@@ -54,6 +66,7 @@ public class RewriteProjectRel extends RelShuttleImpl {
 
   @Override
   public RelNode visit(ProjectRel project) {
+    checkOperators(project);
 
     List<RexNode> exprList = new ArrayList<>();
     boolean rewrite = false;
@@ -102,5 +115,78 @@ public class RewriteProjectRel extends RelShuttleImpl {
     }
 
     return visitChild(project, 0, project.getChild());
+  }
+
+  @Override
+  public RelNode visit(AggregateRel aggregate) {
+    checkOperators(aggregate);
+    for(AggregateCall aggregateCall : aggregate.getAggCallList()) {
+      if(aggregateCall.getAggregation() instanceof SqlSingleValueAggFunction) {
+        throw new UnsupportedOperationException("Logical expression performed on non-scalar result of sub-query is not supported");
+      }
+    }
+
+    return visitChild(aggregate, 0, aggregate.getChild());
+  }
+
+  @Override
+  public RelNode visit(TableAccessRelBase scan) {
+    checkOperators(scan);
+    return scan;
+  }
+
+  @Override
+  public RelNode visit(TableFunctionRelBase scan) {
+    checkOperators(scan);
+    return visitChildren(scan);
+  }
+
+  @Override
+  public RelNode visit(ValuesRel values) {
+    checkOperators(values);
+    return values;
+  }
+
+  @Override
+  public RelNode visit(FilterRel filter) {
+    checkOperators(filter);
+    return visitChild(filter, 0, filter.getChild());
+  }
+
+  @Override
+  public RelNode visit(JoinRel join) {
+    checkOperators(join);
+    return visitChildren(join);
+  }
+
+  @Override
+  public RelNode visit(SortRel sort) {
+    checkOperators(sort);
+    return visitChildren(sort);
+  }
+
+  @Override
+  public RelNode visit(RelNode other) {
+    checkOperators(other);
+    return visitChildren(other);
+  }
+
+  private void checkOperators(RelNode relNode) {
+    for (RexNode rex : relNode.getChildExps()) {
+      if (rex instanceof RexCall) {
+        RexVisitor<Void> visitor = new RexVisitorImpl<Void>(true) {
+          @Override
+          public Void visitCall(RexCall call) {
+            SqlOperator op = call.getOperator();
+            List<RexNode> operands = call.getOperands();
+            if(op.getName().equals("||") && (operands.get(0).getType().getSqlTypeName() == SqlTypeName.VARCHAR || operands.get(1).getType().getSqlTypeName() == SqlTypeName.VARCHAR)) {
+              throw new UnsupportedOperationException(op + " is not supported");
+            }
+            return super.visitCall(call);
+          }
+        };
+        visitor.visitCall((RexCall) rex);
+      }
+    }
   }
 }

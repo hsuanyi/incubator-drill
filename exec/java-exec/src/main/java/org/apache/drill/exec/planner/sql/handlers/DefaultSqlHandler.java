@@ -36,8 +36,8 @@ import org.apache.drill.exec.physical.PhysicalPlan;
 import org.apache.drill.exec.physical.base.AbstractPhysicalVisitor;
 import org.apache.drill.exec.physical.base.PhysicalOperator;
 import org.apache.drill.exec.planner.logical.DrillRel;
-import org.apache.drill.exec.planner.logical.DrillScreenRel;
 import org.apache.drill.exec.planner.logical.DrillStoreRel;
+import org.apache.drill.exec.planner.logical.DrillScreenRel;
 import org.apache.drill.exec.planner.logical.RewriteProjectRel;
 import org.apache.drill.exec.planner.physical.DrillDistributionTrait;
 import org.apache.drill.exec.planner.physical.PhysicalPlanCreator;
@@ -55,6 +55,7 @@ import org.apache.drill.exec.planner.physical.visitor.SelectionVectorPrelVisitor
 import org.apache.drill.exec.planner.physical.visitor.SplitUpComplexExpressions;
 import org.apache.drill.exec.planner.physical.visitor.StarColumnConverter;
 import org.apache.drill.exec.planner.sql.DrillSqlWorker;
+import org.apache.drill.exec.planner.sql.parser.VisitingUnsupportedOperators;
 import org.apache.drill.exec.server.options.OptionManager;
 import org.apache.drill.exec.server.options.OptionValue;
 import org.apache.drill.exec.util.Pointer;
@@ -63,9 +64,8 @@ import org.eigenbase.rel.RelNode;
 import org.eigenbase.relopt.RelOptUtil;
 import org.eigenbase.relopt.RelTraitSet;
 import org.eigenbase.relopt.hep.HepPlanner;
-import org.eigenbase.sql.SqlExplainLevel;
 import org.eigenbase.sql.SqlNode;
-
+import org.eigenbase.sql.SqlExplainLevel;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
@@ -119,9 +119,9 @@ public class DefaultSqlHandler extends AbstractSqlHandler {
   }
 
   @Override
-  public PhysicalPlan getPlan(SqlNode sqlNode) throws ValidationException, RelConversionException, IOException, ForemanSetupException {
-
+  public PhysicalPlan getPlan(SqlNode sqlNode) throws ValidationException, RelConversionException, IOException, ForemanSetupException, UnsupportedOperationException {
     SqlNode rewrittenSqlNode = rewrite(sqlNode);
+    rewrittenSqlNode.accept(new VisitingUnsupportedOperators());
     SqlNode validated = validateNode(rewrittenSqlNode);
     RelNode rel = convertToRel(validated);
 

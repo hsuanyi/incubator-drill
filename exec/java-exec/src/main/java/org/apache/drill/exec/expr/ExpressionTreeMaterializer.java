@@ -88,7 +88,7 @@ public class ExpressionTreeMaterializer {
 
   public static LogicalExpression materialize(LogicalExpression expr, VectorAccessible batch, ErrorCollector errorCollector, FunctionImplementationRegistry registry,
       boolean allowComplexWriterExpr) {
-    LogicalExpression out =  expr.accept(new MaterializeVisitor(batch, errorCollector, allowComplexWriterExpr), registry);
+    LogicalExpression out = expr.accept(new MaterializeVisitor(batch, errorCollector, allowComplexWriterExpr), registry);
 
     if (!errorCollector.hasErrors()) {
       out = out.accept(ConditionalExprOptimizer.INSTANCE, null);
@@ -194,11 +194,22 @@ public class ExpressionTreeMaterializer {
         args.add(newExpr);
       }
 
+      // Check if the expression contains disabled expression
+      // if true, write into errorCollector
+      if(op.getName().equals("booleanOr")) {
+        for (LogicalExpression arg : args) {
+          if(arg.getMajorType().getMinorType() == TypeProtos.MinorType.VARCHAR) {
+            errorCollector.addGeneralError(arg.getPosition(), "concat || is not supported");
+            break;
+          }
+        }
+      }
+
       //replace with a new function call, since its argument could be changed.
       return new BooleanOperator(op.getName(), args, op.getPosition());
     }
 
-   @Override
+    @Override
     public LogicalExpression visitFunctionCall(FunctionCall call, FunctionImplementationRegistry registry) {
       List<LogicalExpression> args = Lists.newArrayList();
       for (int i = 0; i < call.args.size(); ++i) {

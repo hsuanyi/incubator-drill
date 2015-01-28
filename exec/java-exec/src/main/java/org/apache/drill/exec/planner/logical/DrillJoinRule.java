@@ -72,6 +72,11 @@ public class DrillJoinRule extends RelOptRule {
     RexNode remaining = RelOptUtil.splitJoinCondition(convertedLeft, convertedRight, origJoinCondition, leftKeys, rightKeys);
     boolean hasEquijoins = (leftKeys.size() == rightKeys.size() && leftKeys.size() > 0) ? true : false;
 
+    // If there is no Equijoins, do not even generate the plan
+    if(!hasEquijoins) {
+      return;
+    }
+
     // If the join involves equijoins and non-equijoins, then we can process the non-equijoins through
     // a filter right after the join
     // DRILL-1337: We can only pull up a non-equivjoin filter for INNER join.

@@ -60,6 +60,7 @@ import org.apache.drill.exec.server.options.OptionValue;
 import org.apache.drill.exec.util.Pointer;
 import org.apache.drill.exec.work.foreman.ForemanSetupException;
 import org.eigenbase.rel.RelNode;
+import org.eigenbase.relopt.RelOptPlanner;
 import org.eigenbase.relopt.RelOptUtil;
 import org.eigenbase.relopt.RelTraitSet;
 import org.eigenbase.relopt.hep.HepPlanner;
@@ -152,8 +153,14 @@ public class DefaultSqlHandler extends AbstractSqlHandler {
   }
 
   protected DrillRel convertToDrel(RelNode relNode) throws RelConversionException {
-    RelNode convertedRelNode = planner.transform(DrillSqlWorker.LOGICAL_RULES,
-        relNode.getTraitSet().plus(DrillRel.DRILL_LOGICAL), relNode);
+    RelNode convertedRelNode;
+    try {
+        convertedRelNode = planner.transform(DrillSqlWorker.LOGICAL_RULES,
+                relNode.getTraitSet().plus(DrillRel.DRILL_LOGICAL), relNode);
+    } catch(RelOptPlanner.CannotPlanException ex) {
+        throw new UnsupportedOperationException("NON-EQUI JOIN is not supported");
+    }
+
     if (convertedRelNode instanceof DrillStoreRel) {
       throw new UnsupportedOperationException();
     } else {

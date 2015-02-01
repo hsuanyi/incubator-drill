@@ -42,7 +42,17 @@
       <#list model.getRecords() as record>
         <tr>
           <#list record as value>
-          <td><#if value??>${value}<#else>null</#if></td>
+          <td>
+          <#if value??>
+            <#if value?is_boolean>
+              ${value?string}
+            <#else>
+              ${value}
+            </#if>
+          <#else>
+            null
+          </#if>
+          </td>
           </#list>
         </tr>
       </#list>

@@ -20,7 +20,7 @@ package org.apache.drill.exec.physical.impl.flatten;
 import static org.junit.Assert.assertEquals;
 
 import org.apache.drill.BaseTestQuery;
-import org.apache.drill.exec.proto.UserBitShared;
+import org.apache.drill.common.util.FileUtils;
 import org.junit.Ignore;
 import org.junit.Test;
 
@@ -34,12 +34,35 @@ public class TestFlatten extends BaseTestQuery {
    *    - /tmp/bigfile.json
    */
   public static boolean RUN_ADVANCED_TESTS = false;
+  @Test // see DRILL-2146
+  public void testFalttenWithStar() throws Exception {
+    String root = FileUtils.getResourceAsFile("/store/text/sample.json").toURI().toString();
+    String q1 = String.format("select flatten(j.topping) tt, flatten(j.batters.batter) bb, j.id " +
+                              "from dfs_test.`%s` j " +
+                              "where j.type = 'donut'", root);
+    String q2 = String.format("select flatten(j.topping) tt, flatten(j.batters.batter) bb, j.id, j.type " +
+                              "from dfs_test.`%s` j " +
+                              "where j.type = 'donut'", root);
+    test(q1);
+    test(q2);
+  }
 
+  @Test // see DRILL-2012
+  public void testMultipleFalttenWithWhereClause() throws Exception {
+    String root = FileUtils.getResourceAsFile("/store/text/sample.json").toURI().toString();
+    String q1 = String.format("select flatten(j.topping) tt " +
+                              "from dfs_test.`%s` j " +
+                              "where j.type = 'donut'", root);
+    String q2 = String.format("select j.type, flatten(j.topping) tt " +
+                              "from dfs_test.`%s` j " +
+                              "where j.type = 'donut'", root);
+    test(q1);
+    test(q2);
+  }
 
   @Test
   public void testFlattenFailure() throws Exception {
     test("select flatten(complex), rownum from cp.`/store/json/test_flatten_mappify2.json`");
-//    test("select complex, rownum from cp.`/store/json/test_flatten_mappify2.json`");
   }
 
   @Test
@@ -86,8 +109,6 @@ public class TestFlatten extends BaseTestQuery {
         ") event_info\n" +
         "on transaction_info.max_event_time = event_info.event.event_time;");
   }
-
-
 
   @Test
   public void testKVGenFlatten1() throws Exception {
@@ -177,7 +198,6 @@ public class TestFlatten extends BaseTestQuery {
           "        select flatten(categories) catl from dfs.`/tmp/yelp_academic_dataset_business.json` b\n" +
           "    )  celltbl");
     }
-
   }
 
   @Test
@@ -185,7 +205,6 @@ public class TestFlatten extends BaseTestQuery {
     if(RUN_ADVANCED_TESTS){
       test("select id, flatten(evnts) as rpt from dfs.`/tmp/drill1665.json`");
     }
-
   }
 
   @Test
@@ -202,7 +221,6 @@ public class TestFlatten extends BaseTestQuery {
   public void testDrill_1770() throws Exception {
     test("select flatten(sub.fk.`value`) from (select flatten(kvgen(map)) fk from cp.`/store/json/nested_repeated_map.json`) sub");
   }
-
 
   @Test //DRILL-2254
   public void testSingleFlattenFromNestedRepeatedList() throws Exception {
@@ -240,7 +258,6 @@ public class TestFlatten extends BaseTestQuery {
         .run();
   }
 
-
   @Test
   public void testDrill_2013() throws Exception {
     testBuilder()
@@ -248,5 +265,4 @@ public class TestFlatten extends BaseTestQuery {
             .expectsEmptyResultSet()
             .build().run();
   }
-
 }

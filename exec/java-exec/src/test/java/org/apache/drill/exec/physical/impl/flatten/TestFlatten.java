@@ -34,6 +34,10 @@ public class TestFlatten extends BaseTestQuery {
    */
   public static boolean RUN_ADVANCED_TESTS = false;
 
+  @Test
+  public void testFlattenWithStar() throws Exception {
+    test("select *, flatten(complex), rownum from cp.`/store/json/test_flatten_mappify2.json`");
+  }
 
   @Test
   public void testFlattenFailure() throws Exception {

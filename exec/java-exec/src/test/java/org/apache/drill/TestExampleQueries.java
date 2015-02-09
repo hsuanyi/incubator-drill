@@ -27,6 +27,24 @@ import org.junit.Test;
 public class TestExampleQueries extends BaseTestQuery{
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TestExampleQueries.class);
 
+  @Test
+  public void testGroupbyExtractConcat() throws Exception {
+    String root = FileUtils.getResourceAsFile("/store/parquet/GroupbyExtractConcat.parquet").toURI().toString();
+    test(String.format("select concat(extract(day from c_date), extract(month from c_date)) as t, sum(c_integer) " +
+             "from dfs_test.`%s` " +
+             "group by concat(extract(day from c_date), extract(month from c_date)) order by t", root));
+
+
+    test(String.format("select concat(extract(day from c_date), extract(month from c_date)) as t " +
+             "from dfs_test.`%s` " +
+             "group by concat(extract(day from c_date), extract(month from c_date)) order by t", root));
+
+    test(String.format("select concat(extract(day from c_timestamp), extract(month from c_timestamp)) " +
+             "from dfs_test.`%s` " +
+             "group by concat(extract(day from c_timestamp), extract(month from c_timestamp));", root));
+
+  }
+
   @Test // see DRILL-985
   public void testViewFileName() throws Exception {
     test("use dfs.tmp");

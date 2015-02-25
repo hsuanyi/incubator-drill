@@ -71,12 +71,15 @@ public class DrillJoinRule extends RelOptRule {
 
     RexNode remaining = RelOptUtil.splitJoinCondition(convertedLeft, convertedRight, origJoinCondition, leftKeys, rightKeys);
     boolean hasEquijoins = (leftKeys.size() == rightKeys.size() && leftKeys.size() > 0) ? true : false;
+    if(!hasEquijoins) {
+      return;
+    }
 
     // If the join involves equijoins and non-equijoins, then we can process the non-equijoins through
     // a filter right after the join
     // DRILL-1337: We can only pull up a non-equivjoin filter for INNER join.
     // For OUTER join, pulling up a non-eqivjoin filter will lead to incorrectly discarding qualified rows.
-    if (! remaining.isAlwaysTrue()) {
+    if (!remaining.isAlwaysTrue()) {
       if (hasEquijoins && join.getJoinType()== JoinRelType.INNER) {
         addFilter = true;
         List<RexNode> equijoinList = Lists.newArrayList();

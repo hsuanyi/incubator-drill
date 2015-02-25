@@ -55,7 +55,9 @@ public abstract class DrillJoinRelBase extends JoinRelBase implements DrillRelNo
     if(condition.isAlwaysTrue()){
       return ((DrillCostFactory)planner.getCostFactory()).makeInfiniteCost();
     }
-    return super.computeSelfCost(planner);
+
+    RelOptCost cpuCostForRowCount = planner.getCostFactory().makeCost(0, joinRowFactor * Math.min(this.getLeft().getRows(), this.getRight().getRows()), 0);
+    return super.computeSelfCost(planner).plus(cpuCostForRowCount);
   }
 
   @Override

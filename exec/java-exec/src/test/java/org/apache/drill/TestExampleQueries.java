@@ -755,4 +755,20 @@ public class TestExampleQueries extends BaseTestQuery{
         .baselineValues((long) 3, (long) 6)
         .build().run();
   }
+
+  @Test //
+  public void testFilterPushDown() throws Exception {
+    test("explain plan including all attributes for select (ws1.n_name) " +
+        "from cp.`tpch/nation.parquet` ws1 " +
+        "INNER JOIN cp.`tpch/nation.parquet` ws2 " +
+        "on ws1.n_nationkey=ws2.n_nationkey " +
+        "where ws1.n_comment = 120;\n");
+
+
+    test("explain plan including all attributes for select (ws1.str_var) " +
+        "from cp.`tpch/nation.parquet` ws1, " +
+        "cp.`tpch/nation.parquet` ws2 " +
+        "where ws1.n_nationkey=ws2.n_nationkey " +
+        "and ws1.tinyint_var = 120;");
+  }
 }

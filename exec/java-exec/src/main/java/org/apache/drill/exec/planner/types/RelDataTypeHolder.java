@@ -51,6 +51,16 @@ public class RelDataTypeHolder {
 
   public RelDataTypeField getField(RelDataTypeFactory typeFactory, String fieldName) {
 
+    System.out.println(fieldName);
+    for(RelDataTypeField f : fields) {
+        System.out.print(f + ",");
+    }
+      System.out.println();
+
+    if(fieldName.endsWith("AA")) {
+        System.out.println();
+    }
+
     /* First check if this field name exists in our field list */
     for (RelDataTypeField f : fields) {
       if (fieldName.equalsIgnoreCase(f.getName())) {

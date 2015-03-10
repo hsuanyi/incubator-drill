@@ -755,4 +755,48 @@ public class TestExampleQueries extends BaseTestQuery{
         .baselineValues((long) 3, (long) 6)
         .build().run();
   }
+
+  @Test
+  public void testSelfJoinView() throws Exception {
+    String creatV1 = "create view TestExampleQueries_testSelfJoinView_v1(x, y, z) as " +
+        "select n_nationkey, n_nameAA, n_regionkeyAA from cp.`tpch/nation.parquet`;";
+
+    String creatV2 = "create view TestExampleQueries_testSelfJoinView_v2(x, y, z) as " +
+        "select n_nationkey, n_nameAAXX, n_regionkeyAAXX from cp.`tpch/nation.parquet`;";
+
+
+    String querySelfJoinViaView = "select * " +
+        "from cp.`tpch/nation.parquet` t inner join TestExampleQueries_testSelfJoinView_v1 v1 " +
+        "on t.n_nationkey = v1.x;";
+
+
+    String querySelfJoin = "select * " +
+              "from cp.`tpch/nation.parquet` t1 inner join cp.`tpch/nation.parquet` t2 " +
+              "on t1.n_nationkey = t2.n_nationkey " +
+              "where t1.a > 0 and t1.b > 0 and t1.c > 0";
+
+
+      String querySelfJoinTwoViews = "select * " +
+              "from TestExampleQueries_testSelfJoinView_v1 v1 inner join TestExampleQueries_testSelfJoinView_v2 v2 " +
+              "on v1.x = v2.x;";
+
+
+
+
+      String qSimple = "select * " +
+            "from TestExampleQueries_testSelfJoinView_v1";
+
+    try {
+      test("use dfs.tmp;");
+      //test(creatV1);
+      //test(creatV2);
+
+      //test(querySelfJoinViaView);
+     //test(querySelfJoinTwoViews);
+  test(querySelfJoin);
+    } finally {
+  //    test("drop view v1");
+   //   test("drop view v2");
+    }
+  }
 }

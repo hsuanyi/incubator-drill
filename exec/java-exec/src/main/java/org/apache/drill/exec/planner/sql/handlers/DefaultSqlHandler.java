@@ -204,10 +204,12 @@ public class DefaultSqlHandler extends AbstractSqlHandler {
       logger.error(ex.getMessage());
 
       if(JoinUtils.checkCartesianJoin(relNode, new ArrayList<Integer>(), new ArrayList<Integer>())) {
-        throw new UnsupportedRelOperatorException("This query cannot be planned possibly due to either a cartesian join or an inequality join");
+        //throw new UnsupportedRelOperatorException("This query cannot be planned possibly due to either a cartesian join or an inequality join");
       } else {
-        throw ex;
+        //throw ex;
       }
+
+        throw ex;
     }
   }
 

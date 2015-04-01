@@ -52,6 +52,7 @@ import org.eigenbase.rex.RexRangeRef;
 import org.eigenbase.rex.RexVisitorImpl;
 import org.eigenbase.sql.SqlSyntax;
 import org.eigenbase.sql.fun.SqlStdOperatorTable;
+import org.eigenbase.sql.type.SqlTypeName;
 import org.eigenbase.util.NlsString;
 
 import com.google.common.collect.Lists;
@@ -500,5 +501,44 @@ public class DrillOptiq {
 
   private static boolean isLiteralNull(RexLiteral literal) {
     return literal.getTypeName().getName().equals("NULL");
+  }
+
+  public static MinorType getMinorTypeFromSqlTypeName(SqlTypeName sqlTypeName) {
+    switch(sqlTypeName){
+      case BIGINT:
+        return MinorType.BIGINT;
+      case BOOLEAN:
+        return MinorType.BIT;
+      case CHAR:
+        return MinorType.VARCHAR;
+      case DOUBLE:
+        return MinorType.FLOAT8;
+      case FLOAT:
+        return MinorType.FLOAT4;
+      case INTEGER:
+        return MinorType.INT;
+      case DECIMAL:
+        return MinorType.FLOAT8;
+      case VARCHAR:
+        return MinorType.VARCHAR;
+      case SYMBOL:
+        return MinorType.VARCHAR;
+      case DATE:
+        return MinorType.DATE;
+      case TIME:
+        return MinorType.TIME;
+      case TIMESTAMP:
+        return MinorType.TIMESTAMP;
+      case INTERVAL_YEAR_MONTH:
+        return MinorType.INTERVALYEAR;
+      case INTERVAL_DAY_TIME:
+        return MinorType.INTERVALDAY;
+      case NULL:
+        return MinorType.NULL;
+      case ANY:
+        return MinorType.NULL;
+      default:
+        throw new UnsupportedOperationException(String.format("Unable to convert the SqlTypeName %s to a MinorType.", sqlTypeName));
+    }
   }
 }

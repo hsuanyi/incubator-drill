@@ -442,7 +442,6 @@ public class TestUnionAll extends BaseTestQuery{
             "group by columns[0])) \n" +
         "group by col0"
         , root, root);
-    
     testBuilder()
         .sqlQuery(query)
         .unOrdered()

@@ -1101,4 +1101,61 @@ public class TestExampleQueries extends BaseTestQuery {
     test(query1);
     test(query2);
   }
+
+  @Test // see DRILL-2313
+  public void testDistinctOverAggFunctionWithGroupBy() throws Exception {
+    String query1 = "select distinct count(distinct n_nationkey) as col from cp.`tpch/nation.parquet` group by n_regionkey order by 1";
+    String query2 = "select distinct count(distinct n_nationkey) as col from cp.`tpch/nation.parquet` group by n_regionkey order by count(distinct n_nationkey)";
+    String query3 = "select distinct sum(n_nationkey) as col from cp.`tpch/nation.parquet` group by n_regionkey order by 1";
+    String query4 = "select distinct sum(n_nationkey) as col from cp.`tpch/nation.parquet` group by n_regionkey order by col";
+
+    testBuilder()
+        .sqlQuery(query1)
+        .unOrdered()
+        .baselineColumns("col")
+        .baselineValues((long) 5)
+        .build()
+        .run();
+
+    testBuilder()
+        .sqlQuery(query2)
+        .unOrdered()
+        .baselineColumns("col")
+        .baselineValues((long) 5)
+        .build()
+        .run();
+
+    testBuilder()
+        .sqlQuery(query3)
+        .ordered()
+        .baselineColumns("col")
+        .baselineValues((long) 47)
+        .baselineValues((long) 50)
+        .baselineValues((long) 58)
+        .baselineValues((long) 68)
+        .baselineValues((long) 77)
+        .build()
+        .run();
+
+    testBuilder()
+        .sqlQuery(query4)
+        .ordered()
+        .baselineColumns("col")
+        .baselineValues((long) 47)
+        .baselineValues((long) 50)
+        .baselineValues((long) 58)
+        .baselineValues((long) 68)
+        .baselineValues((long) 77)
+        .build()
+        .run();
+  }
+
+  @Test // DRILL-2190
+  public void testDateImplicitCasting() throws Exception {
+    String query = "explain plan for SELECT * \n" +
+        "FROM cp.`employee.json` \n" +
+        "WHERE birth_date BETWEEN '2002-3-01' AND cast('2002-3-01' AS DATE)";
+
+    test(query);
+  }
 }

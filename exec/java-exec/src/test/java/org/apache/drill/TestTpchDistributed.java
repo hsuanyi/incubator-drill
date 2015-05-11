@@ -34,29 +34,29 @@ public class TestTpchDistributed extends BaseTestQuery {
         "  *\n" +
         "from\n" +
         "  (select\n" +
-        "    i.i_manufact_id as imid,\n" +
-        "    sum(ss.ss_sales_price) sum_sales\n" +
-        "    -- avg(sum(ss.ss_sales_price)) over (partition by i.i_manufact_id) avg_quarterly_sales\n" +
+        "    i.l_quantity as imid,\n" +
+        "    sum(ss.l_extendedprice) sum_sales\n" +
+        "    -- avg(sum(ss.l_extendedprice)) over (partition by i.l_quantity) avg_quarterly_sales\n" +
         "  from\n" +
-        "    dfs.`/src/data/tpchsf10/lineitem` as i,\n" +
-        "    dfs.`/src/data/tpchsf10/lineitem` as ss,\n" +
-        "    dfs.`/src/data/tpchsf10/lineitem` as d,\n" +
-        "    dfs.`/src/data/tpchsf10/lineitem` as s\n" +
+        "    cp.`tpch/lineitem.parquet` as i,\n" +
+        "    cp.`tpch/lineitem.parquet` as ss,\n" +
+        "    cp.`tpch/lineitem.parquet` as d,\n" +
+        "    cp.`tpch/lineitem.parquet` as s\n" +
         "  where\n" +
-        "    ss.ss_item_sk = i.i_item_sk\n" +
-        "    and ss.ss_sold_date_sk = d.d_date_sk\n" +
-        "    and ss.ss_store_sk = s.s_store_sk\n" +
-        "    and d.d_month_seq in (1212, 1212 + 1, 1212 + 2, 1212 + 3, 1212 + 4, 1212 + 5, 1212 + 6, 1212 + 7, 1212 + 8, 1212 + 9, 1212 + 10, 1212 + 11)\n" +
-        "    and ((i.i_category in ('Books', 'Children', 'Electronics')\n" +
-        "      and i.i_class in ('personal', 'portable', 'reference', 'self-help')\n" +
-        "      and i.i_brand in ('scholaramalgamalg #14', 'scholaramalgamalg #7', 'exportiunivamalg #9', 'scholaramalgamalg #9'))\n" +
-        "    or (i.i_category in ('Women', 'Music', 'Men')\n" +
-        "      and i.i_class in ('accessories', 'classical', 'fragrances', 'pants')\n" +
-        "      and i.i_brand in ('amalgimporto #1', 'edu packscholar #1', 'exportiimporto #1', 'importoamalg #1')))\n" +
+        "    ss.l_orderkey = i.l_orderkey\n" +
+        "    and ss.l_receiptdate = d.l_receiptdate\n" +
+        "    and ss.l_suppkey = s.l_suppkey\n" +
+        "    and d.l_linenumber in (1212, 1212 + 1, 1212 + 2, 1212 + 3, 1212 + 4, 1212 + 5, 1212 + 6, 1212 + 7, 1212 + 8, 1212 + 9, 1212 + 10, 1212 + 11)\n" +
+        "    and ((i.l_shipmode in ('Books', 'Children', 'Electronics')\n" +
+        "      and i.l_shipinstruct in ('personal', 'portable', 'reference', 'self-help')\n" +
+        "      and i.l_comment in ('scholaramalgamalg #14', 'scholaramalgamalg #7', 'exportiunivamalg #9', 'scholaramalgamalg #9'))\n" +
+        "    or (i.l_shipmode in ('Women', 'Music', 'Men')\n" +
+        "      and i.l_shipinstruct in ('accessories', 'classical', 'fragrances', 'pants')\n" +
+        "      and i.l_comment in ('amalgimporto #1', 'edu packscholar #1', 'exportiimporto #1', 'importoamalg #1')))\n" +
         "    and ss.ss_sold_date_sk between 2451911 and 2452275 -- partition key filter\n" +
         "  group by\n" +
-        "    i.i_manufact_id,\n" +
-        "    d.d_qoy\n" +
+        "    i.l_quantity,\n" +
+        "    d.l_extendedprice\n" +
         "  ) tmp1");
   }
 

@@ -65,8 +65,11 @@ The following example shows the program created for the `myaddints` function:
         @Param BigIntHolder input1;
         @Param BigIntHolder input2;
         @Output BigIntHolder out;
-        public void setup(RecordBatch b){}
+        
+        @Override
+        public void setup(){}
              
+        @Override
         public void eval(){
           out.value = input1.value + input2.value;
         }
@@ -121,37 +124,38 @@ The following example shows the program created for the `mysecondmin` function:
     import org.apache.drill.exec.record.RecordBatch;
      
     public class MyUdfs {
-       
       @FunctionTemplate(name = "mysecondmin", scope = FunctionTemplate.FunctionScope.POINT_AGGREGATE)
       public static class MySecondMin implements DrillAggFunc {
         @Param BigIntHolder in;
         @Workspace BigIntHolder min;
         @Workspace BigIntHolder secondMin;
         @Output BigIntHolder out;
-        public void setup(RecordBatch b) {
-            min = new BigIntHolder(); 
-            secondMin = new BigIntHolder(); 
+        
+        @Override
+        public void setup() {
+          min = new BigIntHolder(); 
+          secondMin = new BigIntHolder(); 
           min.value = 999999999;
           secondMin.value = 999999999;
         }
          
         @Override
         public void add() {
-             
-            if (in.value < min.value) {
-                min.value = in.value;
-                secondMin.value = min.value;
-            }
-             
+          if (in.value < min.value) {
+            min.value = in.value;
+            secondMin.value = min.value;
+          }
         }
+        
         @Override
         public void output() {
           out.value = secondMin.value;
         }
+        
         @Override
         public void reset() {
           min.value = 0;
           secondMin.value = 0;
         }
-        
-       }
+      }
+    }

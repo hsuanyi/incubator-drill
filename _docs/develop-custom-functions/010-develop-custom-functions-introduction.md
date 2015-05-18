@@ -32,6 +32,6 @@ clause.
 To develop custom functions that you can use in your Drill queries, you must
 complete the following tasks:
 
-  1. Create a Java program that implements Drill’s simple or aggregate interface, and compile a sources and a classes JAR file.
-  2. Add the sources and classes JAR files to Drill’s classpath.
+  1. Create a Java program that implements Drill’s simple or aggregate interface, and compile the source to produce the class JAR file.
+  2. Add the source and class JAR files to Drill’s classpath.
   3. Add the name of the package that contains the classes to Drill’s main configuration file, drill-override.conf. 

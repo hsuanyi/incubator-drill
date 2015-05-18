@@ -120,11 +120,16 @@ public class DrillRuleSets {
     if (DRILL_BASIC_RULES == null) {
 
       DRILL_BASIC_RULES = new DrillRuleSet(ImmutableSet.<RelOptRule> builder().add( //
-        // Add support for WHERE style joins.
-      DrillPushFilterPastProjectRule.INSTANCE,
+      // Add support for WHERE style joins.
       DrillFilterJoinRules.DRILL_FILTER_ON_JOIN,
       DrillFilterJoinRules.DRILL_JOIN,
       // End support for WHERE style joins.
+
+      /*
+       Filter push-down related rules
+       */
+      DrillPushFilterPastProjectRule.INSTANCE,
+      DrillPushFilterPastUnionRule.INSTANCE,
 
       FilterMergeRule.INSTANCE,
       AggregateRemoveRule.INSTANCE,
@@ -136,8 +141,8 @@ public class DrillRuleSets {
       DrillReduceAggregatesRule.INSTANCE,
 
       /*
-      Projection push-down related rules
-      */
+       Projection push-down related rules
+       */
       DrillPushProjectPastFilterRule.INSTANCE,
       DrillPushProjectPastJoinRule.INSTANCE,
       DrillPushProjIntoScan.INSTANCE,

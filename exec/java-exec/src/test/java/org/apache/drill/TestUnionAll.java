@@ -25,6 +25,8 @@ import org.apache.drill.exec.work.foreman.UnsupportedRelOperatorException;
 import org.junit.Ignore;
 import org.junit.Test;
 
+import static org.junit.Assert.assertEquals;
+
 public class TestUnionAll extends BaseTestQuery{
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TestUnionAll.class);
 
@@ -525,5 +527,80 @@ public class TestUnionAll extends BaseTestQuery{
       .baselineValues(true)
       .baselineValues(false)
       .build().run();
+  }
+
+  @Test // see DRILL-2746
+  public void testFilterPushDownOverUnionAll() throws Exception {
+    String query = "select n_regionkey from \n"
+        + "(select n_regionkey from cp.`tpch/nation.parquet` union all select r_regionkey from cp.`tpch/region.parquet`) \n"
+        + "where n_regionkey > 0 and n_regionkey < 2 \n"
+        + "order by n_regionkey";
+
+    // Validate the plan
+    final String[] excludedPlan = {"Filter.*\n.*UnionAll"};
+    PlanTestBase.testPlanMatchingPatterns(query, new String[0], excludedPlan);
+
+    // Validate the result
+    testBuilder()
+        .sqlQuery(query)
+        .ordered()
+        .baselineColumns("n_regionkey")
+        .baselineValues(1)
+        .baselineValues(1)
+        .baselineValues(1)
+        .baselineValues(1)
+        .baselineValues(1)
+        .baselineValues(1)
+        .build()
+        .run();
+  }
+
+  @Test // see DRILL-2746
+  public void testInListPushDownOverUnionAll() throws Exception {
+    String query = "select n_nationkey \n" +
+        "from (select n1.n_nationkey from cp.`tpch/nation.parquet` n1 inner join cp.`tpch/region.parquet` r1 on n1.n_regionkey = r1.r_regionkey \n" +
+        "union all \n" +
+        "select n2.n_nationkey from cp.`tpch/nation.parquet` n2 inner join cp.`tpch/region.parquet` r2 on n2.n_regionkey = r2.r_regionkey) \n" +
+        "where n_nationkey in (1, 2)";
+
+    // Validate the plan
+    final String[] excludedPlan = {"Filter.*\n.*UnionAll"};
+    PlanTestBase.testPlanMatchingPatterns(query, new String[0], excludedPlan);
+
+    // Validate the result
+    testBuilder()
+        .sqlQuery(query)
+        .ordered()
+        .baselineColumns("n_nationkey")
+        .baselineValues(1)
+        .baselineValues(2)
+        .baselineValues(1)
+        .baselineValues(2)
+        .build()
+        .run();
+  }
+
+  @Test // see DRILL-2746
+  public void testFilterPushDownOverUnionAllCSV() throws Exception {
+    String root = FileUtils.getResourceAsFile("/multilevel/csv/1994/Q1/orders_94_q1.csv").toURI().toString();
+    String query = String.format("select ct \n" +
+        "from ((select count(c1) as ct from (select columns[0] c1 from dfs.`%s`)) \n" +
+        "union all \n" +
+        "(select columns[0] c2 from dfs.`%s`)) \n" +
+        "where ct < 100", root, root);
+
+    // Validate the plan
+    final String[] excludedPlan = {"Filter.*\n.*UnionAll"};
+    PlanTestBase.testPlanMatchingPatterns(query, new String[0], excludedPlan);
+
+    // Validate the result
+    testBuilder()
+        .sqlQuery(query)
+        .ordered()
+        .baselineColumns("ct")
+        .baselineValues((long) 10)
+        .baselineValues((long) 66)
+        .baselineValues((long) 99)
+        .build().run();
   }
 }

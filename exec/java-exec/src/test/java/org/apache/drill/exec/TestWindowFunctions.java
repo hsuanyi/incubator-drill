@@ -34,9 +34,7 @@ public class TestWindowFunctions extends BaseTestQuery {
     final String query = "explain plan for select sum(a2) over(partition by a2), count(*) over(partition by a2) \n" +
         "from cp.`tpch/nation.parquet`";
 
-    test("alter session set `window.enable` = true");
     test(query);
-    test("alter session set `window.enable` = false");
   }
 
   @Test // DRILL-3196
@@ -45,9 +43,7 @@ public class TestWindowFunctions extends BaseTestQuery {
         "from cp.`tpch/nation.parquet` \n" +
         "window w as (partition by a2 order by a2)";
 
-    test("alter session set `window.enable` = true");
     test(query);
-    test("alter session set `window.enable` = false");
   }
 
   @Test(expected = UnsupportedFunctionException.class) // DRILL-3196
@@ -56,9 +52,7 @@ public class TestWindowFunctions extends BaseTestQuery {
       final String query = "explain plan for select sum(a2) over(partition by a2), count(*) over(partition by a2,b2,c2) \n" +
           "from cp.`tpch/nation.parquet`";
 
-      test("alter session set `window.enable` = true");
       test(query);
-      test("alter session set `window.enable` = false");
     } catch(UserException ex) {
       throwAsUnsupportedException(ex);
       throw ex;
@@ -71,9 +65,7 @@ public class TestWindowFunctions extends BaseTestQuery {
       final String query = "explain plan for select sum(a2) over(partition by a2 order by a2), count(*) over(partition by a2 order by b2) \n" +
           "from cp.`tpch/nation.parquet`";
 
-      test("alter session set `window.enable` = true");
       test(query);
-      test("alter session set `window.enable` = false");
     } catch(UserException ex) {
       throwAsUnsupportedException(ex);
       throw ex;
@@ -87,12 +79,20 @@ public class TestWindowFunctions extends BaseTestQuery {
           "from cp.`tpch/nation.parquet` \n" +
           "window w as (partition by a2, b2, c2)";
 
-      test("alter session set `window.enable` = true");
       test(query);
-      test("alter session set `window.enable` = false");
     } catch(UserException ex) {
       throwAsUnsupportedException(ex);
       throw ex;
     }
+  }
+
+  @Test // DRILL-3204
+  public void testWindowWithJoin() throws Exception {
+    final String query = "select sum(t1.r_regionKey) over(partition by t1.r_regionKey)  \n" +
+        "from cp.`tpch/region.parquet` t1, cp.`tpch/nation.parquet` t2 \n" +
+        "where t1.r_regionKey = t2.n_nationKey \n" +
+        "group by t1.r_regionKey";
+
+    test(query);
   }
 }

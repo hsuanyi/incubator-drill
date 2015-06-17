@@ -1031,4 +1031,10 @@ public class TestExampleQueries extends BaseTestQuery {
         .baselineValues(1L, 1L, listOf(listOf(listOf("val1"), listOf("val2"))))
         .go();
   }
+
+  @Test
+  public void testZZZ() throws Exception {
+    final String query = "select cp.`tpch/nation.parquet`.n_name from cp.`tpch/nation.parquet`";
+    test(query);
+  }
 }

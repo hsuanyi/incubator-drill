@@ -1088,7 +1088,44 @@ public class TestExampleQueries extends BaseTestQuery {
         .sqlBaselineQuery(joinBaseQuery)
         .build()
         .run();
-
   }
 
+  @Test
+  public void testZZZ() throws Exception {
+    test("alter session set `planner.enable_mergejoin` = false");
+
+    String query1 = "EXPLAIN PLAN FOR select bi.x \n" +
+        "from dfs.`/Users/hyichu/Desktop/test/DRILL-2929/bgint_f.csv` bi, \n" +
+        "dfs.`/Users/hyichu/Desktop/test/DRILL-2929/char_f.csv` ci, \n" +
+        "dfs.`/Users/hyichu/Desktop/test/DRILL-2929/dbl_f.csv` di, \n" +
+        "dfs.`/Users/hyichu/Desktop/test/DRILL-2929/float_f.csv` fi, \n" +
+        "dfs.`/Users/hyichu/Desktop/test/DRILL-2929/int_f.csv` ini\n" +
+        "where bi.c = ci.c \n" +
+            "and di.c = fi.c \n" +
+            "and ci.c = di.c \n" +
+            "and fi.c = ini.c \n" +
+            "and ci.c = ini.c ;";
+
+
+      String query2 = "EXPLAIN PLAN FOR select bi.x \n" +
+              "from dfs.`/Users/hyichu/Desktop/test/DRILL-2929/bgint_f.csv` bi, \n" +
+              "dfs.`/Users/hyichu/Desktop/test/DRILL-2929/char_f.csv` ci, \n" +
+              "dfs.`/Users/hyichu/Desktop/test/DRILL-2929/dbl_f.csv` di, \n" +
+              "dfs.`/Users/hyichu/Desktop/test/DRILL-2929/float_f.csv` fi, \n" +
+              "dfs.`/Users/hyichu/Desktop/test/DRILL-2929/int_f.csv` ini\n" +
+              "where bi.columns[0] = ci.columns[0]\n" +
+              "and di.columns[0] = fi.columns[0]\n" +
+              "and ci.columns[0] = di.columns[0]\n" +
+              "and fi.columns[0] = ini.columns[0]\n" +
+              "and ci.columns[0] = ini.columns[0];";
+
+
+      String queryx = "  select bi.columns[0] \n" +
+        "from dfs.`/Users/hyichu/Desktop/test/DRILL-2929/bgint_f.csv` bi, \n" +
+          "dfs.`/Users/hyichu/Desktop/test/DRILL-2929/char_f.csv` ci \n" +
+              "where bi.columns[0] = ci.columns[0]";
+
+
+    test(query1);
+  }
 }

@@ -26,7 +26,7 @@ import static org.hamcrest.CoreMatchers.equalTo;
 public class Drill2130JavaExecHamcrestConfigurationTest {
 
   @SuppressWarnings("unused")
-  private org.hamcrest.MatcherAssert forCompileTimeCheckForNewEnoughHamcrest;
+ // private org.hamcrest.MatcherAssert forCompileTimeCheckForNewEnoughHamcrest;
 
   @Test
   public void testJUnitHamcrestMatcherFailureWorks() {

@@ -17,6 +17,7 @@
  */
 package org.apache.drill.exec.planner.sql.parser;
 
+import org.apache.calcite.sql.JoinConditionType;
 import org.apache.drill.exec.ExecConstants;
 import org.apache.drill.exec.exception.UnsupportedOperatorCollector;
 import org.apache.drill.exec.ops.QueryContext;
@@ -225,6 +226,14 @@ public class UnsupportedOperatorsVisitor extends SqlShuttle {
     // Disable unsupported JOINs
     if(sqlCall.getKind() == SqlKind.JOIN) {
       SqlJoin join = (SqlJoin) sqlCall;
+
+      // Block Using Clause
+      if(join.getConditionType() == JoinConditionType.USING) {
+        unsupportedOperatorCollector.setException(SqlUnsupportedException.ExceptionType.RELATIONAL,
+            "USING Clause is not supported\n" +
+            "See Apache Drill JIRA: DRILL-3076");
+        throw new UnsupportedOperationException();
+      }
 
       // Block Natural Join
       if(join.isNatural()) {

@@ -336,4 +336,17 @@ public class TestDisabledFunctionality extends BaseTestQuery{
     final String query = "select * from cp.`parquet/decimal_dictionary.parquet`";
     errorMsgTestHelper(query, ExecErrorConstants.DECIMAL_DISABLE_ERR_MSG);
   }
+
+  @Test(expected = UnsupportedRelOperatorException.class) // DRILL-3076
+  public void testDisableUsingClause() throws Exception {
+    try {
+      test("select * \n" +
+          "from cp.`tpch/nation.parquet` a INNER JOIN cp.`tpch/nation.parquet` b \n" +
+          "using (n_nationKey)");
+
+    } catch(UserException ex) {
+      throwAsUnsupportedException(ex);
+      throw ex;
+    }
+  }
 }

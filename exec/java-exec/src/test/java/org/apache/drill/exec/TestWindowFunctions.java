@@ -23,6 +23,7 @@ import org.apache.drill.common.util.FileUtils;
 import org.apache.drill.common.util.TestTools;
 import org.apache.drill.exec.work.foreman.SqlUnsupportedException;
 import org.apache.drill.exec.work.foreman.UnsupportedFunctionException;
+import org.junit.Ignore;
 import org.junit.Test;
 
 public class TestWindowFunctions extends BaseTestQuery {
@@ -52,6 +53,7 @@ public class TestWindowFunctions extends BaseTestQuery {
   }
 
   @Test(expected = UnsupportedFunctionException.class) // DRILL-3196
+  @Ignore
   public void testMultiplePartitions() throws Exception {
     try {
       final String query = "explain plan for select sum(a2) over(partition by a2), count(*) over(partition by a2,b2,c2) \n" +
@@ -65,6 +67,7 @@ public class TestWindowFunctions extends BaseTestQuery {
   }
 
   @Test(expected = UnsupportedFunctionException.class) // DRILL-3196
+  @Ignore
   public void testSinglePartitionMultipleOrderBy() throws Exception {
     try {
       final String query = "explain plan for select sum(a2) over(partition by a2 order by a2), count(*) over(partition by a2 order by b2) \n" +
@@ -78,6 +81,7 @@ public class TestWindowFunctions extends BaseTestQuery {
   }
 
   @Test(expected = UnsupportedFunctionException.class) // DRILL-3196
+  @Ignore
   public void testMultiplePartitionsDefinedInWindowList() throws Exception {
     try {
       final String query = "explain plan for select sum(a2) over(partition by a2), count(*) over w \n" +

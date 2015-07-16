@@ -143,6 +143,7 @@ public class UnsupportedOperatorsVisitor extends SqlShuttle {
 
           // DRILL-3196
           // Disable multiple partitions in a SELECT-CLAUSE
+          /*
           SqlNode window = ((SqlCall) nodeInSelectList).operand(1);
 
           // Partition window is referenced as a SqlIdentifier,
@@ -169,7 +170,7 @@ public class UnsupportedOperatorsVisitor extends SqlShuttle {
                   "See Apache Drill JIRA: DRILL-3196");
               throw new UnsupportedOperationException();
             }
-          }
+          }*/
         }
       }
     }

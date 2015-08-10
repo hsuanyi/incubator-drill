@@ -450,4 +450,15 @@ public class TestWindowFunctions extends BaseTestQuery {
         .build()
         .run();
   }
+
+  @Test // see DRILL-3574
+  public void testWithAndWithoutPartitions() throws Exception {
+    String root = FileUtils.getResourceAsFile("/store/text/data/t.json").toURI().toString();
+    String query = String.format("select sum(a1) over(partition by b1, c1), sum(a1) over() \n" +
+        "from dfs_test.`%s` \n" +
+        "order by a1", root);
+
+    test("alter session set `planner.slice_target` = 1");
+    test(query);
+  }
 }

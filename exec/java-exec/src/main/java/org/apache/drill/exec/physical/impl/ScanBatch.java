@@ -85,8 +85,12 @@ public class ScanBatch implements CloseableRecordBatch {
   private boolean done = false;
   private SchemaChangeCallBack callBack = new SchemaChangeCallBack();
   private boolean hasReadNonEmptyFile = false;
+  private boolean haveReturnedAnySchema = false;
+
+
   public ScanBatch(PhysicalOperator subScanConfig, FragmentContext context, OperatorContext oContext,
-                   Iterator<RecordReader> readers, List<String[]> partitionColumns, List<Integer> selectedPartitionColumns) throws ExecutionSetupException {
+                   Iterator<RecordReader> readers, List<String[]> partitionColumns,
+                   List<Integer> selectedPartitionColumns) throws ExecutionSetupException {
     this.context = context;
     this.readers = readers;
     if (!readers.hasNext()) {
@@ -119,7 +123,8 @@ public class ScanBatch implements CloseableRecordBatch {
     addPartitionVectors();
   }
 
-  public ScanBatch(PhysicalOperator subScanConfig, FragmentContext context, Iterator<RecordReader> readers) throws ExecutionSetupException {
+  public ScanBatch(PhysicalOperator subScanConfig, FragmentContext context,
+                   Iterator<RecordReader> readers) throws ExecutionSetupException {
     this(subScanConfig, context,
         context.newOperatorContext(subScanConfig, false /* ScanBatch is not subject to fragment memory limit */),
         readers, Collections.<String[]> emptyList(), Collections.<Integer> emptyList());
@@ -177,12 +182,51 @@ public class ScanBatch implements CloseableRecordBatch {
       while ((recordCount = currentReader.next()) == 0) {
         try {
           if (!readers.hasNext()) {
+            // we're on last reader
             currentReader.cleanup();
             releaseAssets();
-            done = true;
+            done = true;  // so any future call to next() will return NONE
             if (mutator.isNewSchema()) {
               container.buildSchema(SelectionVectorMode.NONE);
               schema = container.getSchema();
+              /* Here we have a new schema, though with zero data rows following
+               * that schema.
+               *
+               * Previously, we just returned IterOutcome.NONE in this case of
+               * a new schema with zero rows.
+               *
+               * However, at least when next() hasn't returned OK_NEW_SCHEMA
+               * yet, returning NONE violated the next()/IterOutcome sequence
+               * protocol (which requires at least one OK_NEW_SCHEMA before
+               * NONE), so clearly returning NONE thenb was wrong.
+               *
+               * Therefore, at least when next() hasn't returned OK_NEW_SCHEMA
+               * yet, we return OK_NEW_SCHEMA here.   That solves the underlying
+               * problem from DRILL-2288 (that some empty scan results caused
+               * downstream batches to not populate there schemas because they
+               * never received OK_NEW_SCHEMA).
+               *
+               * ??? ADDRESS OTHER CASE; CHECK FOR ADDITIONAL FAILURES
+               */
+              if (! haveReturnedAnySchema) {
+                // We haven't returned OK_NEW_SCHEMA yet, so we must do that now
+                // before returning NONE (per the IterOutcome/next() protocol).
+                haveReturnedAnySchema = true;
+                return IterOutcome.OK_NEW_SCHEMA;
+              } else {
+                // TODO(DRILL-xxxx):  Determine what this case should return.
+                // Even though there are no rows of data, we do have a new
+                // schema, but returning OK_NEW_SCHEMA has caused some callers
+                // to fail.
+                // ???? RECHECK:  Is that true?  I don't see it now.
+                //
+                // (Are they buggy with respect to the IterOutcome protocol?
+                // Some UNION code seems to wrongly use OK_NEW_SCHEMA as an
+                // indication that there are not zero rows in a batch/source.)
+
+                ///???return IterOutcome.NONE; ??? checking current symptoms
+                return IterOutcome.OK_NEW_SCHEMA;
+              }
             }
             return IterOutcome.NONE;
           }
@@ -233,6 +277,7 @@ public class ScanBatch implements CloseableRecordBatch {
       if (isNewSchema) {
         container.buildSchema(SelectionVectorMode.NONE);
         schema = container.getSchema();
+        haveReturnedAnySchema = true;
         return IterOutcome.OK_NEW_SCHEMA;
       } else {
         return IterOutcome.OK;

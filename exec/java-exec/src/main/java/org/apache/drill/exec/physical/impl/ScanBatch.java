@@ -357,7 +357,7 @@ public class ScanBatch implements CloseableRecordBatch {
 
     /** Whether schema has changed since last inquiry (via #isNewSchema}).  Is
      * is true before first inquiry. */
-    boolean schemaChange = true;
+    boolean schemaChanged = true;
 
     @SuppressWarnings("unchecked")
     @Override
@@ -380,7 +380,7 @@ public class ScanBatch implements CloseableRecordBatch {
 
         container.add(v);
         // Added new vectors to the container--mark that the schema has changed.
-        schemaChange = true;
+        schemaChanged = true;
       }
 
       return (T) v;
@@ -401,8 +401,8 @@ public class ScanBatch implements CloseableRecordBatch {
     public boolean isNewSchema() {
       // Check if top-level schema has changed.  (Second condition checks
       // whether one of the deeper map schemas has changed.)
-      if (schemaChange || callBack.getSchemaChange()) {
-        schemaChange = false;
+      if (schemaChanged || callBack.getSchemaChange()) {
+        schemaChanged = false;
         return true;
       }
       return false;

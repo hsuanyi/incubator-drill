@@ -307,6 +307,11 @@ public class UnionAllRecordBatch extends AbstractRecordBatch<UnionAll> {
             return iterLeft;
 
           case NONE:
+            // ??? BUG?  Empty data source doesn't return NONE first.  (See
+            // IterOutcome doc. (after DRILL-3461).)  Doesn't the OK_NEW_SCHEMA
+            // case need to check the number of records too?  Also, should
+            // this if and switch be detecing zero-row data sources or
+            // no-schema data sources?
             throw new SchemaChangeException("The left input of Union-All should not come from an empty data source");
 
           default:
@@ -318,6 +323,8 @@ public class UnionAllRecordBatch extends AbstractRecordBatch<UnionAll> {
           case OK_NEW_SCHEMA:
             // Unless there is no record batch on the left side of the inputs,
             // always start processing from the left side
+            // ??? BUG?:  That comment says "record batch on ... left" but
+            // the switch is on iterRight.  Are they correct?
             unionAllRecordBatch.setCurrentRecordBatch(leftSide.getRecordBatch());
             inferOutputFields();
             break;
@@ -325,6 +332,11 @@ public class UnionAllRecordBatch extends AbstractRecordBatch<UnionAll> {
           case NONE:
             // If the right input side comes from an empty data source,
             // use the left input side's schema directly
+            // ??? BUG?  Empty data source doesn't return NONE first.  (See
+            // IterOutcome doc. (after DRILL-3461).)  Doesn't the OK_NEW_SCHEMA
+            // case need to check the number of records too?  Also, should
+            // this if and switch be detecing zero-row data sources or
+            // no-schema data sources?
             unionAllRecordBatch.setCurrentRecordBatch(leftSide.getRecordBatch());
             inferOutputFieldsFromLeftSide();
             rightIsFinish = true;
@@ -387,7 +399,11 @@ public class UnionAllRecordBatch extends AbstractRecordBatch<UnionAll> {
               return upstream;
 
             default:
+              // ???? BUG?:  But NOT_NET wouldn't be a schema change, right?
+	      // (IterOutcome doc. (after DRILL-3461))
               throw new SchemaChangeException("Schema change detected in the left input of Union-All. This is not currently supported");
+              // ??? BUG?  What if it's a schema change but there are zero rows
+	      // in the new schema?
           }
         } else {
           IterOutcome iterOutcome = leftSide.nextBatch();
@@ -529,7 +545,7 @@ public class UnionAllRecordBatch extends AbstractRecordBatch<UnionAll> {
           do {
             upstream = unionAllRecordBatch.next(recordBatch);
           } while (upstream == IterOutcome.OK && recordBatch.getRecordCount() == 0);
-
+          // ??? BUG?  What about if OK_NEW_SCHEMA with zero records?
           return upstream;
         }
       }

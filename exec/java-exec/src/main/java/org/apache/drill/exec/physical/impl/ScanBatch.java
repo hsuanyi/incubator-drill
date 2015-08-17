@@ -206,26 +206,32 @@ public class ScanBatch implements CloseableRecordBatch {
                * downstream batches to not populate there schemas because they
                * never received OK_NEW_SCHEMA).
                *
+               * Note that this currently (before 2288 resolution and merging)
+               * causes some UNION test operations to fail, because the union
+               * code seems to wrongly use OK_NEW_SCHEMA as an indication that
+               * there are not zero rows in a batch/source.
+               *
                * ??? ADDRESS OTHER CASE; CHECK FOR ADDITIONAL FAILURES
                */
               if (! haveReturnedAnySchema) {
                 // We haven't returned OK_NEW_SCHEMA yet, so we must do that now
                 // before returning NONE (per the IterOutcome/next() protocol).
                 haveReturnedAnySchema = true;
-                return IterOutcome.OK_NEW_SCHEMA;
+                //????return IterOutcome.NONE; //??? Pre-2288 value //????
+                return IterOutcome.OK_NEW_SCHEMA;  //??? Post-2288 value //????
               } else {
                 // TODO(DRILL-xxxx):  Determine what this case should return.
                 // Even though there are no rows of data, we do have a new
-                // schema, but returning OK_NEW_SCHEMA has caused some callers
-                // to fail.
+                // schema, but returning OK_NEW_SCHEMA here too caused
+                // an additional test () to fail.
                 // ???? RECHECK:  Is that true?  I don't see it now.
                 //
                 // (Are they buggy with respect to the IterOutcome protocol?
                 // Some UNION code seems to wrongly use OK_NEW_SCHEMA as an
                 // indication that there are not zero rows in a batch/source.)
 
-                ///???return IterOutcome.NONE; ??? checking current symptoms
-                return IterOutcome.OK_NEW_SCHEMA;
+                //????return IterOutcome.NONE; //??? Pre-2288 value, POSSIBLE post-2288 INTERIM value  //????
+                return IterOutcome.OK_NEW_SCHEMA;  //??? POSSIBLE post-2288 value //????
               }
             }
             return IterOutcome.NONE;

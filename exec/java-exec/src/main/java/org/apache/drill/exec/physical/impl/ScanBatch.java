@@ -365,7 +365,7 @@ public class ScanBatch implements CloseableRecordBatch {
     @Override
     public <T extends ValueVector> T addField(MaterializedField field,
                                               Class<T> clazz) throws SchemaChangeException {
-      // Check if the field exists
+      // Check if the field exists.
       ValueVector v = fieldVectorMap.get(field.key());
 
       if (v == null || v.getClass() != clazz) {

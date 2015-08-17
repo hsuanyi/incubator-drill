@@ -355,6 +355,8 @@ public class ScanBatch implements CloseableRecordBatch {
 
   private class Mutator implements OutputMutator {
 
+    /** Whether schema has changed since last inquiry (via #isNewSchema}).  Is
+     * is true before first inquiry. */
     boolean schemaChange = true;
 
     @SuppressWarnings("unchecked")
@@ -364,7 +366,7 @@ public class ScanBatch implements CloseableRecordBatch {
       ValueVector v = fieldVectorMap.get(field.key());
 
       if (v == null || v.getClass() != clazz) {
-        // Field does not exist add it to the map and the output container
+        // Field does not exist--add it to the map and the output container.
         v = TypeHelper.getNewVector(field, oContext.getAllocator(), callBack);
         if (!clazz.isAssignableFrom(v.getClass())) {
           throw new SchemaChangeException(String.format("The class that was provided %s does not correspond to the expected vector type of %s.", clazz.getSimpleName(), v.getClass().getSimpleName()));
@@ -377,7 +379,7 @@ public class ScanBatch implements CloseableRecordBatch {
         }
 
         container.add(v);
-        // Adding new vectors to the container mark that the schema has changed
+        // Added new vectors to the container--mark that the schema has changed.
         schemaChange = true;
       }
 
@@ -391,9 +393,14 @@ public class ScanBatch implements CloseableRecordBatch {
       }
     }
 
+    /**
+     * Reports whether schema has changed (field was added or re-added) since
+     * last call to {@link #isNewSchema}.  returns true at first call.
+     */
     @Override
     public boolean isNewSchema() {
-      // Check if top level schema has changed, second condition checks if one of the deeper map schema has changed
+      // Check if top-level schema has changed.  (Second condition checks
+      // whether one of the deeper map schemas has changed.)
       if (schemaChange || callBack.getSchemaChange()) {
         schemaChange = false;
         return true;

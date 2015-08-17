@@ -232,7 +232,7 @@ public class ScanBatch implements CloseableRecordBatch {
           }
 
           // If all the files we have read so far are just empty, the schema is not useful
-          if(!hasReadNonEmptyFile) {
+          if (!hasReadNonEmptyFile) {
             container.clear();
             for (ValueVector v : fieldVectorMap.values()) {
               v.clear();
@@ -303,7 +303,9 @@ public class ScanBatch implements CloseableRecordBatch {
       }
       partitionVectors = Lists.newArrayList();
       for (int i : selectedPartitionColumns) {
-        MaterializedField field = MaterializedField.create(SchemaPath.getSimplePath(partitionColumnDesignator + i), Types.optional(MinorType.VARCHAR));
+        MaterializedField field =
+            MaterializedField.create(SchemaPath.getSimplePath(partitionColumnDesignator + i),
+                                     Types.optional(MinorType.VARCHAR));
         ValueVector v = mutator.addField(field, NullableVarCharVector.class);
         partitionVectors.add(v);
       }
@@ -361,7 +363,8 @@ public class ScanBatch implements CloseableRecordBatch {
 
     @SuppressWarnings("unchecked")
     @Override
-    public <T extends ValueVector> T addField(MaterializedField field, Class<T> clazz) throws SchemaChangeException {
+    public <T extends ValueVector> T addField(MaterializedField field,
+                                              Class<T> clazz) throws SchemaChangeException {
       // Check if the field exists
       ValueVector v = fieldVectorMap.get(field.key());
 
@@ -373,7 +376,7 @@ public class ScanBatch implements CloseableRecordBatch {
         }
 
         ValueVector old = fieldVectorMap.put(field.key(), v);
-        if(old != null){
+        if (old != null) {
           old.clear();
           container.remove(old);
         }
@@ -441,7 +444,9 @@ public class ScanBatch implements CloseableRecordBatch {
 
   @Override
   public VectorContainer getOutgoingContainer() {
-    throw new UnsupportedOperationException(String.format(" You should not call getOutgoingContainer() for class %s", this.getClass().getCanonicalName()));
+    throw new UnsupportedOperationException(
+        String.format("You should not call getOutgoingContainer() for class %s",
+                      this.getClass().getCanonicalName()));
   }
 
 }

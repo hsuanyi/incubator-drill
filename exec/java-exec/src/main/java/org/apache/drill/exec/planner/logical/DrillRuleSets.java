@@ -129,6 +129,7 @@ public class DrillRuleSets {
       DrillPushProjectPastJoinRule.INSTANCE,
       DrillPushProjIntoScan.INSTANCE,
       DrillProjectSetOpTransposeRule.INSTANCE,
+      DrillPushProjectPastWindowRule.INSTANCE,
 
       /*
        Convert from Calcite Logical to Drill Logical Rules.

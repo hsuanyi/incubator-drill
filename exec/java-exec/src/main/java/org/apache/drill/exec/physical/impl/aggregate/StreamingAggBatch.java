@@ -50,6 +50,7 @@ import org.apache.drill.exec.record.TypedFieldId;
 import org.apache.drill.exec.record.VectorWrapper;
 import org.apache.drill.exec.record.selection.SelectionVector2;
 import org.apache.drill.exec.record.selection.SelectionVector4;
+import org.apache.drill.exec.util.Utilities;
 import org.apache.drill.exec.vector.AllocationHelper;
 import org.apache.drill.exec.vector.FixedWidthVector;
 import org.apache.drill.exec.vector.ValueVector;
@@ -65,6 +66,7 @@ public class StreamingAggBatch extends AbstractRecordBatch<StreamingAggregate> {
   private boolean done = false;
   private boolean first = true;
   private int recordCount = 0;
+  private boolean ssss = false;
 
   /*
    * DRILL-2277, DRILL-2411: For straight aggregates without a group by clause we need to perform special handling when
@@ -122,7 +124,7 @@ public class StreamingAggBatch extends AbstractRecordBatch<StreamingAggregate> {
   public IterOutcome innerNext() {
 
     // if a special batch has been sent, we have no data in the incoming so exit early
-    if (specialBatchSent) {
+    if (specialBatchSent || ssss) {
       return IterOutcome.NONE;
     }
 
@@ -133,7 +135,18 @@ public class StreamingAggBatch extends AbstractRecordBatch<StreamingAggregate> {
         first = false;
         outcome = IterOutcome.OK_NEW_SCHEMA;
       } else {
-        outcome = next(incoming);
+        do {
+          outcome = next(incoming);
+        } while(outcome == IterOutcome.OK_NEW_SCHEMA
+            && incoming.getRecordCount() == 0 && Utilities.isDumpSchema(incoming.getSchema()));
+
+        switch (outcome) {
+          case NONE:
+            ssss = true;
+            return IterOutcome.OK_NEW_SCHEMA;
+          case OK:
+            outcome = IterOutcome.OK_NEW_SCHEMA;
+        }
       }
       logger.debug("Next outcome of {}", outcome);
       switch (outcome) {
@@ -161,6 +174,10 @@ public class StreamingAggBatch extends AbstractRecordBatch<StreamingAggregate> {
       default:
         throw new IllegalStateException(String.format("unknown outcome %s", outcome));
       }
+    }
+
+    if(ssss) {
+      return IterOutcome.OK_NEW_SCHEMA;
     }
 
     AggOutcome out = aggregator.doWork();

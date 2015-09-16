@@ -17,11 +17,14 @@
  */
 package org.apache.drill.exec.util;
 
+import org.apache.drill.common.types.TypeProtos;
 import org.apache.drill.exec.expr.fn.impl.DateUtility;
 import org.apache.drill.exec.ops.FragmentContext;
 import org.apache.drill.exec.proto.BitControl.QueryContextInformation;
 import org.apache.drill.exec.proto.ExecProtos;
 import org.apache.drill.exec.proto.helper.QueryIdHelper;
+import org.apache.drill.exec.record.BatchSchema;
+import org.apache.drill.exec.record.MaterializedField;
 
 public class Utilities {
   public static String getFileNameForQueryFragment(FragmentContext context, String location, String tag) {
@@ -56,5 +59,21 @@ public class Utilities {
         .setQueryStartTime(queryStartTime)
         .setTimeZone(timeZone)
         .build();
+  }
+
+  /**
+   * Check if the given schema is produced from an empty file
+   *
+   * @param batchSchema the given schema
+   * @return
+   */
+  public static boolean isDumpSchema(BatchSchema batchSchema) {
+    for(MaterializedField field : batchSchema) {
+      if(field.getType().getMinorType() != TypeProtos.MinorType.INT || field.getType().getMode() != TypeProtos.DataMode.OPTIONAL) {
+        return true;
+      }
+    }
+
+    return true;
   }
 }

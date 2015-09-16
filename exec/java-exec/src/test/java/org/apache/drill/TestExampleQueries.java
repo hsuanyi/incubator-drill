@@ -1191,4 +1191,12 @@ public class TestExampleQueries extends BaseTestQuery {
         .build()
         .run();
   }
+
+  @Test // DRILL-2190
+  public void testCountEmptyFile() throws Exception {
+    String root = FileUtils.getResourceAsFile("/store/text/directoryWithEmpyCSV/empty.csv").toURI().toString();
+    String query = String.format("select count(*) as col from dfs_test.`%s`", root);
+
+    test(query);
+  }
 }

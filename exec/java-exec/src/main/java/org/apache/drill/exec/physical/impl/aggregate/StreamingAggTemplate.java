@@ -24,6 +24,7 @@ import org.apache.drill.exec.ops.FragmentContext;
 import org.apache.drill.exec.record.RecordBatch;
 import org.apache.drill.exec.record.RecordBatch.IterOutcome;
 import org.apache.drill.exec.record.VectorWrapper;
+import org.apache.drill.exec.util.Utilities;
 
 public abstract class StreamingAggTemplate implements StreamingAggregator {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(StreamingAggregator.class);
@@ -169,7 +170,12 @@ public abstract class StreamingAggTemplate implements StreamingAggregator {
         try {
           while (true) {
 
-            IterOutcome out = outgoing.next(0, incoming);
+            IterOutcome out;
+            do {
+              out = outgoing.next(0, incoming);
+            } while(outcome == IterOutcome.OK_NEW_SCHEMA
+                && incoming.getRecordCount() == 0 && Utilities.isDumpSchema(incoming.getSchema()));
+
             if (EXTRA_DEBUG) {
               logger.debug("Received IterOutcome of {}", out);
             }

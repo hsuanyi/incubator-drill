@@ -85,6 +85,8 @@ public class ScanBatch implements CloseableRecordBatch {
   private boolean done = false;
   private SchemaChangeCallBack callBack = new SchemaChangeCallBack();
   private boolean hasReadNonEmptyFile = false;
+  private boolean haveReturnedAnySchema = false;
+
   public ScanBatch(PhysicalOperator subScanConfig, FragmentContext context, OperatorContext oContext,
                    Iterator<RecordReader> readers, List<String[]> partitionColumns, List<Integer> selectedPartitionColumns) throws ExecutionSetupException {
     this.context = context;
@@ -190,6 +192,13 @@ public class ScanBatch implements CloseableRecordBatch {
               container.buildSchema(SelectionVectorMode.NONE);
               schema = container.getSchema();
             }
+
+            if (!haveReturnedAnySchema) {
+              // We haven't returned OK_NEW_SCHEMA yet, so we must do that now
+              // before returning NONE (per the IterOutcome/next() protocol).
+              haveReturnedAnySchema = true;
+              return IterOutcome.OK_NEW_SCHEMA;
+            }
             return IterOutcome.NONE;
           }
 
@@ -237,6 +246,7 @@ public class ScanBatch implements CloseableRecordBatch {
       if (isNewSchema) {
         container.buildSchema(SelectionVectorMode.NONE);
         schema = container.getSchema();
+        haveReturnedAnySchema = true;
         return IterOutcome.OK_NEW_SCHEMA;
       } else {
         return IterOutcome.OK;

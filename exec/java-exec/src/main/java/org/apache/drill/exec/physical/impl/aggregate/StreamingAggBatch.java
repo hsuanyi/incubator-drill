@@ -139,14 +139,6 @@ public class StreamingAggBatch extends AbstractRecordBatch<StreamingAggregate> {
           outcome = next(incoming);
         } while(outcome == IterOutcome.OK_NEW_SCHEMA
             && incoming.getRecordCount() == 0 && Utilities.isDumpSchema(incoming.getSchema()));
-
-        switch (outcome) {
-          case NONE:
-            ssss = true;
-            return IterOutcome.OK_NEW_SCHEMA;
-          case OK:
-            outcome = IterOutcome.OK_NEW_SCHEMA;
-        }
       }
       logger.debug("Next outcome of {}", outcome);
       switch (outcome) {

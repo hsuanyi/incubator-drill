@@ -58,9 +58,40 @@ public class TestHBaseQueries extends BaseHBaseTest {
         admin.deleteTable(tableName);
       } catch (Exception e) { } // ignore
     }
-
   }
 
+  @Test
+  public void testLimitZero() throws Exception {
+    HBaseAdmin admin = HBaseTestsSuite.getAdmin();
+    String tableName = "table";
+    HTable table = null;
+
+    try {
+      HTableDescriptor desc = new HTableDescriptor(tableName);
+      desc.addFamily(new HColumnDescriptor("f"));
+      admin.createTable(desc, Arrays.copyOfRange(TestTableGenerator.SPLIT_KEYS, 0, 1));
+
+      table = new HTable(admin.getConfiguration(), tableName);
+      Put p = new Put("b".getBytes());
+      p.add("f".getBytes(), "c".getBytes(), "1".getBytes());
+      table.put(p);
+
+      setColumnWidths(new int[] {8, 15});
+      runHBaseSQLVerifyCount("SELECT * \n"
+          + "FROM hbase.`" + tableName + "` tableName \n"
+          + "limit 0"
+          , 0);
+    } finally {
+      try {
+        if (table != null) {
+          table.close();
+        }
+        admin.disableTable(tableName);
+        admin.deleteTable(tableName);
+      } catch (Exception e) {
+      }
+    }
+  }
 
   @Test
   public void testWithEmptyTable() throws Exception {

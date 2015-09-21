@@ -112,4 +112,14 @@ public class TestNewTextReader extends BaseTestQuery {
         .build()
         .run();
   }
+
+  @Test // DRILL-2190
+  public void testDoubleQuotesAsCharacters() throws Exception {
+    final String root = FileUtils.getResourceAsFile("/store/text/QuoteAsChars.tsv").toURI().toString();
+    final String query = String.format("select columns[0] as col1, columns[1] as col2, \n" +
+        "columns[2] as col3, columns[3] as col4 \n" +
+        "from dfs_test.`%s`", root);
+
+    test(query);
+  }
 }

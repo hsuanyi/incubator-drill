@@ -47,6 +47,7 @@ public class TextParsingSettings {
   private boolean headerExtractionEnabled = false;
   private boolean useRepeatedVarChar = true;
   private int numberOfRecordsToRead = -1;
+  private String extension;
 
   public void set(TextFormatConfig config){
     this.quote = bSafe(config.getQuote(), "quote");
@@ -57,6 +58,11 @@ public class TextParsingSettings {
     this.delimiter = bSafe(config.getFieldDelimiter(), "fieldDelimiter");
     this.comment = bSafe(config.getComment(), "comment");
     this.skipFirstLine = config.isSkipFirstLine();
+    this.extension = config.getExtensions().get(0);
+  }
+
+  public String getExtension() {
+    return extension;
   }
 
   public byte getComment(){

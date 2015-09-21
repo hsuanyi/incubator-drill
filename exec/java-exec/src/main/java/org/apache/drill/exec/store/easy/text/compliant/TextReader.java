@@ -40,6 +40,7 @@ final class TextReader {
   private static final byte NULL_BYTE = (byte) '\0';
 
   private final TextParsingContext context;
+  private final TextType textType;
 
   private final long recordsToRead;
   private final TextParsingSettings settings;
@@ -64,6 +65,7 @@ final class TextReader {
   private final byte quote;
   private final byte quoteEscape;
   private final byte newLine;
+  private final byte escapeChar = '\\';
 
   /**
    * The CsvParser supports all settings provided by {@link CsvParserSettings}, and requires this configuration to be
@@ -92,6 +94,7 @@ final class TextReader {
     this.input = input;
     this.output = output;
 
+    this.textType = TextType.getType(settings.getExtension());
   }
 
   public TextOutput getOutput(){
@@ -315,15 +318,73 @@ final class TextReader {
     if (ch == delimiter) {
       return output.endEmptyField();
     } else {
-      if (ch == quote) {
-        parseQuotedValue(NULL_BYTE);
-      } else {
-        parseValue();
+      switch(textType) {
+        case TSV:
+            if (ignoreTrailingWhitespace) {
+                while (ch != delimiter && ch != newLine) {
+                    if (ch == escapeChar) {
+                        ch = input.nextChar();
+                        if (ch == 't') {
+                            output.appendIgnoringWhitespace((byte) '\t');
+                        } else if (ch == 'n') {
+                            output.appendIgnoringWhitespace((byte) '\n');
+                        } else if (ch == '\\') {
+                            output.appendIgnoringWhitespace((byte) '\\');
+                        } else if (ch == 'r') {
+                            output.appendIgnoringWhitespace((byte) '\r');
+                        } else {
+                            output.append(escapeChar);
+                            if (ch == newLine || ch == '\t') {
+                                break;
+                            }
+                            output.appendIgnoringWhitespace(ch);
+                        }
+                        ch = input.nextChar();
+                    } else {
+                        output.appendIgnoringWhitespace(ch);
+                        ch = input.nextChar();
+                    }
+                }
+            } else {
+                while (ch != '\t' && ch != newLine) {
+                    if (ch == escapeChar) {
+                        ch = input.nextChar();
+                        if (ch == 't') {
+                            output.append((byte) '\t');
+                        } else if (ch == 'n') {
+                            output.append((byte) '\n');
+                        } else if (ch == '\\') {
+                            output.append((byte) '\\');
+                        } else if (ch == 'r') {
+                            output.append((byte) '\r');
+                        } else {
+                            output.append(escapeChar);
+                            if (ch == newLine || ch == '\t') {
+                                break;
+                            }
+                            output.append(ch);
+                        }
+                        ch = input.nextChar();
+                    } else {
+                        output.append(ch);
+                        ch = input.nextChar();
+                    }
+                }
+            }
+          break;
+        case CSV:
+            if (ch == quote) {
+                parseQuotedValue(NULL_BYTE);
+            } else {
+                parseValue();
+            }
+          break;
+        default:
+          throw new IllegalStateException();
       }
 
       return output.endField();
     }
-
   }
 
   /**
@@ -497,4 +558,16 @@ final class TextReader {
     input.close();
   }
 
+  private enum TextType {
+    TSV, CSV;
+
+    public static TextType getType(String extension) {
+      switch (extension.toUpperCase()) {
+        case "TSV":
+          return TextType.TSV;
+        default:
+          return TextType.CSV;
+      }
+    }
+  }
 }

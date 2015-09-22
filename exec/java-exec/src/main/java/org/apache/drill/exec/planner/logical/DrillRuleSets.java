@@ -127,6 +127,11 @@ public class DrillRuleSets {
       DrillReduceAggregatesRule.INSTANCE,
 
       /*
+       Limit push-down rules
+       */
+      DrillLimitZeroPushDownRule.INSTANCE,
+
+      /*
        Projection push-down related rules
        */
       DrillPushProjectPastFilterRule.INSTANCE,

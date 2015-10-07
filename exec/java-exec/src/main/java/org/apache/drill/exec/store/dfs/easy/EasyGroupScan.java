@@ -273,4 +273,9 @@ public class EasyGroupScan extends AbstractFileGroupScan{
     return formatPlugin.supportsPushDown();
   }
 
+  @Override
+  public List<String> getRecordContextInScan() {
+    throw new UnsupportedOperationException(String.format("%s does not implement the record contex",
+        this.getClass().getCanonicalName()));
+  }
 }

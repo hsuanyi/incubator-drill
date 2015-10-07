@@ -24,6 +24,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import com.google.common.collect.Maps;
 import org.apache.drill.common.exceptions.DrillRuntimeException;
 import org.apache.drill.common.exceptions.ExecutionSetupException;
 import org.apache.drill.common.expression.SchemaPath;
@@ -108,6 +109,11 @@ public class ParquetRecordReader extends AbstractRecordReader {
   private final FragmentContext fragmentContext;
 
   public ParquetReaderStats parquetReaderStats = new ParquetReaderStats();
+  public static final List<String> RECORD_CONTEXT = Lists.newArrayList();
+  static {
+    RECORD_CONTEXT.add("$FileName");
+    RECORD_CONTEXT.add("$RowGroup");
+  }
 
   public ParquetRecordReader(FragmentContext fragmentContext,
       String path,
@@ -507,5 +513,14 @@ public class ParquetRecordReader extends AbstractRecordReader {
           parquetReaderStats.timePagesDecompressed);
       parquetReaderStats=null;
     }
+  }
+
+  @Override
+  public Map<String, String> getReaderContext() {
+    final Map<String, String> map = Maps.newHashMap();
+    final String homepath = fileSystem.getHomeDirectory().toString();
+    map.put(RECORD_CONTEXT.get(0), homepath + getHadoopPath().toUri().getPath());
+    map.put(RECORD_CONTEXT.get(1), "" + getRowGroupIndex());
+    return map;
   }
 }

@@ -224,4 +224,9 @@ public class MockGroupScanPOP extends AbstractGroupScan {
         + ", readEntries=" + readEntries + "]";
   }
 
+  @Override
+  public List<String> getRecordContextInScan() {
+    throw new UnsupportedOperationException(String.format("%s does not implement the record contex",
+            this.getClass().getCanonicalName()));
+  }
 }

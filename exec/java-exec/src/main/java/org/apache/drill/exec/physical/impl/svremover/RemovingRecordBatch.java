@@ -34,7 +34,6 @@ import org.apache.drill.exec.record.TransferPair;
 import org.apache.drill.exec.record.VectorContainer;
 import org.apache.drill.exec.record.VectorWrapper;
 import org.apache.drill.exec.record.WritableBatch;
-import org.apache.drill.exec.util.CallBack;
 import org.apache.drill.exec.vector.CopyUtil;
 import org.apache.drill.exec.vector.SchemaChangeCallBack;
 import org.apache.drill.exec.vector.ValueVector;
@@ -42,7 +41,7 @@ import org.apache.drill.exec.vector.ValueVector;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 
-public class RemovingRecordBatch extends AbstractSingleRecordBatch<SelectionVectorRemover>{
+public class RemovingRecordBatch extends AbstractSingleRecordBatch<SelectionVectorRemover> {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(RemovingRecordBatch.class);
 
   private Copier copier;
@@ -265,7 +264,4 @@ public class RemovingRecordBatch extends AbstractSingleRecordBatch<SelectionVect
   public WritableBatch getWritableBatch() {
     return WritableBatch.get(this);
   }
-
-
-
 }

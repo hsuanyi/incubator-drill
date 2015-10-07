@@ -17,12 +17,15 @@
  */
 package org.apache.drill.exec.physical.impl.project;
 
+import java.io.IOException;
 import java.util.List;
 
 import javax.inject.Named;
 
+import org.apache.drill.exec.exception.OutOfMemoryException;
 import org.apache.drill.exec.exception.SchemaChangeException;
 import org.apache.drill.exec.ops.FragmentContext;
+import org.apache.drill.exec.physical.SkipRecordLoggingJSON;
 import org.apache.drill.exec.record.BatchSchema.SelectionVectorMode;
 import org.apache.drill.exec.record.RecordBatch;
 import org.apache.drill.exec.record.TransferPair;
@@ -39,38 +42,64 @@ public abstract class ProjectorTemplate implements Projector {
   private SelectionVector4 vector4;
   private SelectionVectorMode svMode;
 
+  private SelectionVector2 vector2Out;
+
   public ProjectorTemplate() throws SchemaChangeException {
   }
 
   @Override
-  public final int projectRecords(int startIndex, final int recordCount, int firstOutputIndex) {
+  public final int[] projectRecords(int startIndex, final int recordCount, int firstOutputIndex, boolean skipRecord) {
     switch (svMode) {
     case FOUR_BYTE:
       throw new UnsupportedOperationException();
 
-    case TWO_BYTE:
+    case TWO_BYTE: {
       final int count = recordCount;
-      for (int i = 0; i < count; i++, firstOutputIndex++) {
-        doEval(vector2.getIndex(i), firstOutputIndex);
+      int svIndex = 0;
+      for (int i = 0; i < count; ++i, ++firstOutputIndex) {
+        if(skipRecord) {
+          if(doEvalSkip(i, vector2.getIndex(i), firstOutputIndex, svIndex)) {
+            ++svIndex;
+          }
+        } else {
+          doEval(vector2.getIndex(i), firstOutputIndex);
+        }
       }
-      return recordCount;
+      if(skipRecord) {
+        vector2Out.setRecordCount(svIndex);
+      }
 
-    case NONE:
+      return new int[] {recordCount, svIndex};
+    }
+
+    case NONE: {
       final int countN = recordCount;
       int i;
+      int svIndex = 0;
       for (i = startIndex; i < startIndex + countN; i++, firstOutputIndex++) {
-        doEval(i, firstOutputIndex);
+        if(skipRecord) {
+          if(doEvalSkip(i, i, firstOutputIndex, svIndex)) {
+            ++svIndex;
+          }
+        } else {
+          doEval(i, firstOutputIndex);
+        }
       }
+      if(skipRecord) {
+        vector2Out.setRecordCount(svIndex);
+      }
+
       if (i < startIndex + recordCount || startIndex > 0) {
         for (TransferPair t : transfers) {
           t.splitAndTransfer(startIndex, i - startIndex);
         }
-        return i - startIndex;
+        return new int[]{i - startIndex, svIndex};
       }
       for (TransferPair t : transfers) {
           t.transfer();
       }
-      return recordCount;
+      return new int[]{recordCount, recordCount - svIndex};
+    }
 
     default:
       throw new UnsupportedOperationException();
@@ -79,7 +108,6 @@ public abstract class ProjectorTemplate implements Projector {
 
   @Override
   public final void setup(FragmentContext context, RecordBatch incoming, RecordBatch outgoing, List<TransferPair> transfers)  throws SchemaChangeException{
-
     this.svMode = incoming.getSchema().getSelectionVectorMode();
     switch (svMode) {
     case FOUR_BYTE:
@@ -91,9 +119,26 @@ public abstract class ProjectorTemplate implements Projector {
     }
     this.transfers = ImmutableList.copyOf(transfers);
     doSetup(context, incoming, outgoing);
+
+    vector2Out = outgoing.getSelectionVector2();
+    if(!vector2Out.allocateNewSafe(incoming.getRecordCount())) {
+      throw new OutOfMemoryException("Unable to allocate project batch");
+    }
+  }
+
+  private boolean doEvalSkip(int inputline, int inIndex, int outIndex, int svIndex) {
+    try {
+      doEval(inIndex, outIndex);
+      vector2Out.setIndex(svIndex, (char) outIndex);
+      return true;
+    } catch (Exception e) {
+     // skipRecordLogging.write(e.toString());
+      return false;
+    } finally {
+     // skipRecordLogging.incrementOffset();
+    }
   }
 
   public abstract void doSetup(@Named("context") FragmentContext context, @Named("incoming") RecordBatch incoming, @Named("outgoing") RecordBatch outgoing);
   public abstract void doEval(@Named("inIndex") int inIndex, @Named("outIndex") int outIndex);
-
 }

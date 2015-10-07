@@ -22,7 +22,6 @@ import java.util.List;
 
 import org.apache.drill.common.expression.ErrorCollector;
 import org.apache.drill.common.expression.ErrorCollectorImpl;
-import org.apache.drill.common.expression.ExpressionStringBuilder;
 import org.apache.drill.common.expression.LogicalExpression;
 import org.apache.drill.exec.ExecConstants;
 import org.apache.drill.exec.exception.ClassTransformationException;
@@ -32,6 +31,7 @@ import org.apache.drill.exec.expr.ClassGenerator;
 import org.apache.drill.exec.expr.CodeGenerator;
 import org.apache.drill.exec.expr.ExpressionTreeMaterializer;
 import org.apache.drill.exec.ops.FragmentContext;
+import org.apache.drill.exec.physical.SkipRecordLoggingJSON;
 import org.apache.drill.exec.physical.config.Filter;
 import org.apache.drill.exec.record.AbstractSingleRecordBatch;
 import org.apache.drill.exec.record.BatchSchema.SelectionVectorMode;
@@ -44,7 +44,7 @@ import org.apache.drill.exec.vector.ValueVector;
 
 import com.google.common.collect.Lists;
 
-public class FilterRecordBatch extends AbstractSingleRecordBatch<Filter>{
+public class FilterRecordBatch extends AbstractSingleRecordBatch<Filter> {
   //private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(FilterRecordBatch.class);
 
   private SelectionVector2 sv2;
@@ -79,8 +79,8 @@ public class FilterRecordBatch extends AbstractSingleRecordBatch<Filter>{
   protected IterOutcome doWork() {
     container.zeroVectors();
     int recordCount = incoming.getRecordCount();
-    filter.filterBatch(recordCount);
 
+    filter.filterBatch(recordCount, null);
     return IterOutcome.OK;
   }
 

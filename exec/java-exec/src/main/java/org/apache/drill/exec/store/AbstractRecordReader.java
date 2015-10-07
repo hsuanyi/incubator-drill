@@ -20,6 +20,7 @@ package org.apache.drill.exec.store;
 import java.util.Collection;
 import java.util.Map;
 
+import com.google.common.collect.Maps;
 import org.apache.drill.common.expression.SchemaPath;
 import org.apache.drill.exec.exception.OutOfMemoryException;
 import org.apache.drill.exec.planner.logical.ColumnList;
@@ -91,5 +92,10 @@ public abstract class AbstractRecordReader implements RecordReader {
     for (final ValueVector v : vectorMap.values()) {
       v.allocateNew();
     }
+  }
+
+  @Override
+  public Map<String, String> getReaderContext() {
+    return Maps.newHashMap();
   }
 }

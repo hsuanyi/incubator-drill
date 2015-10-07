@@ -28,6 +28,7 @@ import org.apache.drill.exec.exception.SchemaChangeException;
 import org.apache.drill.exec.ops.FragmentContext;
 import org.apache.drill.exec.ops.OperatorContext;
 import org.apache.drill.exec.ops.OperatorStats;
+import org.apache.drill.exec.physical.SkipRecordLoggingJSON;
 import org.apache.drill.exec.physical.base.PhysicalOperator;
 import org.apache.drill.exec.record.selection.SelectionVector2;
 import org.apache.drill.exec.record.selection.SelectionVector4;
@@ -44,6 +45,7 @@ public abstract class AbstractRecordBatch<T extends PhysicalOperator> implements
   protected final boolean unionTypeEnabled;
 
   protected BatchState state;
+  protected final boolean isSkipRecord;
 
   protected AbstractRecordBatch(final T popConfig, final FragmentContext context) throws OutOfMemoryException {
     this(popConfig, context, true, context.newOperatorContext(popConfig));
@@ -71,6 +73,8 @@ public abstract class AbstractRecordBatch<T extends PhysicalOperator> implements
     } else {
       unionTypeEnabled = false;
     }
+
+    isSkipRecord = option != null && context.getOptions().getOption(ExecConstants.ENABLE_SKIP_INVALID_RECORD);
   }
 
   protected static enum BatchState {
@@ -106,7 +110,9 @@ public abstract class AbstractRecordBatch<T extends PhysicalOperator> implements
     if(!context.shouldContinue()) {
       return IterOutcome.STOP;
     }
-    return next(0, b);
+
+    final IterOutcome iterOutcome = next(0, b);
+    return iterOutcome;
   }
 
   public final IterOutcome next(final int inputIndex, final RecordBatch b){

@@ -29,21 +29,35 @@ import org.apache.drill.exec.record.BatchSchema.SelectionVectorMode;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
+import org.apache.drill.exec.store.TextRecordLocator;
 
 @JsonTypeName("project")
 public class Project extends AbstractSingle{
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(Project.class);
 
   private final List<NamedExpression> exprs;
+  private final RecordLocator recordLocator;
 
   @JsonCreator
   public Project(@JsonProperty("exprs") List<NamedExpression> exprs, @JsonProperty("child") PhysicalOperator child) {
     super(child);
     this.exprs = exprs;
+    recordLocator = new TextRecordLocator();
+  }
+
+  @JsonCreator
+  public Project(@JsonProperty("exprs") List<NamedExpression> exprs, @JsonProperty("child") PhysicalOperator child, @JsonProperty("recordLocator") RecordLocator recordLocator) {
+    super(child);
+    this.exprs = exprs;
+    this.recordLocator = recordLocator;
   }
 
   public List<NamedExpression> getExprs() {
     return exprs;
+  }
+
+  public RecordLocator getRecordLocator() {
+    return recordLocator;
   }
 
   @Override

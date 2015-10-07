@@ -18,6 +18,7 @@
 package org.apache.drill.exec.physical.base;
 
 import java.io.IOException;
+import java.util.List;
 
 import org.apache.drill.exec.store.dfs.FileSelection;
 
@@ -46,5 +47,4 @@ public abstract class AbstractFileGroupScan extends AbstractGroupScan implements
   public boolean supportsPartitionFilterPushdown() {
     return true;
   }
-
 }

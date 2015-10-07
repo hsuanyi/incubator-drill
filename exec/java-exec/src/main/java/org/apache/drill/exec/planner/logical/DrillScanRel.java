@@ -203,5 +203,4 @@ public class DrillScanRel extends DrillScanRelBase implements DrillRel {
   public boolean partitionFilterPushdown() {
     return this.partitionFilterPushdown;
   }
-
 }

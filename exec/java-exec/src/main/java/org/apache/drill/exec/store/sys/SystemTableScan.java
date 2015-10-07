@@ -159,4 +159,9 @@ public class SystemTableScan extends AbstractGroupScan implements SubScan {
     return plugin;
   }
 
+  @Override
+  public List<String> getRecordContextInScan() {
+    throw new UnsupportedOperationException(String.format("%s does not implement the record contex",
+        this.getClass().getCanonicalName()));
+  }
 }

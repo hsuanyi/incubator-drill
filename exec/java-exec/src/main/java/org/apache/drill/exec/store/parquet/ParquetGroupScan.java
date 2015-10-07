@@ -60,6 +60,7 @@ import org.apache.drill.exec.store.parquet.Metadata.ColumnMetadata;
 import org.apache.drill.exec.store.parquet.Metadata.ParquetFileMetadata;
 import org.apache.drill.exec.store.parquet.Metadata.ParquetTableMetadataBase;
 import org.apache.drill.exec.store.parquet.Metadata.RowGroupMetadata;
+import org.apache.drill.exec.store.parquet.columnreaders.ParquetRecordReader;
 import org.apache.drill.exec.store.schedule.AffinityCreator;
 import org.apache.drill.exec.store.schedule.AssignmentCreator;
 import org.apache.drill.exec.store.schedule.BlockMapBuilder;
@@ -746,6 +747,11 @@ public class ParquetGroupScan extends AbstractFileGroupScan {
 
   public List<SchemaPath> getColumns() {
     return columns;
+  }
+
+  @Override
+  public List<String> getRecordContextInScan() {
+    return ParquetRecordReader.RECORD_CONTEXT;
   }
 
   @Override

@@ -28,7 +28,6 @@ import java.util.Map;
 
 import javax.annotation.Nullable;
 
-import org.apache.drill.common.exceptions.DrillRuntimeException;
 import org.apache.drill.common.exceptions.ExecutionSetupException;
 import org.apache.drill.common.exceptions.UserException;
 import org.apache.drill.common.expression.SchemaPath;
@@ -272,7 +271,13 @@ public class CompliantTextRecordReader extends AbstractRecordReader {
       }
       fieldVectorMap.clear();
     }
-
   }
 
+  @Override
+  public Map<String, String> getReaderContext() {
+    final Map<String, String> map = Maps.newHashMap();
+    map.put("File_Name", split.getPath().toUri().getPath());
+    map.put("Off_set", "" + split.getStart());
+    return map;
+  }
 }

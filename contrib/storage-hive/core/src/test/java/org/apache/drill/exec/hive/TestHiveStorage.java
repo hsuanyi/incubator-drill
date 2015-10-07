@@ -379,7 +379,7 @@ public class TestHiveStorage extends HiveTestBase {
   @Test // DRILL-3739
   public void readingFromStorageHandleBasedTable() throws Exception {
     testBuilder()
-        .sqlQuery("SELECT * FROM hive.kv_sh ORDER BY key LIMIT 2")
+        .sqlQuery("SELECT * FROM hive.kv_sh")
         .ordered()
         .baselineColumns("key", "value")
         .expectsEmptyResultSet()

@@ -24,6 +24,7 @@ import java.util.Properties;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 
+import com.google.common.collect.Maps;
 import com.google.common.util.concurrent.ListenableFuture;
 import io.netty.buffer.DrillBuf;
 import org.apache.drill.common.exceptions.DrillRuntimeException;
@@ -40,6 +41,7 @@ import org.apache.drill.exec.server.options.OptionManager;
 import org.apache.drill.exec.store.AbstractRecordReader;
 import org.apache.drill.exec.vector.AllocationHelper;
 import org.apache.drill.exec.vector.ValueVector;
+import org.apache.drill.exec.vector.VarBinaryVector;
 import org.apache.hadoop.hive.metastore.MetaStoreUtils;
 import org.apache.hadoop.hive.metastore.api.FieldSchema;
 import org.apache.hadoop.hive.metastore.api.Partition;
@@ -55,6 +57,7 @@ import org.apache.hadoop.hive.serde2.typeinfo.StructTypeInfo;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfo;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfoUtils;
 import org.apache.hadoop.io.Writable;
+import org.apache.hadoop.mapred.FileSplit;
 import org.apache.hadoop.mapred.InputFormat;
 import org.apache.hadoop.mapred.InputSplit;
 import org.apache.hadoop.mapred.JobConf;
@@ -359,5 +362,15 @@ public class HiveRecordReader extends AbstractRecordReader {
 
       vector.getMutator().setValueCount(recordCount);
     }
+  }
+
+  @Override
+  public Map<String, String> getReaderContext() {
+    final Map<String, String> map = Maps.newHashMap();
+    map.put("DB_Name", table.getDbName());
+    map.put("Table_Name", table.getTableName());
+    map.put("File_Name", ((FileSplit) inputSplit).getPath().toString());
+    map.put("Off_set", "" + ((FileSplit) inputSplit).getStart());
+    return map;
   }
 }

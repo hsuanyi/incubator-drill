@@ -20,7 +20,9 @@ package org.apache.drill.exec.store.easy.json;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.List;
+import java.util.Map;
 
+import com.google.common.collect.Maps;
 import org.apache.drill.common.exceptions.ExecutionSetupException;
 import org.apache.drill.common.exceptions.UserException;
 import org.apache.drill.common.expression.SchemaPath;
@@ -30,6 +32,7 @@ import org.apache.drill.exec.ops.FragmentContext;
 import org.apache.drill.exec.ops.OperatorContext;
 import org.apache.drill.exec.physical.impl.OutputMutator;
 import org.apache.drill.exec.store.AbstractRecordReader;
+import org.apache.drill.exec.store.RecordReader;
 import org.apache.drill.exec.store.dfs.DrillFileSystem;
 import org.apache.drill.exec.store.easy.json.JsonProcessor.ReadState;
 import org.apache.drill.exec.store.easy.json.reader.CountingJsonReader;
@@ -225,5 +228,12 @@ public class JSONRecordReader extends AbstractRecordReader {
     if(stream != null) {
       stream.close();
     }
+  }
+
+  @Override
+  public Map<String, String> getReaderContext() {
+    final Map<String, String> map = Maps.newHashMap();
+    map.put("File_Name", hadoopPath.toUri().getPath());
+    return map;
   }
 }

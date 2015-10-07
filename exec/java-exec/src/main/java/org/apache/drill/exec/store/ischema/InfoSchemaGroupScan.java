@@ -126,4 +126,10 @@ public class InfoSchemaGroupScan extends AbstractGroupScan{
   public boolean isFilterPushedDown() {
     return isFilterPushedDown;
   }
+
+  @Override
+  public List<String> getRecordContextInScan() {
+    throw new UnsupportedOperationException(String.format("%s does not implement the record contex",
+            this.getClass().getCanonicalName()));
+  }
 }

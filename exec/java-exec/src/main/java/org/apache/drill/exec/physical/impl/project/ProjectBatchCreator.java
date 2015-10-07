@@ -36,5 +36,4 @@ public class ProjectBatchCreator implements BatchCreator<Project>{
     Preconditions.checkArgument(children.size() == 1);
     return new ProjectRecordBatch(config, children.iterator().next(), context);
   }
-
 }

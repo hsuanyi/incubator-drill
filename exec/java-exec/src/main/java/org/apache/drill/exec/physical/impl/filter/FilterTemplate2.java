@@ -22,12 +22,13 @@ import javax.inject.Named;
 import org.apache.drill.exec.exception.SchemaChangeException;
 import org.apache.drill.exec.exception.OutOfMemoryException;
 import org.apache.drill.exec.ops.FragmentContext;
+import org.apache.drill.exec.physical.SkipRecordLoggingJSON;
 import org.apache.drill.exec.record.BatchSchema.SelectionVectorMode;
 import org.apache.drill.exec.record.RecordBatch;
 import org.apache.drill.exec.record.TransferPair;
 import org.apache.drill.exec.record.selection.SelectionVector2;
 
-public abstract class FilterTemplate2 implements Filterer{
+public abstract class FilterTemplate2 implements Filterer {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(FilterTemplate2.class);
 
   private SelectionVector2 outgoingSelectionVector;
@@ -60,7 +61,7 @@ public abstract class FilterTemplate2 implements Filterer{
     }
   }
 
-  public void filterBatch(int recordCount){
+  public void filterBatch(int recordCount, SkipRecordLoggingJSON skipRecordLogging){
     if (recordCount == 0) {
       return;
     }
@@ -69,10 +70,10 @@ public abstract class FilterTemplate2 implements Filterer{
     }
     switch(svMode){
     case NONE:
-      filterBatchNoSV(recordCount);
+      filterBatchNoSV(recordCount, skipRecordLogging);
       break;
     case TWO_BYTE:
-      filterBatchSV2(recordCount);
+      filterBatchSV2(recordCount, skipRecordLogging);
       break;
     default:
       throw new UnsupportedOperationException();
@@ -80,12 +81,20 @@ public abstract class FilterTemplate2 implements Filterer{
     doTransfers();
   }
 
-  private void filterBatchSV2(int recordCount){
+  private void filterBatchSV2(int recordCount, SkipRecordLoggingJSON skipRecordLogging) {
+    final boolean skipRecord = skipRecordLogging != null;
     int svIndex = 0;
     final int count = recordCount;
     for(int i = 0; i < count; i++){
       char index = incomingSelectionVector.getIndex(i);
-      if(doEval(index, 0)){
+      final boolean keep;
+      if(skipRecord) {
+        keep = doEvalSkip(i, index, 0, skipRecordLogging);
+      } else {
+        keep = doEval(index, 0);
+      }
+
+      if(keep){
         outgoingSelectionVector.setIndex(svIndex, index);
         svIndex++;
       }
@@ -93,10 +102,18 @@ public abstract class FilterTemplate2 implements Filterer{
     outgoingSelectionVector.setRecordCount(svIndex);
   }
 
-  private void filterBatchNoSV(int recordCount){
+  private void filterBatchNoSV(int recordCount, SkipRecordLoggingJSON skipRecordLogging) {
+    final boolean skipRecord = skipRecordLogging != null;
     int svIndex = 0;
     for(int i = 0; i < recordCount; i++){
-      if(doEval(i, 0)){
+      final boolean retain;
+      if(skipRecord) {
+        retain = doEvalSkip(i, i, 0, skipRecordLogging);
+      } else {
+        retain = doEval(i, 0);
+      }
+
+      if(retain) {
         outgoingSelectionVector.setIndex(svIndex, (char)i);
         svIndex++;
       }
@@ -104,7 +121,17 @@ public abstract class FilterTemplate2 implements Filterer{
     outgoingSelectionVector.setRecordCount(svIndex);
   }
 
+  private boolean doEvalSkip(int inputline, int inIndex, int outIndex, SkipRecordLoggingJSON skipRecordLogging) {
+    try {
+      return doEval(inIndex, 0);
+    } catch (Exception e) {
+      skipRecordLogging.write(e.toString());
+      return false;
+    } finally {
+      skipRecordLogging.incrementOffset();
+    }
+  }
+
   public abstract void doSetup(@Named("context") FragmentContext context, @Named("incoming") RecordBatch incoming, @Named("outgoing") RecordBatch outgoing);
   public abstract boolean doEval(@Named("inIndex") int inIndex, @Named("outIndex") int outIndex);
-
 }

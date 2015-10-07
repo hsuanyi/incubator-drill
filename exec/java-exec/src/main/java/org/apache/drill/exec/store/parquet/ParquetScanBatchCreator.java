@@ -36,6 +36,7 @@ import org.apache.drill.exec.physical.base.GroupScan;
 import org.apache.drill.exec.physical.impl.BatchCreator;
 import org.apache.drill.exec.physical.impl.ScanBatch;
 import org.apache.drill.exec.record.RecordBatch;
+import org.apache.drill.exec.skiprecord.RecordContextVisitor;
 import org.apache.drill.exec.store.AbstractRecordReader;
 import org.apache.drill.exec.store.RecordReader;
 import org.apache.drill.exec.store.dfs.DrillFileSystem;
@@ -71,6 +72,7 @@ public class ParquetScanBatchCreator implements BatchCreator<ParquetRowGroupScan
     List<RecordReader> readers = Lists.newArrayList();
     OperatorContext oContext = context.newOperatorContext(rowGroupScan);
 
+    final boolean isSkipRecord = context.getOptions().getOption(ExecConstants.ENABLE_SKIP_INVALID_RECORD_KEY).bool_val;
     List<String[]> partitionColumns = Lists.newArrayList();
     List<Integer> selectedPartitionColumns = Lists.newArrayList();
     boolean selectAllColumns = AbstractRecordReader.isStarQuery(columns);
@@ -78,12 +80,14 @@ public class ParquetScanBatchCreator implements BatchCreator<ParquetRowGroupScan
     List<SchemaPath> newColumns = columns;
     if (!selectAllColumns) {
       newColumns = Lists.newArrayList();
-      Pattern pattern = Pattern.compile(String.format("%s[0-9]+", partitionDesignator));
+      Pattern patternDir = Pattern.compile(String.format("%s[0-9]+", partitionDesignator));
+      Pattern patternVir = Pattern.compile(String.format("\\%s.*[0-9]+", RecordContextVisitor.virtualColPrefix));
       for (SchemaPath column : columns) {
-        Matcher m = pattern.matcher(column.getAsUnescapedPath());
-        if (m.matches()) {
+        final Matcher mDir = patternDir.matcher(column.getAsUnescapedPath());
+        final Matcher mVir = patternVir.matcher(column.getAsUnescapedPath());
+        if (mDir.matches()) {
           selectedPartitionColumns.add(Integer.parseInt(column.getAsUnescapedPath().toString().substring(partitionDesignator.length())));
-        } else {
+        } else if(!isSkipRecord || !mVir.matches()) {
           newColumns.add(column);
         }
       }
@@ -167,9 +171,42 @@ public class ParquetScanBatchCreator implements BatchCreator<ParquetRowGroupScan
       }
     }
 
-    ScanBatch s =
-        new ScanBatch(rowGroupScan, context, oContext, readers.iterator(), partitionColumns, selectedPartitionColumns);
+    final ScanBatch s;
 
+    // Record Context
+    if(isSkipRecord) {
+      final Pattern lastIntPattern = Pattern.compile("\\$[^0-9]+([0-9]+)");
+
+      int recordIndex = -1;
+      int count = 0;
+      for(final SchemaPath column : columns) {
+        final Matcher matcher = lastIntPattern.matcher(column.getAsUnescapedPath().toString());
+        if (matcher.find()) {
+          if(recordIndex != -1) {
+            assert recordIndex == Integer.parseInt(matcher.group(1));
+          } else {
+            recordIndex = Integer.parseInt(matcher.group(1));
+          }
+          ++count;
+        }
+      }
+      assert count == 2;
+
+      s = new ScanBatch(rowGroupScan,
+          context,
+          oContext,
+          readers.iterator(),
+          partitionColumns,
+          selectedPartitionColumns,
+          recordIndex);
+    } else {
+      s = new ScanBatch(rowGroupScan,
+          context,
+          oContext,
+          readers.iterator(),
+          partitionColumns,
+          selectedPartitionColumns);
+    }
 
     return s;
   }

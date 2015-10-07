@@ -35,6 +35,7 @@ import org.apache.drill.exec.exception.SchemaChangeException;
 import org.apache.drill.exec.expr.TypeHelper;
 import org.apache.drill.exec.ops.FragmentContext;
 import org.apache.drill.exec.ops.OperatorContext;
+import org.apache.drill.exec.physical.SkipRecordLoggingJSON;
 import org.apache.drill.exec.physical.base.PhysicalOperator;
 import org.apache.drill.exec.record.BatchSchema;
 import org.apache.drill.exec.record.BatchSchema.SelectionVectorMode;
@@ -48,6 +49,9 @@ import org.apache.drill.exec.record.selection.SelectionVector2;
 import org.apache.drill.exec.record.selection.SelectionVector4;
 import org.apache.drill.exec.server.options.OptionValue;
 import org.apache.drill.exec.store.RecordReader;
+import org.apache.drill.exec.store.StoragePlugin;
+import org.apache.drill.exec.store.dfs.DrillFileSystem;
+import org.apache.drill.exec.store.dfs.FileSystemPlugin;
 import org.apache.drill.exec.testing.ControlsInjector;
 import org.apache.drill.exec.testing.ControlsInjectorFactory;
 import org.apache.drill.exec.util.CallBack;
@@ -58,6 +62,8 @@ import org.apache.drill.exec.vector.ValueVector;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import org.apache.drill.exec.vector.VarCharVector;
+import org.apache.drill.exec.work.foreman.UnsupportedDataTypeException;
 
 /**
  * Record batch used for a particular scan. Operators against one or more
@@ -89,6 +95,8 @@ public class ScanBatch implements CloseableRecordBatch {
   private SchemaChangeCallBack callBack = new SchemaChangeCallBack();
   private boolean hasReadNonEmptyFile = false;
 
+  private final boolean isSkipRecord;
+  private int recordContextIndex;
 
   public ScanBatch(PhysicalOperator subScanConfig, FragmentContext context,
                    OperatorContext oContext, Iterator<RecordReader> readers,
@@ -101,6 +109,7 @@ public class ScanBatch implements CloseableRecordBatch {
     }
     currentReader = readers.next();
     this.oContext = oContext;
+    isSkipRecord = context.getOptions().getOption(ExecConstants.ENABLE_SKIP_INVALID_RECORD);
 
     boolean setup = false;
     try {
@@ -128,6 +137,15 @@ public class ScanBatch implements CloseableRecordBatch {
     partitionColumnDesignator = labelValue == null ? "dir" : labelValue.string_val;
 
     addPartitionVectors();
+    this.recordContextIndex = -1;
+  }
+
+  public ScanBatch(PhysicalOperator subScanConfig, FragmentContext context,
+                   OperatorContext oContext, Iterator<RecordReader> readers,
+                   List<String[]> partitionColumns,
+                   List<Integer> selectedPartitionColumns, int recordContextIndex) throws ExecutionSetupException {
+    this(subScanConfig, context, oContext, readers, partitionColumns, selectedPartitionColumns);
+    this.recordContextIndex = recordContextIndex;
   }
 
   public ScanBatch(PhysicalOperator subScanConfig, FragmentContext context,
@@ -211,7 +229,7 @@ public class ScanBatch implements CloseableRecordBatch {
           // At this point, the reader that hit its end is not the last reader.
 
           // If all the files we have read so far are just empty, the schema is not useful
-          if (! hasReadNonEmptyFile) {
+          if (!hasReadNonEmptyFile) {
             container.clear();
             for (ValueVector v : fieldVectorMap.values()) {
               v.clear();
@@ -247,10 +265,29 @@ public class ScanBatch implements CloseableRecordBatch {
         w.getValueVector().getMutator().setValueCount(recordCount);
       }
 
-
       // this is a slight misuse of this metric but it will allow Readers to report how many records they generated.
       final boolean isNewSchema = mutator.isNewSchema();
       oContext.getStats().batchReceived(0, getRecordCount(), isNewSchema);
+
+      if(isSkipRecord) {
+        final Map<String, String> recordContext = currentReader.getReaderContext();
+        for(Map.Entry<String, String> entry : recordContext.entrySet()) {
+          final String key = entry.getKey() + recordContextIndex;
+          final String val = entry.getValue();
+
+          final MaterializedField field =
+              MaterializedField.create(SchemaPath.getSimplePath(key),
+              Types.required(MinorType.VARCHAR));
+          final VarCharVector v = mutator.addField(field, VarCharVector.class);
+
+          AllocationHelper.allocate(v, recordCount, val.length());
+          final byte[] bytes = val.getBytes();
+          for (int j = 0; j < recordCount; ++j) {
+            v.getMutator().setSafe(j, bytes, 0, bytes.length);
+          }
+          v.getMutator().setValueCount(recordCount);
+        }
+      }
 
       if (isNewSchema) {
         container.buildSchema(SelectionVectorMode.NONE);

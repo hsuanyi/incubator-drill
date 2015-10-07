@@ -76,9 +76,9 @@ public class TestHBaseQueries extends BaseHBaseTest {
       table = new HTable(admin.getConfiguration(), tableName);
 
       setColumnWidths(new int[] {8, 15});
-      runHBaseSQLVerifyCount("SELECT row_key, count(*)\n"
+      runHBaseSQLVerifyCount("SELECT tableName.f.b \n"
           + "FROM\n"
-          + "  hbase.`" + tableName + "` tableName GROUP BY row_key\n"
+          + "  hbase.`" + tableName + "` tableName\n"
           , 0);
     } finally {
       try {

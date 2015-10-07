@@ -23,6 +23,7 @@ import java.util.Set;
 import org.apache.calcite.schema.SchemaPlus;
 
 import org.apache.drill.common.JSONOptions;
+import org.apache.drill.exec.ExecConstants;
 import org.apache.drill.exec.ops.OptimizerRulesContext;
 import org.apache.drill.exec.server.DrillbitContext;
 import org.apache.drill.exec.store.AbstractStoragePlugin;
@@ -77,7 +78,17 @@ public class HBaseStoragePlugin extends AbstractStoragePlugin {
   }
 
   @Override
-  public Set<StoragePluginOptimizerRule> getPhysicalOptimizerRules(OptimizerRulesContext optimizerRulesContext) {
-    return ImmutableSet.of(HBasePushFilterIntoScan.FILTER_ON_SCAN, HBasePushFilterIntoScan.FILTER_ON_PROJECT);
+  public Set<StoragePluginOptimizerRule> getOptimizerRules(OptimizerRulesContext optimizerRulesContext) {
+    if(context.getOptionManager().getOption(ExecConstants.ENABLE_SKIP_INVALID_RECORD)) {
+      return ImmutableSet.of(
+          HBaseReadRowKey.HBASE_READ_ROWKEY_PROJECT,
+              HBaseReadRowKey.HBASE_READ_ROWKEY_SCAN,
+                  HBasePushFilterIntoScan.FILTER_ON_SCAN,
+                      HBasePushFilterIntoScan.FILTER_ON_PROJECT);
+    } else {
+      return ImmutableSet.of(
+          HBasePushFilterIntoScan.FILTER_ON_SCAN,
+          HBasePushFilterIntoScan.FILTER_ON_PROJECT);
+    }
   }
 }

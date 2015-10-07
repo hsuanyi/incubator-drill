@@ -26,7 +26,6 @@ import org.apache.drill.common.expression.ConvertExpression;
 import org.apache.drill.common.expression.ErrorCollector;
 import org.apache.drill.common.expression.ErrorCollectorImpl;
 import org.apache.drill.common.expression.ExpressionPosition;
-import org.apache.drill.common.expression.ExpressionStringBuilder;
 import org.apache.drill.common.expression.FieldReference;
 import org.apache.drill.common.expression.FunctionCall;
 import org.apache.drill.common.expression.FunctionCallFactory;
@@ -47,12 +46,12 @@ import org.apache.drill.exec.expr.ClassGenerator.HoldingContainer;
 import org.apache.drill.exec.expr.CodeGenerator;
 import org.apache.drill.exec.expr.DrillFuncHolderExpr;
 import org.apache.drill.exec.expr.ExpressionTreeMaterializer;
-import org.apache.drill.exec.expr.HashVisitor;
 import org.apache.drill.exec.expr.TypeHelper;
 import org.apache.drill.exec.expr.ValueVectorReadExpression;
 import org.apache.drill.exec.expr.ValueVectorWriteExpression;
 import org.apache.drill.exec.expr.fn.DrillComplexWriterFuncHolder;
 import org.apache.drill.exec.ops.FragmentContext;
+import org.apache.drill.exec.physical.SkipRecordLoggingJSON;
 import org.apache.drill.exec.physical.config.Project;
 import org.apache.drill.exec.planner.StarColumnHelper;
 import org.apache.drill.exec.record.AbstractSingleRecordBatch;
@@ -63,6 +62,8 @@ import org.apache.drill.exec.record.TransferPair;
 import org.apache.drill.exec.record.TypedFieldId;
 import org.apache.drill.exec.record.VectorContainer;
 import org.apache.drill.exec.record.VectorWrapper;
+import org.apache.drill.exec.record.selection.SelectionVector2;
+import org.apache.drill.exec.skiprecord.RecordContextVisitor;
 import org.apache.drill.exec.vector.AllocationHelper;
 import org.apache.drill.exec.vector.FixedWidthVector;
 import org.apache.drill.exec.vector.ValueVector;
@@ -85,6 +86,8 @@ public class ProjectRecordBatch extends AbstractSingleRecordBatch<Project> {
 
   private static final String EMPTY_STRING = "";
   private boolean first = true;
+
+  private SelectionVector2 sv2 = null;
 
   private class ClassifierResult {
     public boolean isStar = false;
@@ -113,7 +116,6 @@ public class ProjectRecordBatch extends AbstractSingleRecordBatch<Project> {
   public int getRecordCount() {
     return recordCount;
   }
-
 
   @Override
   protected void killIncoming(final boolean sendUpstream) {
@@ -172,19 +174,22 @@ public class ProjectRecordBatch extends AbstractSingleRecordBatch<Project> {
       return IterOutcome.OUT_OF_MEMORY;
     }
 
-    final int outputRecords = projector.projectRecords(0, incomingRecordCount, 0);
-    if (outputRecords < incomingRecordCount) {
-      setValueCount(outputRecords);
+    final int[] processedAndSkippedRecords = projector.projectRecords(0, incomingRecordCount, 0, isSkipRecord);
+    final int processedRecords = processedAndSkippedRecords[0];
+    final int skippedRecords = processedAndSkippedRecords[1];
+
+    if (processedRecords < incomingRecordCount) {
+      setValueCount(processedRecords);
       hasRemainder = true;
-      remainderIndex = outputRecords;
-      this.recordCount = remainderIndex;
+      remainderIndex = processedRecords;
     } else {
       setValueCount(incomingRecordCount);
       for(final VectorWrapper<?> v: incoming) {
         v.clear();
       }
-      this.recordCount = outputRecords;
     }
+    this.recordCount = processedRecords - skippedRecords;
+
     // In case of complex writer expression, vectors would be added to batch run-time.
     // We have to re-build the schema.
     if (complexWriters != null) {
@@ -200,11 +205,14 @@ public class ProjectRecordBatch extends AbstractSingleRecordBatch<Project> {
       outOfMemory = true;
       return;
     }
-    final int projRecords = projector.projectRecords(remainderIndex, remainingRecordCount, 0);
-    if (projRecords < remainingRecordCount) {
-      setValueCount(projRecords);
-      this.recordCount = projRecords;
-      remainderIndex += projRecords;
+
+    final int[] processedAndSkippedRecords = projector.projectRecords(remainderIndex, remainingRecordCount, 0, isSkipRecord);
+    final int processedRecords = processedAndSkippedRecords[0];
+    final int skippedRecords = processedAndSkippedRecords[1];
+
+    if (processedRecords < remainingRecordCount) {
+      setValueCount(processedRecords);
+      remainderIndex += processedRecords;
     } else {
       setValueCount(remainingRecordCount);
       hasRemainder = false;
@@ -212,8 +220,9 @@ public class ProjectRecordBatch extends AbstractSingleRecordBatch<Project> {
       for (final VectorWrapper<?> v : incoming) {
         v.clear();
       }
-      this.recordCount = remainingRecordCount;
     }
+    this.recordCount = processedRecords - skippedRecords;
+
     // In case of complex writer expression, vectors would be added to batch run-time.
     // We have to re-build the schema.
     if (complexWriters != null) {
@@ -318,8 +327,16 @@ public class ProjectRecordBatch extends AbstractSingleRecordBatch<Project> {
           final Integer value = result.prefixMap.get(result.prefix);
           if (value != null && value.intValue() == 1) {
             int k = 0;
-            for (final VectorWrapper<?> wrapper : incoming) {
+            for(final VectorWrapper<?> wrapper : incoming) {
               final ValueVector vvIn = wrapper.getValueVector();
+              if(vvIn.getField()
+                  .getPath()
+                  .getRootSegment()
+                  .getPath()
+                  .startsWith(RecordContextVisitor.virtualColPrefix)) {
+                continue;
+              }
+
               if (k > result.outputNames.size()-1) {
                 assert false;
               }
@@ -442,6 +459,14 @@ public class ProjectRecordBatch extends AbstractSingleRecordBatch<Project> {
       }
     }
 
+    if(isSkipRecord) {
+      if (sv2 != null) {
+        sv2.clear();
+      } else {
+        sv2 = new SelectionVector2(oContext.getAllocator());
+      }
+    }
+
     try {
       this.projector = context.getImplementationClass(cg.getCodeGenerator());
       projector.setup(context, incoming, this, transfers);
@@ -449,7 +474,7 @@ public class ProjectRecordBatch extends AbstractSingleRecordBatch<Project> {
       throw new SchemaChangeException("Failure while attempting to load generated class", e);
     }
     if (container.isSchemaChanged()) {
-      container.buildSchema(SelectionVectorMode.NONE);
+      container.buildSchema(isSkipRecord ? SelectionVectorMode.TWO_BYTE : SelectionVectorMode.NONE);
       return true;
     } else {
       return false;
@@ -724,5 +749,21 @@ public class ProjectRecordBatch extends AbstractSingleRecordBatch<Project> {
         }
       }
     }
+  }
+
+  @Override
+  public SelectionVector2 getSelectionVector2() {
+    if(!isSkipRecord) {
+      super.getSelectionVector2();
+    }
+    return sv2;
+  }
+
+  @Override
+  public void close() {
+    if(sv2 != null) {
+      sv2.clear();
+    }
+    super.close();
   }
 }

@@ -21,6 +21,7 @@ import javax.inject.Named;
 
 import org.apache.drill.exec.exception.SchemaChangeException;
 import org.apache.drill.exec.ops.FragmentContext;
+import org.apache.drill.exec.physical.SkipRecordLoggingJSON;
 import org.apache.drill.exec.record.RecordBatch;
 import org.apache.drill.exec.record.TransferPair;
 import org.apache.drill.exec.record.selection.SelectionVector4;
@@ -42,7 +43,7 @@ public abstract class FilterTemplate4 implements Filterer {
   }
 
   @Override
-  public void filterBatch(int recordCount){
+  public void filterBatch(int recordCount, SkipRecordLoggingJSON skipRecordLogging){
     if (recordCount == 0) {
       return;
     }

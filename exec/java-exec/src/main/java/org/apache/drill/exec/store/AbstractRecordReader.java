@@ -92,4 +92,9 @@ public abstract class AbstractRecordReader implements RecordReader {
       v.allocateNew();
     }
   }
+
+  @Override
+  public ReaderContext getReaderContext() {
+    return new ReaderContext();
+  }
 }

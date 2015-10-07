@@ -243,6 +243,12 @@ public interface ExecConstants {
   String ENABLE_NEW_TEXT_READER_KEY = "exec.storage.enable_new_text_reader";
   OptionValidator ENABLE_NEW_TEXT_READER = new BooleanValidator(ENABLE_NEW_TEXT_READER_KEY, true);
 
+  String ENABLE_SKIP_INVALID_RECORD_KEY = "exec.enable_skip_invalid_record";
+  BooleanValidator ENABLE_SKIP_INVALID_RECORD = new BooleanValidator(ENABLE_SKIP_INVALID_RECORD_KEY, true);
+
+  String SKIP_INVALID_RECORD_THRESHOLD_KEY = "exec.skip_invalid_record_threshold";
+  LongValidator SKIP_INVALID_RECORD_THRESHOLD = new LongValidator(SKIP_INVALID_RECORD_THRESHOLD_KEY, 100);
+
   String BOOTSTRAP_STORAGE_PLUGINS_FILE = "bootstrap-storage-plugins.json";
   String MAX_LOADING_CACHE_SIZE_CONFIG = "drill.exec.compile.cache_max_size";
 

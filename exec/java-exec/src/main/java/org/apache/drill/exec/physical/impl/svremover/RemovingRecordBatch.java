@@ -19,6 +19,7 @@ package org.apache.drill.exec.physical.impl.svremover;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 
 import org.apache.drill.exec.exception.ClassTransformationException;
 import org.apache.drill.exec.exception.OutOfMemoryException;
@@ -30,10 +31,12 @@ import org.apache.drill.exec.physical.config.SelectionVectorRemover;
 import org.apache.drill.exec.record.AbstractSingleRecordBatch;
 import org.apache.drill.exec.record.BatchSchema.SelectionVectorMode;
 import org.apache.drill.exec.record.RecordBatch;
+import org.apache.drill.exec.record.SkippingCapabilityRecordBatch;
 import org.apache.drill.exec.record.TransferPair;
 import org.apache.drill.exec.record.VectorContainer;
 import org.apache.drill.exec.record.VectorWrapper;
 import org.apache.drill.exec.record.WritableBatch;
+import org.apache.drill.exec.store.RecordReader;
 import org.apache.drill.exec.util.CallBack;
 import org.apache.drill.exec.vector.CopyUtil;
 import org.apache.drill.exec.vector.SchemaChangeCallBack;
@@ -42,7 +45,7 @@ import org.apache.drill.exec.vector.ValueVector;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 
-public class RemovingRecordBatch extends AbstractSingleRecordBatch<SelectionVectorRemover>{
+public class RemovingRecordBatch extends AbstractSingleRecordBatch<SelectionVectorRemover> implements SkippingCapabilityRecordBatch {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(RemovingRecordBatch.class);
 
   private Copier copier;
@@ -266,6 +269,21 @@ public class RemovingRecordBatch extends AbstractSingleRecordBatch<SelectionVect
     return WritableBatch.get(this);
   }
 
+  @Override
+  public int getSkippedRecordCount() {
+    if(!(incoming instanceof SkippingCapabilityRecordBatch)) {
+      throw new UnsupportedOperationException();
+    }
 
+    return ((SkippingCapabilityRecordBatch) incoming).getSkippedRecordCount();
+  }
 
+  @Override
+  public RecordReader.ReaderContext getRecordContext() {
+    if(!(incoming instanceof SkippingCapabilityRecordBatch)) {
+      throw new UnsupportedOperationException();
+    }
+
+    return ((SkippingCapabilityRecordBatch) incoming).getRecordContext();
+  }
 }

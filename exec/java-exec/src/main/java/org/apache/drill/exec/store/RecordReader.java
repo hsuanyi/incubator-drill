@@ -17,6 +17,7 @@
  */
 package org.apache.drill.exec.store;
 
+import java.util.HashMap;
 import java.util.Map;
 
 import org.apache.drill.common.exceptions.ExecutionSetupException;
@@ -50,4 +51,26 @@ public interface RecordReader extends AutoCloseable {
    * @return The number of additional records added to the output.
    */
   int next();
+
+  ReaderContext getReaderContext();
+
+  public static class ReaderContext {
+    private final Map<String, String> map;
+
+    public ReaderContext() {
+      this.map = new HashMap<>();
+    }
+
+    public ReaderContext(final Map<String, String> map) {
+      this.map = map;
+    }
+
+    public Map<String, String> getContext() {
+      return map;
+    }
+
+    public String getRowIdentifier(int index) {
+      return "" + index;
+    }
+  }
 }

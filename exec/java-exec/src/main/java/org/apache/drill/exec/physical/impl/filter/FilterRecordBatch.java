@@ -22,7 +22,6 @@ import java.util.List;
 
 import org.apache.drill.common.expression.ErrorCollector;
 import org.apache.drill.common.expression.ErrorCollectorImpl;
-import org.apache.drill.common.expression.ExpressionStringBuilder;
 import org.apache.drill.common.expression.LogicalExpression;
 import org.apache.drill.exec.ExecConstants;
 import org.apache.drill.exec.exception.ClassTransformationException;
@@ -32,27 +31,57 @@ import org.apache.drill.exec.expr.ClassGenerator;
 import org.apache.drill.exec.expr.CodeGenerator;
 import org.apache.drill.exec.expr.ExpressionTreeMaterializer;
 import org.apache.drill.exec.ops.FragmentContext;
+import org.apache.drill.exec.physical.AbstractSkipRecordLogging;
+import org.apache.drill.exec.physical.SkipRecordLoggingJSON;
 import org.apache.drill.exec.physical.config.Filter;
 import org.apache.drill.exec.record.AbstractSingleRecordBatch;
 import org.apache.drill.exec.record.BatchSchema.SelectionVectorMode;
 import org.apache.drill.exec.record.RecordBatch;
+import org.apache.drill.exec.record.SkippingCapabilityRecordBatch;
 import org.apache.drill.exec.record.TransferPair;
 import org.apache.drill.exec.record.VectorWrapper;
 import org.apache.drill.exec.record.selection.SelectionVector2;
 import org.apache.drill.exec.record.selection.SelectionVector4;
+import org.apache.drill.exec.store.RecordReader;
+import org.apache.drill.exec.store.StoragePlugin;
+import org.apache.drill.exec.store.dfs.DrillFileSystem;
+import org.apache.drill.exec.store.dfs.FileSystemPlugin;
 import org.apache.drill.exec.vector.ValueVector;
 
 import com.google.common.collect.Lists;
 
-public class FilterRecordBatch extends AbstractSingleRecordBatch<Filter>{
+public class FilterRecordBatch extends AbstractSingleRecordBatch<Filter> implements SkippingCapabilityRecordBatch {
   //private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(FilterRecordBatch.class);
 
   private SelectionVector2 sv2;
   private SelectionVector4 sv4;
   private Filterer filter;
 
+  private final boolean isSkipRecord;
+  private final long skipThreshold;
+  private AbstractSkipRecordLogging skipRecordLogging;
+  private int skippedRecords = 0;
+
   public FilterRecordBatch(Filter pop, RecordBatch incoming, FragmentContext context) throws OutOfMemoryException {
     super(pop, context, incoming);
+    this.isSkipRecord = context.getOptions().getOption(ExecConstants.ENABLE_SKIP_INVALID_RECORD);
+    this.skipThreshold = context.getOptions().getOption(ExecConstants.SKIP_INVALID_RECORD_THRESHOLD);
+
+    if(this.isSkipRecord) {
+      try {
+        final StoragePlugin storagePlugin = context.getDrillbitContext().getStorage().getPlugin("dfs");
+        if (!(storagePlugin instanceof FileSystemPlugin)) {
+          throw new UnsupportedOperationException();
+        }
+        final FileSystemPlugin plugin = (FileSystemPlugin) storagePlugin;
+        final DrillFileSystem fs = new DrillFileSystem(plugin.getFsConf());
+        this.skipRecordLogging = new SkipRecordLoggingJSON(fs, "/Users/hyichu/Desktop", skipThreshold);
+      } catch (Exception e) {
+        throw new UnsupportedOperationException();
+      }
+    } else {
+      this.skipRecordLogging = null;
+    }
   }
 
   @Override
@@ -79,8 +108,11 @@ public class FilterRecordBatch extends AbstractSingleRecordBatch<Filter>{
   protected IterOutcome doWork() {
     container.zeroVectors();
     int recordCount = incoming.getRecordCount();
+    if(isSkipRecord) {
+      skipRecordLogging.setReaderContext(getRecordContext());
+    }
     filter.filterBatch(recordCount);
-
+    skippedRecords = isSkipRecord ? skipRecordLogging.getSkippedRecord() : 0;
     return IterOutcome.OK;
   }
 
@@ -91,6 +123,14 @@ public class FilterRecordBatch extends AbstractSingleRecordBatch<Filter>{
     }
     if (sv4 != null) {
       sv4.clear();
+    }
+
+    if(skipRecordLogging != null) {
+      try {
+        skipRecordLogging.flush();
+      } catch(Exception e) {
+        e.printStackTrace();
+      }
     }
     super.close();
   }
@@ -139,6 +179,20 @@ public class FilterRecordBatch extends AbstractSingleRecordBatch<Filter>{
     return false;
   }
 
+  @Override
+  public int getSkippedRecordCount() {
+    return skippedRecords;
+  }
+
+  @Override
+  public RecordReader.ReaderContext getRecordContext() {
+    if(!(incoming instanceof SkippingCapabilityRecordBatch)) {
+      throw new UnsupportedOperationException();
+    }
+
+    return ((SkippingCapabilityRecordBatch) incoming).getRecordContext();
+  }
+
   protected Filterer generateSV4Filterer() throws SchemaChangeException {
     final ErrorCollector collector = new ErrorCollectorImpl();
     final List<TransferPair> transfers = Lists.newArrayList();
@@ -165,7 +219,7 @@ public class FilterRecordBatch extends AbstractSingleRecordBatch<Filter>{
     try {
       final TransferPair[] tx = transfers.toArray(new TransferPair[transfers.size()]);
       final Filterer filter = context.getImplementationClass(cg);
-      filter.setup(context, incoming, this, tx);
+      filter.setup(context, incoming, this, tx, skipRecordLogging);
       return filter;
     } catch (ClassTransformationException | IOException e) {
       throw new SchemaChangeException("Failure while attempting to load generated class", e);
@@ -194,7 +248,7 @@ public class FilterRecordBatch extends AbstractSingleRecordBatch<Filter>{
     try {
       final TransferPair[] tx = transfers.toArray(new TransferPair[transfers.size()]);
       final Filterer filter = context.getImplementationClass(cg);
-      filter.setup(context, incoming, this, tx);
+      filter.setup(context, incoming, this, tx, skipRecordLogging);
       return filter;
     } catch (ClassTransformationException | IOException e) {
       throw new SchemaChangeException("Failure while attempting to load generated class", e);

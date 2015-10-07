@@ -26,7 +26,6 @@ import org.apache.drill.common.expression.ConvertExpression;
 import org.apache.drill.common.expression.ErrorCollector;
 import org.apache.drill.common.expression.ErrorCollectorImpl;
 import org.apache.drill.common.expression.ExpressionPosition;
-import org.apache.drill.common.expression.ExpressionStringBuilder;
 import org.apache.drill.common.expression.FieldReference;
 import org.apache.drill.common.expression.FunctionCall;
 import org.apache.drill.common.expression.FunctionCallFactory;
@@ -47,22 +46,29 @@ import org.apache.drill.exec.expr.ClassGenerator.HoldingContainer;
 import org.apache.drill.exec.expr.CodeGenerator;
 import org.apache.drill.exec.expr.DrillFuncHolderExpr;
 import org.apache.drill.exec.expr.ExpressionTreeMaterializer;
-import org.apache.drill.exec.expr.HashVisitor;
 import org.apache.drill.exec.expr.TypeHelper;
 import org.apache.drill.exec.expr.ValueVectorReadExpression;
 import org.apache.drill.exec.expr.ValueVectorWriteExpression;
 import org.apache.drill.exec.expr.fn.DrillComplexWriterFuncHolder;
 import org.apache.drill.exec.ops.FragmentContext;
+import org.apache.drill.exec.physical.AbstractSkipRecordLogging;
+import org.apache.drill.exec.physical.SkipRecordLoggingJSON;
 import org.apache.drill.exec.physical.config.Project;
 import org.apache.drill.exec.planner.StarColumnHelper;
 import org.apache.drill.exec.record.AbstractSingleRecordBatch;
 import org.apache.drill.exec.record.BatchSchema.SelectionVectorMode;
 import org.apache.drill.exec.record.MaterializedField;
 import org.apache.drill.exec.record.RecordBatch;
+import org.apache.drill.exec.record.SkippingCapabilityRecordBatch;
 import org.apache.drill.exec.record.TransferPair;
 import org.apache.drill.exec.record.TypedFieldId;
 import org.apache.drill.exec.record.VectorContainer;
 import org.apache.drill.exec.record.VectorWrapper;
+import org.apache.drill.exec.record.selection.SelectionVector2;
+import org.apache.drill.exec.store.RecordReader;
+import org.apache.drill.exec.store.StoragePlugin;
+import org.apache.drill.exec.store.dfs.DrillFileSystem;
+import org.apache.drill.exec.store.dfs.FileSystemPlugin;
 import org.apache.drill.exec.vector.AllocationHelper;
 import org.apache.drill.exec.vector.FixedWidthVector;
 import org.apache.drill.exec.vector.ValueVector;
@@ -73,7 +79,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
-public class ProjectRecordBatch extends AbstractSingleRecordBatch<Project> {
+public class ProjectRecordBatch extends AbstractSingleRecordBatch<Project> implements SkippingCapabilityRecordBatch {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ProjectRecordBatch.class);
 
   private Projector projector;
@@ -85,6 +91,14 @@ public class ProjectRecordBatch extends AbstractSingleRecordBatch<Project> {
 
   private static final String EMPTY_STRING = "";
   private boolean first = true;
+
+  private final boolean isSkipRecord;
+  private final long skipThreshold;
+  private int skippedRecords = 0;
+  private long accumulatedSkippedRecordCount = 0;
+
+  private SelectionVector2 sv2 = null;
+  private AbstractSkipRecordLogging skipRecordLogging;
 
   private class ClassifierResult {
     public boolean isStar = false;
@@ -107,13 +121,30 @@ public class ProjectRecordBatch extends AbstractSingleRecordBatch<Project> {
 
   public ProjectRecordBatch(final Project pop, final RecordBatch incoming, final FragmentContext context) throws OutOfMemoryException {
     super(pop, context, incoming);
+    this.isSkipRecord = context.getOptions().getOption(ExecConstants.ENABLE_SKIP_INVALID_RECORD);
+    this.skipThreshold = context.getOptions().getOption(ExecConstants.SKIP_INVALID_RECORD_THRESHOLD);
+
+    if(this.isSkipRecord) {
+      try {
+        final StoragePlugin storagePlugin = context.getDrillbitContext().getStorage().getPlugin("dfs");
+        if (!(storagePlugin instanceof FileSystemPlugin)) {
+          throw new UnsupportedOperationException();
+        }
+        final FileSystemPlugin plugin = (FileSystemPlugin) storagePlugin;
+        final DrillFileSystem fs = new DrillFileSystem(plugin.getFsConf());
+        this.skipRecordLogging = new SkipRecordLoggingJSON(fs, "/Users/hyichu/Desktop", skipThreshold);
+      } catch (Exception e) {
+        throw new UnsupportedOperationException();
+      }
+    } else {
+      this.skipRecordLogging = null;
+    }
   }
 
   @Override
   public int getRecordCount() {
     return recordCount;
   }
-
 
   @Override
   protected void killIncoming(final boolean sendUpstream) {
@@ -172,7 +203,17 @@ public class ProjectRecordBatch extends AbstractSingleRecordBatch<Project> {
       return IterOutcome.OUT_OF_MEMORY;
     }
 
+    if(isSkipRecord) {
+      skipRecordLogging.setReaderContext(getRecordContext());
+    }
     final int outputRecords = projector.projectRecords(0, incomingRecordCount, 0);
+    skippedRecords = isSkipRecord ? skipRecordLogging.getSkippedRecord() : 0;
+    accumulatedSkippedRecordCount += skippedRecords;
+
+    if(accumulatedSkippedRecordCount > skipThreshold) {
+      throw new IllegalStateException("The number of offending records exceeds the threshold");
+    }
+
     if (outputRecords < incomingRecordCount) {
       setValueCount(outputRecords);
       hasRemainder = true;
@@ -185,6 +226,8 @@ public class ProjectRecordBatch extends AbstractSingleRecordBatch<Project> {
       }
       this.recordCount = outputRecords;
     }
+    this.recordCount -= skippedRecords;
+
     // In case of complex writer expression, vectors would be added to batch run-time.
     // We have to re-build the schema.
     if (complexWriters != null) {
@@ -442,14 +485,23 @@ public class ProjectRecordBatch extends AbstractSingleRecordBatch<Project> {
       }
     }
 
+    if(isSkipRecord) {
+      sv2 = new SelectionVector2(oContext.getAllocator());
+    }
+
     try {
       this.projector = context.getImplementationClass(cg.getCodeGenerator());
-      projector.setup(context, incoming, this, transfers);
+      projector.setup(context, incoming, this, transfers, this.skipRecordLogging);
     } catch (ClassTransformationException | IOException e) {
       throw new SchemaChangeException("Failure while attempting to load generated class", e);
     }
     if (container.isSchemaChanged()) {
-      container.buildSchema(SelectionVectorMode.NONE);
+      if(isSkipRecord) {
+        container.buildSchema(SelectionVectorMode.TWO_BYTE);
+      } else {
+        container.buildSchema(SelectionVectorMode.NONE);
+      }
+
       return true;
     } else {
       return false;
@@ -724,5 +776,46 @@ public class ProjectRecordBatch extends AbstractSingleRecordBatch<Project> {
         }
       }
     }
+  }
+
+  @Override
+  public SelectionVector2 getSelectionVector2() {
+    if(!isSkipRecord) {
+      throw new IllegalStateException("Selection vector would not be associated with " + this.getClass()
+          + " unless Skip Record is enabled");
+    }
+
+    return sv2;
+  }
+
+  @Override
+  public int getSkippedRecordCount() {
+    return skippedRecords;
+  }
+
+  @Override
+  public RecordReader.ReaderContext getRecordContext() {
+    if(!(incoming instanceof SkippingCapabilityRecordBatch)) {
+      throw new UnsupportedOperationException();
+    }
+
+    return ((SkippingCapabilityRecordBatch) incoming).getRecordContext();
+  }
+
+  @Override
+  public void close() {
+    if (sv2 != null) {
+      sv2.clear();
+    }
+
+    if(skipRecordLogging != null) {
+      try {
+        skipRecordLogging.flush();
+      } catch(Exception e) {
+        e.printStackTrace();
+      }
+    }
+
+    super.close();
   }
 }

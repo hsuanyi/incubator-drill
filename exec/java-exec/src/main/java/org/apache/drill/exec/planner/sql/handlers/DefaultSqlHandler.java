@@ -34,17 +34,13 @@ import org.apache.calcite.plan.hep.HepProgram;
 import org.apache.calcite.plan.hep.HepProgramBuilder;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelShuttleImpl;
-import org.apache.calcite.rel.core.Join;
 import org.apache.calcite.rel.core.Project;
-import org.apache.calcite.rel.core.RelFactories;
 import org.apache.calcite.rel.core.TableFunctionScan;
 import org.apache.calcite.rel.core.TableScan;
 import org.apache.calcite.rel.logical.LogicalValues;
 import org.apache.calcite.rel.metadata.CachingRelMetadataProvider;
 import org.apache.calcite.rel.metadata.ChainedRelMetadataProvider;
 import org.apache.calcite.rel.metadata.RelMetadataProvider;
-import org.apache.calcite.rel.rules.JoinToMultiJoinRule;
-import org.apache.calcite.rel.rules.LoptOptimizeJoinRule;
 import org.apache.calcite.rel.rules.ProjectRemoveRule;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexBuilder;
@@ -70,22 +66,18 @@ import org.apache.drill.exec.physical.base.PhysicalOperator;
 import org.apache.drill.exec.physical.impl.join.JoinUtils;
 import org.apache.drill.exec.planner.common.DrillRelOptUtil;
 import org.apache.drill.exec.planner.cost.DrillDefaultRelMetadataProvider;
-import org.apache.drill.exec.planner.logical.DrillJoinRel;
-import org.apache.drill.exec.planner.logical.DrillMergeProjectRule;
 import org.apache.drill.exec.planner.logical.DrillProjectRel;
-import org.apache.drill.exec.planner.logical.DrillPushProjectPastFilterRule;
 import org.apache.drill.exec.planner.logical.DrillRel;
-import org.apache.drill.exec.planner.logical.DrillRelFactories;
 import org.apache.drill.exec.planner.logical.DrillRuleSets;
 import org.apache.drill.exec.planner.logical.DrillScreenRel;
 import org.apache.drill.exec.planner.logical.DrillStoreRel;
 import org.apache.drill.exec.planner.logical.PreProcessLogicalRel;
-import org.apache.drill.exec.planner.logical.partition.ParquetPruneScanRule;
-import org.apache.drill.exec.planner.logical.partition.PruneScanRule;
 import org.apache.drill.exec.planner.physical.DrillDistributionTrait;
 import org.apache.drill.exec.planner.physical.PhysicalPlanCreator;
 import org.apache.drill.exec.planner.physical.PlannerSettings;
 import org.apache.drill.exec.planner.physical.Prel;
+import org.apache.drill.exec.planner.physical.ProjectPrel;
+import org.apache.drill.exec.planner.physical.SelectionVectorRemoverPrel;
 import org.apache.drill.exec.planner.physical.explain.PrelSequencer;
 import org.apache.drill.exec.planner.physical.visitor.ComplexToJsonPrelVisitor;
 import org.apache.drill.exec.planner.physical.visitor.ExcessiveExchangeIdentifier;
@@ -101,6 +93,7 @@ import org.apache.drill.exec.planner.physical.visitor.StarColumnConverter;
 import org.apache.drill.exec.planner.physical.visitor.SwapHashJoinVisitor;
 import org.apache.drill.exec.planner.sql.DrillSqlWorker;
 import org.apache.drill.exec.planner.sql.parser.UnsupportedOperatorsVisitor;
+import org.apache.drill.exec.planner.sql.parser.UnsupportedOperatorsVisitorForSkipRecord;
 import org.apache.drill.exec.server.options.OptionManager;
 import org.apache.drill.exec.server.options.OptionValue;
 import org.apache.drill.exec.util.Pointer;
@@ -407,6 +400,25 @@ public class DefaultSqlHandler extends AbstractSqlHandler {
      */
     phyRelNode = RelUniqifier.uniqifyGraph(phyRelNode);
 
+
+    /* 9.)
+     * If the skip_record_functionality is enabled,
+     * ensure there is a SelectionVectorRemoverPrel following after Project
+     */
+    if(context.getOptions().getOption(ExecConstants.ENABLE_SKIP_INVALID_RECORD)) {
+      phyRelNode = (Prel) phyRelNode.accept(new RelShuttleImpl() {
+        @Override
+        public RelNode visit(RelNode other) {
+          if(other instanceof ProjectPrel) {
+            ProjectPrel projectPrel = (ProjectPrel) visitChildren(other);
+            return new SelectionVectorRemoverPrel(projectPrel);
+          } else {
+            return visitChildren(other);
+          }
+        }
+      });
+    }
+
     return phyRelNode;
   }
 
@@ -453,7 +465,13 @@ public class DefaultSqlHandler extends AbstractSqlHandler {
     SqlNode sqlNodeValidated = typedSqlNode.getSqlNode();
 
     // Check if the unsupported functionality is used
-    UnsupportedOperatorsVisitor visitor = UnsupportedOperatorsVisitor.createVisitor(context);
+    final UnsupportedOperatorsVisitor visitor;
+    if(context.getOptions().getOption(ExecConstants.ENABLE_SKIP_INVALID_RECORD)) {
+      visitor = UnsupportedOperatorsVisitorForSkipRecord.createVisitor(context);
+    } else {
+      visitor = UnsupportedOperatorsVisitor.createVisitor(context);
+    }
+
     try {
       sqlNodeValidated.accept(visitor);
     } catch (UnsupportedOperationException ex) {

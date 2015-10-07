@@ -40,6 +40,7 @@ import org.apache.drill.exec.record.BatchSchema;
 import org.apache.drill.exec.record.BatchSchema.SelectionVectorMode;
 import org.apache.drill.exec.record.CloseableRecordBatch;
 import org.apache.drill.exec.record.MaterializedField;
+import org.apache.drill.exec.record.SkippingCapabilityRecordBatch;
 import org.apache.drill.exec.record.TypedFieldId;
 import org.apache.drill.exec.record.VectorContainer;
 import org.apache.drill.exec.record.VectorWrapper;
@@ -62,7 +63,7 @@ import com.google.common.collect.Maps;
 /**
  * Record batch used for a particular scan. Operators against one or more
  */
-public class ScanBatch implements CloseableRecordBatch {
+public class ScanBatch implements CloseableRecordBatch, SkippingCapabilityRecordBatch {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ScanBatch.class);
   private static final ControlsInjector injector = ControlsInjectorFactory.getInjector(ScanBatch.class);
 
@@ -430,5 +431,15 @@ public class ScanBatch implements CloseableRecordBatch {
     throw new UnsupportedOperationException(
         String.format("You should not call getOutgoingContainer() for class %s",
                       this.getClass().getCanonicalName()));
+  }
+
+  @Override
+  public int getSkippedRecordCount() {
+    return 0;
+  }
+
+  @Override
+  public RecordReader.ReaderContext getRecordContext() {
+    return currentReader.getReaderContext();
   }
 }

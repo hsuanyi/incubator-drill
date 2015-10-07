@@ -18,25 +18,27 @@
 package org.apache.drill.exec.physical.impl.validate;
 
 import java.util.Iterator;
+import java.util.Map;
 
 import org.apache.drill.common.expression.SchemaPath;
 import org.apache.drill.exec.ops.FragmentContext;
 import org.apache.drill.exec.record.BatchSchema;
 import org.apache.drill.exec.record.CloseableRecordBatch;
 import org.apache.drill.exec.record.RecordBatch;
+import org.apache.drill.exec.record.SkippingCapabilityRecordBatch;
 import org.apache.drill.exec.record.TypedFieldId;
 import org.apache.drill.exec.record.VectorContainer;
 import org.apache.drill.exec.record.VectorWrapper;
 import org.apache.drill.exec.record.WritableBatch;
 import org.apache.drill.exec.record.selection.SelectionVector2;
 import org.apache.drill.exec.record.selection.SelectionVector4;
-import org.apache.drill.exec.util.BatchPrinter;
+import org.apache.drill.exec.store.RecordReader;
 import org.apache.drill.exec.vector.VectorValidator;
 
 import static org.apache.drill.exec.record.RecordBatch.IterOutcome.*;
 
 
-public class IteratorValidatorBatchIterator implements CloseableRecordBatch {
+public class IteratorValidatorBatchIterator implements CloseableRecordBatch, SkippingCapabilityRecordBatch {
   private static final org.slf4j.Logger logger =
       org.slf4j.LoggerFactory.getLogger(IteratorValidatorBatchIterator.class);
 
@@ -347,4 +349,21 @@ public class IteratorValidatorBatchIterator implements CloseableRecordBatch {
                       this.getClass().getCanonicalName()));
   }
 
+  @Override
+  public int getSkippedRecordCount() {
+    if(!(incoming instanceof SkippingCapabilityRecordBatch)) {
+      throw new UnsupportedOperationException();
+    }
+
+    return ((SkippingCapabilityRecordBatch) incoming).getSkippedRecordCount();
+  }
+
+  @Override
+  public RecordReader.ReaderContext getRecordContext() {
+    if(!(incoming instanceof SkippingCapabilityRecordBatch)) {
+      throw new UnsupportedOperationException();
+    }
+
+    return ((SkippingCapabilityRecordBatch) incoming).getRecordContext();
+  }
 }

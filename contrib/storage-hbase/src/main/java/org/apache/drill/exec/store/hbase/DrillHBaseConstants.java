@@ -27,6 +27,8 @@ public interface DrillHBaseConstants {
 
   public static final SchemaPath ROW_KEY_PATH = SchemaPath.getSimplePath(ROW_KEY);
 
+  public static final SchemaPath ROW_KEY_CONTEXT_PATH = SchemaPath.getSimplePath(ROW_KEY + "_Context");
+
   public static final String HBASE_ZOOKEEPER_PORT = "hbase.zookeeper.property.clientPort";
 
   public static final MajorType ROW_KEY_TYPE = Types.required(MinorType.VARBINARY);

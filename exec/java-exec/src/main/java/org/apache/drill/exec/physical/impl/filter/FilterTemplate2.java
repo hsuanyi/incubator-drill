@@ -22,24 +22,33 @@ import javax.inject.Named;
 import org.apache.drill.exec.exception.SchemaChangeException;
 import org.apache.drill.exec.exception.OutOfMemoryException;
 import org.apache.drill.exec.ops.FragmentContext;
+import org.apache.drill.exec.physical.AbstractSkipRecordLogging;
 import org.apache.drill.exec.record.BatchSchema.SelectionVectorMode;
 import org.apache.drill.exec.record.RecordBatch;
 import org.apache.drill.exec.record.TransferPair;
 import org.apache.drill.exec.record.selection.SelectionVector2;
 
-public abstract class FilterTemplate2 implements Filterer{
+import java.io.IOException;
+import java.util.Map;
+
+public abstract class FilterTemplate2 implements Filterer {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(FilterTemplate2.class);
 
   private SelectionVector2 outgoingSelectionVector;
   private SelectionVector2 incomingSelectionVector;
   private SelectionVectorMode svMode;
   private TransferPair[] transfers;
+  private boolean skipRecord;
+  private AbstractSkipRecordLogging skipRecordLogging;
 
   @Override
-  public void setup(FragmentContext context, RecordBatch incoming, RecordBatch outgoing, TransferPair[] transfers) throws SchemaChangeException{
+  public void setup(FragmentContext context, RecordBatch incoming, RecordBatch outgoing, TransferPair[] transfers, AbstractSkipRecordLogging skipRecordLogging) throws SchemaChangeException{
     this.transfers = transfers;
     this.outgoingSelectionVector = outgoing.getSelectionVector2();
     this.svMode = incoming.getSchema().getSelectionVectorMode();
+
+    this.skipRecord = (skipRecordLogging != null);
+    this.skipRecordLogging = skipRecordLogging;
 
     switch(svMode){
     case NONE:
@@ -52,6 +61,8 @@ public abstract class FilterTemplate2 implements Filterer{
       throw new UnsupportedOperationException();
     }
     doSetup(context, incoming, outgoing);
+    this.skipRecord = (skipRecordLogging != null);
+    this.skipRecordLogging = skipRecordLogging;
   }
 
   private void doTransfers(){
@@ -85,7 +96,14 @@ public abstract class FilterTemplate2 implements Filterer{
     final int count = recordCount;
     for(int i = 0; i < count; i++){
       char index = incomingSelectionVector.getIndex(i);
-      if(doEval(index, 0)){
+      final boolean keep;
+      if(skipRecord) {
+        keep = doEvalSkip(i, index, 0);
+      } else {
+        keep = doEval(index, 0);
+      }
+
+      if(keep){
         outgoingSelectionVector.setIndex(svIndex, index);
         svIndex++;
       }
@@ -96,7 +114,14 @@ public abstract class FilterTemplate2 implements Filterer{
   private void filterBatchNoSV(int recordCount){
     int svIndex = 0;
     for(int i = 0; i < recordCount; i++){
-      if(doEval(i, 0)){
+      final boolean retain;
+      if(skipRecord) {
+        retain = doEvalSkip(i, i, 0);
+      } else {
+        retain = doEval(i, 0);
+      }
+
+      if(retain) {
         outgoingSelectionVector.setIndex(svIndex, (char)i);
         svIndex++;
       }
@@ -104,7 +129,24 @@ public abstract class FilterTemplate2 implements Filterer{
     outgoingSelectionVector.setRecordCount(svIndex);
   }
 
+  private boolean doEvalSkip(int inputline, int inIndex, int outIndex) {
+    boolean keep;
+    try {
+      keep = doEval(inIndex, 0);
+    } catch(Exception e) {
+      keep = false;
+      skipRecordLogging.incrementSkippedRecord();
+      skipRecordLogging.setRowNumber(inputline);
+      skipRecordLogging.append("Error_Type", e);
+      try {
+        skipRecordLogging.write();
+      } catch (IOException ioe) {
+        throw new RuntimeException();
+      }
+    }
+    return keep;
+  }
+
   public abstract void doSetup(@Named("context") FragmentContext context, @Named("incoming") RecordBatch incoming, @Named("outgoing") RecordBatch outgoing);
   public abstract boolean doEval(@Named("inIndex") int inIndex, @Named("outIndex") int outIndex);
-
 }

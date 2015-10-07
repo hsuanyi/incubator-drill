@@ -27,12 +27,16 @@ import java.util.NavigableSet;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
+import com.google.common.collect.Maps;
 import org.apache.drill.common.exceptions.DrillRuntimeException;
 import org.apache.drill.common.exceptions.ExecutionSetupException;
 import org.apache.drill.common.expression.PathSegment;
 import org.apache.drill.common.expression.PathSegment.NameSegment;
 import org.apache.drill.common.expression.SchemaPath;
+import org.apache.drill.exec.ExecConstants;
 import org.apache.drill.exec.exception.SchemaChangeException;
+import org.apache.drill.exec.expr.BasicTypeHelper;
+import org.apache.drill.exec.expr.TypeHelper;
 import org.apache.drill.exec.ops.FragmentContext;
 import org.apache.drill.exec.ops.OperatorContext;
 import org.apache.drill.exec.ops.OperatorStats;
@@ -46,7 +50,6 @@ import org.apache.drill.exec.vector.complex.MapVector;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.Cell;
 import org.apache.hadoop.hbase.HConstants;
-import org.apache.hadoop.hbase.HColumnDescriptor;
 import org.apache.hadoop.hbase.client.HTable;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.client.ResultScanner;
@@ -66,6 +69,7 @@ public class HBaseRecordReader extends AbstractRecordReader implements DrillHBas
 
   private Map<String, MapVector> familyVectorMap;
   private VarBinaryVector rowKeyVector;
+  private VarBinaryVector rowKeyContextVector;
 
   private HTable hTable;
   private ResultScanner resultScanner;
@@ -77,6 +81,11 @@ public class HBaseRecordReader extends AbstractRecordReader implements DrillHBas
 
   private boolean rowKeyOnly;
 
+  // Skip Record Flags
+  private boolean hasRowKey;
+  private final boolean isSkipRecord;
+  private HBaseRecordReaderContext hBaseRecordReaderContext = null;
+
   public HBaseRecordReader(Configuration conf, HBaseSubScan.HBaseSubScanSpec subScanSpec,
       List<SchemaPath> projectedColumns, FragmentContext context) {
     hbaseConf = conf;
@@ -86,6 +95,7 @@ public class HBaseRecordReader extends AbstractRecordReader implements DrillHBas
         .setFilter(subScanSpec.getScanFilter())
         .setCaching(TARGET_RECORD_COUNT);
 
+    isSkipRecord = context.getOptions().getOption(ExecConstants.ENABLE_SKIP_INVALID_RECORD);
     setColumns(projectedColumns);
   }
 
@@ -96,6 +106,7 @@ public class HBaseRecordReader extends AbstractRecordReader implements DrillHBas
     if (!isStarQuery()) {
       for (SchemaPath column : columns) {
         if (column.getRootSegment().getPath().equalsIgnoreCase(ROW_KEY)) {
+          hasRowKey = true;
           transformed.add(ROW_KEY_PATH);
           continue;
         }
@@ -125,7 +136,6 @@ public class HBaseRecordReader extends AbstractRecordReader implements DrillHBas
       transformed.add(ROW_KEY_PATH);
     }
 
-
     return transformed;
   }
 
@@ -150,6 +160,11 @@ public class HBaseRecordReader extends AbstractRecordReader implements DrillHBas
         } else {
           getOrCreateFamilyVector(column.getRootSegment().getPath(), false);
         }
+      }
+
+      if(isSkipRecord) {
+        final MaterializedField field = MaterializedField.create(ROW_KEY_CONTEXT_PATH, ROW_KEY_TYPE);
+        rowKeyContextVector = VarBinaryVector.class.cast(TypeHelper.getNewVector(field, operatorContext.getAllocator()));
       }
 
       // Add map and child vectors for any HBase column families and/or HBase
@@ -184,6 +199,12 @@ public class HBaseRecordReader extends AbstractRecordReader implements DrillHBas
       rowKeyVector.clear();
       rowKeyVector.allocateNew();
     }
+
+    if(rowKeyContextVector != null) {
+      rowKeyContextVector.clear();
+      rowKeyContextVector.allocateNew();
+    }
+
     for (ValueVector v : familyVectorMap.values()) {
       v.clear();
       v.allocateNew();
@@ -216,7 +237,10 @@ public class HBaseRecordReader extends AbstractRecordReader implements DrillHBas
       Cell[] cells = result.rawCells();
       if (rowKeyVector != null) {
         rowKeyVector.getMutator().setSafe(rowCount, cells[0].getRowArray(), cells[0].getRowOffset(), cells[0].getRowLength());
+      } else if(isSkipRecord) {
+        rowKeyContextVector.getMutator().setSafe(rowCount, cells[0].getRowArray(), cells[0].getRowOffset(), cells[0].getRowLength());
       }
+
       if (!rowKeyOnly) {
         for (final Cell cell : cells) {
           final int familyOffset = cell.getFamilyOffset();
@@ -238,6 +262,7 @@ public class HBaseRecordReader extends AbstractRecordReader implements DrillHBas
     }
 
     setOutputRowCount(rowCount);
+    initReaderContext();
     logger.debug("Took {} ms to get {} records", watch.elapsed(TimeUnit.MILLISECONDS), rowCount);
     return rowCount;
   }
@@ -279,6 +304,10 @@ public class HBaseRecordReader extends AbstractRecordReader implements DrillHBas
       if (hTable != null) {
         hTable.close();
       }
+
+      if(isSkipRecord) {
+        rowKeyContextVector.clear();
+      }
     } catch (IOException e) {
       logger.warn("Failure while closing HBase table: " + hbaseTableName, e);
     }
@@ -290,6 +319,40 @@ public class HBaseRecordReader extends AbstractRecordReader implements DrillHBas
     }
     if (rowKeyVector != null) {
       rowKeyVector.getMutator().setValueCount(count);
+    } else if(isSkipRecord) {
+      rowKeyContextVector.getMutator().setValueCount(count);
+    }
+  }
+
+  private void initReaderContext() {
+    if(hasRowKey) {
+      for(int i = 0; i < rowKeyVector.getAccessor().getValueCount(); ++i) {
+        rowKeyContextVector.copyFromSafe(i, i, rowKeyVector);
+      }
+      rowKeyContextVector.getMutator().setValueCount(rowKeyVector.getAccessor().getValueCount());
+    }
+
+    final Map<String, String> map = Maps.newHashMap();
+    map.put("Table_Name", this.hbaseTableName);
+    hBaseRecordReaderContext = new HBaseRecordReaderContext(map, rowKeyContextVector);
+  }
+
+  @Override
+  public ReaderContext getReaderContext() {
+    return hBaseRecordReaderContext;
+  }
+
+  public static class HBaseRecordReaderContext extends ReaderContext {
+    private final VarBinaryVector rowKeyForContext;
+
+    public HBaseRecordReaderContext(final Map<String, String> map, final VarBinaryVector rowKeyForContext) {
+      super(map);
+      this.rowKeyForContext = rowKeyForContext;
+    }
+
+    @Override
+    public String getRowIdentifier(int index) {
+      return new String(rowKeyForContext.getAccessor().get(index));
     }
   }
 }

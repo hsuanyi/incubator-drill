@@ -66,6 +66,23 @@
           skipFirstLine: true
         }
       }
+    },
+
+    dfs_skip_record: {
+      type: "file",
+      connection: "file:///",
+      workspaces: {
+        "root" : {
+          location: "/tmp/skiprecord",
+          writable: true
+        }
+      },
+      formats: {
+        "json" : {
+          type: "json",
+          extensions: [ "json" ]
+        }
+      }
     }
   }
 }

@@ -19,7 +19,10 @@ package org.apache.drill.exec.physical.impl.project;
 
 import java.io.IOException;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 import org.apache.commons.collections.map.CaseInsensitiveMap;
 import org.apache.drill.common.expression.ConvertExpression;
@@ -49,8 +52,10 @@ import org.apache.drill.exec.expr.ValueVectorReadExpression;
 import org.apache.drill.exec.expr.ValueVectorWriteExpression;
 import org.apache.drill.exec.expr.fn.DrillComplexWriterFuncHolder;
 import org.apache.drill.exec.memory.OutOfMemoryException;
+import org.apache.drill.exec.memory.OutOfMemoryRuntimeException;
 import org.apache.drill.exec.ops.FragmentContext;
 import org.apache.drill.exec.physical.config.Project;
+import org.apache.drill.exec.physical.impl.union.UnionAller;
 import org.apache.drill.exec.planner.StarColumnHelper;
 import org.apache.drill.exec.record.AbstractSingleRecordBatch;
 import org.apache.drill.exec.record.BatchSchema.SelectionVectorMode;
@@ -60,6 +65,7 @@ import org.apache.drill.exec.record.TransferPair;
 import org.apache.drill.exec.record.TypedFieldId;
 import org.apache.drill.exec.record.VectorContainer;
 import org.apache.drill.exec.record.VectorWrapper;
+import org.apache.drill.exec.record.selection.SelectionVector2;
 import org.apache.drill.exec.vector.AllocationHelper;
 import org.apache.drill.exec.vector.FixedWidthVector;
 import org.apache.drill.exec.vector.ValueVector;
@@ -82,7 +88,10 @@ public class ProjectRecordBatch extends AbstractSingleRecordBatch<Project> {
   private int recordCount;
 
   private static final String EMPTY_STRING = "";
+  private final String POSTFIX_TRIM = "trim";
   private boolean first = true;
+
+  private boolean skipBadData = true;
 
   private class ClassifierResult {
     public boolean isStar = false;
@@ -169,12 +178,37 @@ public class ProjectRecordBatch extends AbstractSingleRecordBatch<Project> {
       return IterOutcome.OUT_OF_MEMORY;
     }
 
-    final int outputRecords = projector.projectRecords(0, incomingRecordCount, 0);
+    int outputRecords = projector.projectRecords(0, incomingRecordCount, 0);
+    if(!projector.getSkippedIndices().isEmpty()) {
+      final int numSkippedRecords = projector.getSkippedIndices().size();
+      final SelectionVector2 sv = new SelectionVector2(oContext.getAllocator());
+      if (!sv.allocateNewSafe(outputRecords)) {
+        throw new OutOfMemoryRuntimeException("Unable to allocate filter batch");
+      }
+
+      final Set<Integer> skippedIndices = projector.getSkippedIndices();
+      int svIndex = 0;
+      for(int i = 0; i < outputRecords; i++){
+        if(!skippedIndices.contains(i)) {
+          sv.setIndex(svIndex, (char)i);
+          ++svIndex;
+        }
+      }
+      sv.setRecordCount(svIndex);
+      final RecordSkipper recordSkipper = buildRecordSkipper(sv);
+      recordSkipper.skipRecords(outputRecords);
+
+      incomingRecordCount -= numSkippedRecords;
+      outputRecords -= numSkippedRecords;
+
+        sv.close();
+    }
+
     if (outputRecords < incomingRecordCount) {
       setValueCount(outputRecords);
       hasRemainder = true;
       remainderIndex = outputRecords;
-      this.recordCount = remainderIndex;
+      this.recordCount = outputRecords;
     } else {
       setValueCount(incomingRecordCount);
       for(final VectorWrapper<?> v: incoming) {
@@ -440,7 +474,7 @@ public class ProjectRecordBatch extends AbstractSingleRecordBatch<Project> {
 
     try {
       this.projector = context.getImplementationClass(cg.getCodeGenerator());
-      projector.setup(context, incoming, this, transfers);
+      projector.setup(skipBadData, context, incoming, this, transfers);
     } catch (ClassTransformationException | IOException e) {
       throw new SchemaChangeException("Failure while attempting to load generated class", e);
     }
@@ -719,6 +753,32 @@ public class ProjectRecordBatch extends AbstractSingleRecordBatch<Project> {
           addToResultMaps(newName, result, true);
         }
       }
+    }
+  }
+    
+  private RecordSkipper buildRecordSkipper(final SelectionVector2 sv) {
+    final ClassGenerator<RecordSkipper> cg = CodeGenerator.getRoot(RecordSkipper.TEMPLATE_DEFINITION, context.getFunctionRegistry());
+    for(VectorWrapper vectorWrapper : container) {
+      final ErrorCollector collector = new ErrorCollectorImpl();
+      final LogicalExpression expr = ExpressionTreeMaterializer.materialize(vectorWrapper.getField().getPath(), this, collector, context.getFunctionRegistry() );
+      assert !collector.hasErrors();
+
+      //final String origName = vectorWrapper.getField().getPath().getRootSegment().getPath().toString();
+      final MaterializedField outField = MaterializedField.create(vectorWrapper.getField().getPath(), expr.getMajorType());
+      final ValueVector vector = container.addOrGet(outField, callBack);
+      allocationVectors.add(vector);
+      final TypedFieldId fid = container.getValueVectorId(outField.getPath());
+      final ValueVectorWriteExpression write = new ValueVectorWriteExpression(fid, expr, true);
+      cg.addExpr(write);
+    }
+
+    try {
+      final RecordSkipper recordSkipper = context.getImplementationClass(cg.getCodeGenerator());
+      recordSkipper.setup(context, this, sv);
+      return recordSkipper;
+    } catch (ClassTransformationException | IOException e) {
+      throw new RuntimeException();
+      //throw new SchemaChangeException("Failure while attempting to load generated class", e);
     }
   }
 }

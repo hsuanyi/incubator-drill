@@ -18,9 +18,11 @@
 package org.apache.drill.exec.physical.impl.project;
 
 import java.util.List;
+import java.util.Set;
 
 import javax.inject.Named;
 
+import com.google.common.collect.Sets;
 import org.apache.drill.exec.exception.SchemaChangeException;
 import org.apache.drill.exec.ops.FragmentContext;
 import org.apache.drill.exec.record.BatchSchema.SelectionVectorMode;
@@ -38,8 +40,15 @@ public abstract class ProjectorTemplate implements Projector {
   private SelectionVector2 vector2;
   private SelectionVector4 vector4;
   private SelectionVectorMode svMode;
+  private final Set<Integer> indicesToSkip = Sets.newHashSet();
+  private boolean skipRecord = false;
 
   public ProjectorTemplate() throws SchemaChangeException {
+  }
+
+  @Override
+  public final Set<Integer> getSkippedIndices() {
+    return indicesToSkip;
   }
 
   @Override
@@ -51,7 +60,11 @@ public abstract class ProjectorTemplate implements Projector {
     case TWO_BYTE:
       final int count = recordCount;
       for (int i = 0; i < count; i++, firstOutputIndex++) {
-        doEval(vector2.getIndex(i), firstOutputIndex);
+        if(skipRecord) {
+          doEvalSkipIfBadData(vector2.getIndex(i), firstOutputIndex);
+        } else {
+          doEval(vector2.getIndex(i), firstOutputIndex);
+        }
       }
       return recordCount;
 
@@ -59,7 +72,11 @@ public abstract class ProjectorTemplate implements Projector {
       final int countN = recordCount;
       int i;
       for (i = startIndex; i < startIndex + countN; i++, firstOutputIndex++) {
-        doEval(i, firstOutputIndex);
+        if(skipRecord) {
+          doEvalSkipIfBadData(i, firstOutputIndex);
+        } else {
+          doEval(i, firstOutputIndex);
+        }
       }
       if (i < startIndex + recordCount || startIndex > 0) {
         for (TransferPair t : transfers) {
@@ -78,7 +95,7 @@ public abstract class ProjectorTemplate implements Projector {
   }
 
   @Override
-  public final void setup(FragmentContext context, RecordBatch incoming, RecordBatch outgoing, List<TransferPair> transfers)  throws SchemaChangeException{
+  public final void setup(boolean skipRecord, FragmentContext context, RecordBatch incoming, RecordBatch outgoing, List<TransferPair> transfers)  throws SchemaChangeException{
 
     this.svMode = incoming.getSchema().getSelectionVectorMode();
     switch (svMode) {
@@ -91,9 +108,18 @@ public abstract class ProjectorTemplate implements Projector {
     }
     this.transfers = ImmutableList.copyOf(transfers);
     doSetup(context, incoming, outgoing);
+    this.skipRecord = skipRecord;
+  }
+
+  private void doEvalSkipIfBadData(int inIndex, int outIndex) {
+    try {
+      doEval(inIndex, outIndex);
+    } catch (Exception e) {
+      indicesToSkip.add(outIndex);
+      // TODO: Log bad data
+    }
   }
 
   public abstract void doSetup(@Named("context") FragmentContext context, @Named("incoming") RecordBatch incoming, @Named("outgoing") RecordBatch outgoing);
   public abstract void doEval(@Named("inIndex") int inIndex, @Named("outIndex") int outIndex);
-
 }

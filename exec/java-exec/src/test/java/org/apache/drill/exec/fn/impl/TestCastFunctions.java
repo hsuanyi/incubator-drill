@@ -52,4 +52,14 @@ public class TestCastFunctions extends BaseTestQuery {
       .build().run();
   }
 
+  @Test // DRILL-
+  public void testCalulationWithInterval() throws Exception {
+    final String query = "select 3 * (INTERVAL '-1' DAY) from (values(1))";
+
+    String q = "select col * (INTERVAL -1 DAY) as xxx  from " +
+            "(SELECT CAST(r_regionkey AS INTEGER)  as col\n" +
+        "     from cp.`tpch/region.parquet` order by col) " +
+        "order by xxx;";
+    test(q);
+  }
 }

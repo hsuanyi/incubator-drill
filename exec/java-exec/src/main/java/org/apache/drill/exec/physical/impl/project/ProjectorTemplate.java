@@ -50,7 +50,7 @@ public abstract class ProjectorTemplate implements Projector {
   }
 
   @Override
-  public final int projectRecords(int startIndex, final int recordCount, int firstOutputIndex) {
+  public final int projectRecords(int startIndex, final int recordCount, int firstOutputIndex, AbstractSkipRecordLogging skipRecordLogging) {
     switch (svMode) {
     case FOUR_BYTE:
       throw new UnsupportedOperationException();
@@ -79,8 +79,8 @@ public abstract class ProjectorTemplate implements Projector {
       int i;
       int svIndex = 0;
       for (i = startIndex; i < startIndex + countN; i++, firstOutputIndex++) {
-        if(skipRecord) {
-          if(doEvalSkip(i, i, firstOutputIndex, svIndex)) {
+        if(skipRecordLogging != null) {
+          if(doEvalSkip(i, i, firstOutputIndex, svIndex, skipRecordLogging)) {
             ++svIndex;
           }
         } else {
@@ -109,7 +109,7 @@ public abstract class ProjectorTemplate implements Projector {
   }
 
   @Override
-  public final void setup(FragmentContext context, RecordBatch incoming, RecordBatch outgoing, List<TransferPair> transfers, AbstractSkipRecordLogging skipRecordLogging)  throws SchemaChangeException{
+  public final void setup(FragmentContext context, RecordBatch incoming, RecordBatch outgoing, List<TransferPair> transfers)  throws SchemaChangeException{
     this.svMode = incoming.getSchema().getSelectionVectorMode();
     switch (svMode) {
     case FOUR_BYTE:

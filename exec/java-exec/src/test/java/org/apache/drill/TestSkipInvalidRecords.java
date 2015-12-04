@@ -31,11 +31,25 @@ public class TestSkipInvalidRecords extends BaseTestQuery {
   public void testCastFailAtSomeRecords_Project() throws Exception {
     String root = FileUtils.getResourceAsFile("/testSkipInvalidRecords/testCastFailAtSomeRecords.csv").toURI().toString();
     String query = String.format("select cast(columns[0] as integer) c0, cast(columns[1] as integer) c1 \n" +
-        "from dfs_test.`%s`", root);
+        "from dfs_test.tmp.`%s`", root);
+
+    String queryLog = String.format("select * \n" +
+        "from dfs_test.skip_record.`a.json`");
+
     //test("alter session set `exec.enable_skip_invalid_record` = true");
 
     testBuilder()
         .sqlQuery(query)
+        .unOrdered()
+        .baselineColumns("c0", "c1")
+        .baselineValues(2, 2)
+        .baselineValues(3, 3)
+        .baselineValues(4, 4)
+        .build()
+        .run();
+
+    testBuilder()
+        .sqlQuery(queryLog)
         .unOrdered()
         .baselineColumns("c0", "c1")
         .baselineValues(2, 2)

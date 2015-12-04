@@ -37,7 +37,7 @@ public abstract class AbstractSkipRecordLogging implements Iterable<Map.Entry<St
 
   public final void incrementSkippedRecord() {
     if(numSkippedRecord == thresholdFailure) {
-      throw new IllegalStateException("");
+      throw new IllegalStateException("The number of offending records exceeds the threshold");
     }
 
     ++numSkippedRecord;

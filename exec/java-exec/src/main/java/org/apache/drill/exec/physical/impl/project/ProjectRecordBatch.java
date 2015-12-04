@@ -68,6 +68,7 @@ import org.apache.drill.exec.record.selection.SelectionVector2;
 import org.apache.drill.exec.store.RecordReader;
 import org.apache.drill.exec.store.StoragePlugin;
 import org.apache.drill.exec.store.dfs.DrillFileSystem;
+import org.apache.drill.exec.store.dfs.FileSystemConfig;
 import org.apache.drill.exec.store.dfs.FileSystemPlugin;
 import org.apache.drill.exec.vector.AllocationHelper;
 import org.apache.drill.exec.vector.FixedWidthVector;
@@ -95,7 +96,6 @@ public class ProjectRecordBatch extends AbstractSingleRecordBatch<Project> imple
   private final boolean isSkipRecord;
   private final long skipThreshold;
   private int skippedRecords = 0;
-  private long accumulatedSkippedRecordCount = 0;
 
   private SelectionVector2 sv2 = null;
   private AbstractSkipRecordLogging skipRecordLogging;
@@ -127,12 +127,13 @@ public class ProjectRecordBatch extends AbstractSingleRecordBatch<Project> imple
     if(this.isSkipRecord) {
       try {
         final StoragePlugin storagePlugin = context.getDrillbitContext().getStorage().getPlugin("dfs");
-        if (!(storagePlugin instanceof FileSystemPlugin)) {
-          throw new UnsupportedOperationException();
-        }
         final FileSystemPlugin plugin = (FileSystemPlugin) storagePlugin;
+        final FileSystemConfig pluginConfig = (FileSystemConfig) plugin.getConfig();
         final DrillFileSystem fs = new DrillFileSystem(plugin.getFsConf());
-        this.skipRecordLogging = new SkipRecordLoggingJSON(fs, "/Users/hyichu/Desktop", skipThreshold);
+
+        this.skipRecordLogging = new SkipRecordLoggingJSON(fs,
+            pluginConfig.workspaces.get("skip_record").getLocation(),
+                skipThreshold);
       } catch (Exception e) {
         throw new UnsupportedOperationException();
       }
@@ -208,11 +209,6 @@ public class ProjectRecordBatch extends AbstractSingleRecordBatch<Project> imple
     }
     final int outputRecords = projector.projectRecords(0, incomingRecordCount, 0);
     skippedRecords = isSkipRecord ? skipRecordLogging.getSkippedRecord() : 0;
-    accumulatedSkippedRecordCount += skippedRecords;
-
-    if(accumulatedSkippedRecordCount > skipThreshold) {
-      throw new IllegalStateException("The number of offending records exceeds the threshold");
-    }
 
     if (outputRecords < incomingRecordCount) {
       setValueCount(outputRecords);

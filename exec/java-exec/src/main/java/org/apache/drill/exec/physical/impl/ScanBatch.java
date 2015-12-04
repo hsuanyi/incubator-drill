@@ -35,6 +35,7 @@ import org.apache.drill.exec.exception.SchemaChangeException;
 import org.apache.drill.exec.expr.TypeHelper;
 import org.apache.drill.exec.ops.FragmentContext;
 import org.apache.drill.exec.ops.OperatorContext;
+import org.apache.drill.exec.physical.AbstractSkipRecordLogging;
 import org.apache.drill.exec.physical.base.PhysicalOperator;
 import org.apache.drill.exec.record.BatchSchema;
 import org.apache.drill.exec.record.BatchSchema.SelectionVectorMode;
@@ -441,5 +442,10 @@ public class ScanBatch implements CloseableRecordBatch, SkippingCapabilityRecord
   @Override
   public RecordReader.ReaderContext getRecordContext() {
     return currentReader.getReaderContext();
+  }
+
+  @Override
+  public AbstractSkipRecordLogging getLog() {
+
   }
 }

@@ -70,7 +70,7 @@ public class FilterRecordBatch extends AbstractSingleRecordBatch<Filter> impleme
     if(this.isSkipRecord) {
       try {
         final StoragePlugin storagePlugin = context.getDrillbitContext().getStorage().getPlugin("dfs");
-        if (!(storagePlugin instanceof FileSystemPlugin)) {
+        if(!(storagePlugin instanceof FileSystemPlugin)) {
           throw new UnsupportedOperationException();
         }
         final FileSystemPlugin plugin = (FileSystemPlugin) storagePlugin;

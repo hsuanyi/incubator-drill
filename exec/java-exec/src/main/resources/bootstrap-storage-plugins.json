@@ -11,6 +11,10 @@
         "tmp" : {
           location: "/tmp",
           writable: true
+        },
+        "skip_record" : {
+          location: "/tmp/skiprecord",
+          writable: true
         }
       },
       formats: {
@@ -48,23 +52,6 @@
           extensions: [ "csvh" ],
           delimiter: ",",
           extractHeader: true
-        }
-      }
-    },
-
-    dfs_skip_record: {
-      type: "file",
-      connection: "file:///",
-      workspaces: {
-        "root" : {
-          location: "/tmp/skiprecord",
-          writable: true
-        }
-      },
-      formats: {
-        "json" : {
-          type: "json",
-          extensions: [ "json" ]
         }
       }
     },

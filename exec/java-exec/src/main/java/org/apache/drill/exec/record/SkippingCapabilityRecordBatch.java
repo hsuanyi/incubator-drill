@@ -17,9 +17,11 @@
  */
 package org.apache.drill.exec.record;
 
+import org.apache.drill.exec.physical.AbstractSkipRecordLogging;
 import org.apache.drill.exec.store.RecordReader;
 
 public interface SkippingCapabilityRecordBatch {
   int getSkippedRecordCount();
   RecordReader.ReaderContext getRecordContext();
+  AbstractSkipRecordLogging getLog();
 }

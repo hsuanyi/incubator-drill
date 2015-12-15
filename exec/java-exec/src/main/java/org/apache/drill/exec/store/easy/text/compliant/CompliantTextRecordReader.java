@@ -17,6 +17,7 @@
  */
 package org.apache.drill.exec.store.easy.text.compliant;
 
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.univocity.parsers.common.TextParsingException;
 import io.netty.buffer.DrillBuf;
@@ -28,6 +29,7 @@ import java.util.Map;
 
 import javax.annotation.Nullable;
 
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.drill.common.exceptions.DrillRuntimeException;
 import org.apache.drill.common.exceptions.ExecutionSetupException;
 import org.apache.drill.common.exceptions.UserException;
@@ -200,6 +202,14 @@ public class CompliantTextRecordReader extends AbstractRecordReader {
             split.getPath(), reader.getPos())
           .build(logger);
     }
+  }
+
+  @Override
+  public List<Pair<String, String>> getDataSourceContext() {
+    final List<Pair<String, String>> lists = Lists.newArrayList();
+    lists.add(Pair.of("File_Name", split.getPath().toUri().getPath()));
+    lists.add(Pair.of("Off_set", "" + split.getStart()));
+    return lists;
   }
 
   /**

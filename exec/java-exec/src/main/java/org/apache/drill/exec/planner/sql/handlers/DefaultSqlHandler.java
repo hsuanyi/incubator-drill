@@ -87,6 +87,7 @@ import org.apache.drill.exec.planner.physical.PhysicalPlanCreator;
 import org.apache.drill.exec.planner.physical.PlannerSettings;
 import org.apache.drill.exec.planner.physical.Prel;
 import org.apache.drill.exec.planner.physical.explain.PrelSequencer;
+import org.apache.drill.exec.planner.physical.visitor.AddDataSourceContextColumnVisitor;
 import org.apache.drill.exec.planner.physical.visitor.ComplexToJsonPrelVisitor;
 import org.apache.drill.exec.planner.physical.visitor.ExcessiveExchangeIdentifier;
 import org.apache.drill.exec.planner.physical.visitor.FinalColumnReorderer;
@@ -406,6 +407,10 @@ public class DefaultSqlHandler extends AbstractSqlHandler {
      * This could happen in the case of querying the same table twice as Optiq may canonicalize these.
      */
     phyRelNode = RelUniqifier.uniqifyGraph(phyRelNode);
+
+    if(true) {
+      phyRelNode = AddDataSourceContextColumnVisitor.addDataSourceContextColumnVisitor(phyRelNode);
+    }
 
     return phyRelNode;
   }

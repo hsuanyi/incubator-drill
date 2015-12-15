@@ -18,8 +18,12 @@
 package org.apache.drill.exec.store;
 
 import java.util.Collection;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
+import com.beust.jcommander.internal.Lists;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.drill.common.expression.SchemaPath;
 import org.apache.drill.exec.exception.OutOfMemoryException;
 import org.apache.drill.exec.planner.logical.ColumnList;
@@ -91,5 +95,10 @@ public abstract class AbstractRecordReader implements RecordReader {
     for (final ValueVector v : vectorMap.values()) {
       v.allocateNew();
     }
+  }
+
+  @Override
+  public List<Pair<String, String>> getDataSourceContext() {
+    return Lists.newArrayList();
   }
 }

@@ -19,11 +19,15 @@ package org.apache.drill.exec.physical.impl;
 
 import io.netty.buffer.DrillBuf;
 
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.drill.common.exceptions.ExecutionSetupException;
 import org.apache.drill.common.exceptions.UserException;
 import org.apache.drill.common.expression.SchemaPath;
@@ -36,6 +40,7 @@ import org.apache.drill.exec.expr.TypeHelper;
 import org.apache.drill.exec.ops.FragmentContext;
 import org.apache.drill.exec.ops.OperatorContext;
 import org.apache.drill.exec.physical.base.PhysicalOperator;
+import org.apache.drill.exec.planner.physical.visitor.AddDataSourceContextColumnVisitor;
 import org.apache.drill.exec.record.BatchSchema;
 import org.apache.drill.exec.record.BatchSchema.SelectionVectorMode;
 import org.apache.drill.exec.record.CloseableRecordBatch;
@@ -53,11 +58,10 @@ import org.apache.drill.exec.testing.ControlsInjectorFactory;
 import org.apache.drill.exec.util.CallBack;
 import org.apache.drill.exec.vector.AllocationHelper;
 import org.apache.drill.exec.vector.NullableVarCharVector;
+import org.apache.drill.exec.vector.RepeatedVarCharVector;
 import org.apache.drill.exec.vector.SchemaChangeCallBack;
 import org.apache.drill.exec.vector.ValueVector;
-
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
+import org.apache.drill.exec.vector.VarCharVector;
 
 /**
  * Record batch used for a particular scan. Operators against one or more
@@ -83,12 +87,14 @@ public class ScanBatch implements CloseableRecordBatch {
   private Iterator<String[]> partitionColumns;
   private String[] partitionValues;
   private List<ValueVector> partitionVectors;
+
+  private RepeatedVarCharVector dataSourceVector;
+
   private List<Integer> selectedPartitionColumns;
   private String partitionColumnDesignator;
   private boolean done = false;
   private SchemaChangeCallBack callBack = new SchemaChangeCallBack();
   private boolean hasReadNonEmptyFile = false;
-
 
   public ScanBatch(PhysicalOperator subScanConfig, FragmentContext context,
                    OperatorContext oContext, Iterator<RecordReader> readers,
@@ -128,6 +134,7 @@ public class ScanBatch implements CloseableRecordBatch {
     partitionColumnDesignator = labelValue == null ? "dir" : labelValue.string_val;
 
     addPartitionVectors();
+    addDataSourceVector();
   }
 
   public ScanBatch(PhysicalOperator subScanConfig, FragmentContext context,
@@ -231,7 +238,7 @@ public class ScanBatch implements CloseableRecordBatch {
             return IterOutcome.OUT_OF_MEMORY;
           }
           addPartitionVectors();
-
+          addDataSourceVector();
         } catch (ExecutionSetupException e) {
           this.context.fail(e);
           releaseAssets();
@@ -242,11 +249,11 @@ public class ScanBatch implements CloseableRecordBatch {
 
       hasReadNonEmptyFile = true;
       populatePartitionVectors();
+      populateDataSourceVector();
 
       for (VectorWrapper w : container) {
         w.getValueVector().getMutator().setValueCount(recordCount);
       }
-
 
       // this is a slight misuse of this metric but it will allow Readers to report how many records they generated.
       final boolean isNewSchema = mutator.isNewSchema();
@@ -282,7 +289,7 @@ public class ScanBatch implements CloseableRecordBatch {
       for (int i : selectedPartitionColumns) {
         final MaterializedField field =
             MaterializedField.create(SchemaPath.getSimplePath(partitionColumnDesignator + i),
-                                     Types.optional(MinorType.VARCHAR));
+            Types.optional(MinorType.VARCHAR));
         final ValueVector v = mutator.addField(field, NullableVarCharVector.class);
         partitionVectors.add(v);
       }
@@ -308,6 +315,39 @@ public class ScanBatch implements CloseableRecordBatch {
         v.getMutator().setValueCount(recordCount);
       }
     }
+  }
+
+  private void addDataSourceVector() throws ExecutionSetupException {
+    try {
+      if(dataSourceVector != null) {
+        dataSourceVector.clear();
+      }
+      final MaterializedField field = MaterializedField.create(SchemaPath.getSimplePath(AddDataSourceContextColumnVisitor.DATA_SOURCE_CONTEXT),
+          Types.repeated(MinorType.VARCHAR));
+      dataSourceVector = mutator.addField(field, RepeatedVarCharVector.class);
+    } catch(SchemaChangeException e) {
+      throw new ExecutionSetupException(e);
+    }
+  }
+
+  private void populateDataSourceVector() {
+    final List<Pair<String, String>> columnNameToVal = currentReader.getDataSourceContext();
+    int lengthEachRow = 0;
+    final List<byte[]> eachRow = Lists.newArrayList();
+    for(int i = 0; i < columnNameToVal.size(); ++i) {
+      final byte[] val = columnNameToVal.get(i).getRight().getBytes();
+      eachRow.add(val);
+      lengthEachRow += val.length;
+    }
+    AllocationHelper.allocate(dataSourceVector, recordCount, lengthEachRow);
+
+
+    for (int i = 0; i < recordCount; i++) {
+      for(int j = 0; j < eachRow.size(); ++j) {
+          dataSourceVector.getMutator().add(i, eachRow.get(j));
+      }
+    }
+    dataSourceVector.getMutator().setValueCount(recordCount);
   }
 
   @Override
@@ -421,6 +461,11 @@ public class ScanBatch implements CloseableRecordBatch {
     for (final ValueVector v : partitionVectors) {
       v.clear();
     }
+
+    if(dataSourceVector != null) {
+      dataSourceVector.clear();
+    }
+
     fieldVectorMap.clear();
     currentReader.close();
   }

@@ -15,28 +15,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.drill.exec.ops;
+package org.apache.drill.exec.expr.annotations;
 
-import org.apache.drill.exec.expr.fn.GlobalFunctionRegistry;
-import org.apache.drill.exec.memory.BufferAllocator;
-import org.apache.drill.exec.planner.physical.PlannerSettings;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 
-public interface OptimizerRulesContext extends UdfUtilities {
-  /**
-   * Method returns the function registry
-   * @return FunctionImplementationRegistry
-   */
-  public GlobalFunctionRegistry getFunctionRegistry();
-
-  /**
-   * Method returns the allocator
-   * @return BufferAllocator
-   */
-  public BufferAllocator getAllocator();
-
-  /**
-   * Method returns the planner options
-   * @return PlannerSettings
-   */
-  public PlannerSettings getPlannerSettings();
+@Retention(RetentionPolicy.RUNTIME)
+@Target({ElementType.TYPE})
+public @interface FunctionErrors {
+  String[] errors() default {};
 }

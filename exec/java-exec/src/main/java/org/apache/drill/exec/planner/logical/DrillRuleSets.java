@@ -191,7 +191,7 @@ public class DrillRuleSets {
         .addAll(staticRuleSet)
         .add(
             DrillMergeProjectRule.getInstance(true, RelFactories.DEFAULT_PROJECT_FACTORY,
-                optimizerRulesContext.getFunctionRegistry())
+                optimizerRulesContext.getFunctionRegistry().getFunctionImplementationRegistryAsException())
             )
         .build();
 

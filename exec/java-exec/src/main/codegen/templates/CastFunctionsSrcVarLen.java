@@ -15,15 +15,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-<@pp.dropOutputFile />
 
-<#macro doError>
-  { 
-    byte[] buf = new byte[in.end - in.start];
-    in.buffer.getBytes(in.start, buf, 0, in.end - in.start);  
-    throw new NumberFormatException(new String(buf, com.google.common.base.Charsets.UTF_8));
-  }  
-</#macro>
+import org.apache.drill.exec.expr.annotations.FunctionErrors;
+
+<@pp.dropOutputFile />
 
 <#list cast.types as type>
 <#if type.major == "SrcVarlen">
@@ -35,7 +30,9 @@
 package org.apache.drill.exec.expr.fn.impl.gcast;
 
 import org.apache.drill.exec.expr.DrillSimpleFunc;
+import org.apache.drill.exec.expr.DrillSimpleErrFunc;
 import org.apache.drill.exec.expr.annotations.FunctionTemplate;
+import org.apache.drill.exec.expr.annotations.FunctionErrors;
 import org.apache.drill.exec.expr.annotations.FunctionTemplate.NullHandling;
 import org.apache.drill.exec.expr.annotations.Output;
 import org.apache.drill.exec.expr.annotations.Param;
@@ -45,15 +42,16 @@ import javax.inject.Inject;
 import io.netty.buffer.DrillBuf;
 
 @SuppressWarnings("unused")
-@FunctionTemplate(name = "cast${type.to?upper_case}", scope = FunctionTemplate.FunctionScope.SIMPLE, nulls=NullHandling.NULL_IF_NULL)
-public class Cast${type.from}${type.to} implements DrillSimpleFunc{
+@FunctionErrors(errors = {"OK", "PARSING EXCEPTION", "OVERFLOW EXCEPTION"})
+@FunctionTemplate(name = "cast${type.to?upper_case}", scope = FunctionTemplate.FunctionScope.SIMPLE_ERR, nulls=NullHandling.NULL_IF_NULL)
+public class Cast${type.from}${type.to} implements DrillSimpleErrFunc {
 
   @Param ${type.from}Holder in;
   @Output ${type.to}Holder out;
 
   public void setup() {}
 
-  public void eval() {
+  public int eval() {
     <#if type.to == "Float4" || type.to == "Float8">
       
       byte[] buf = new byte[in.end - in.start];
@@ -61,10 +59,62 @@ public class Cast${type.from}${type.to} implements DrillSimpleFunc{
     
       //TODO: need capture format exception, and issue SQLERR code.
       out.value = ${type.javaType}.parse${type.parse}(new String(buf, com.google.common.base.Charsets.UTF_8));
-      
+      return 0;
+
     <#elseif type.to=="Int" >
       out.value = org.apache.drill.exec.expr.fn.impl.StringFunctionHelpers.varCharToInt(in.start, in.end, in.buffer);
-    
+
+      return 0;
+    <#elseif type.to=="Int" || type.to == "BigInt">
+
+      if ((in.end - in.start) ==0) {
+        //empty, not a valid number
+        return 1;
+      }
+
+      int readIndex = in.start;
+
+      boolean negative = in.buffer.getByte(readIndex) == '-';
+      
+      if (negative && ++readIndex == in.end) {
+        //only one single '-'
+        return 1;
+      }
+   
+      int radix = 10;
+      ${type.primeType} max = -${type.javaType}.MAX_VALUE / radix;
+      ${type.primeType} result = 0;
+      int digit;
+      
+      while (readIndex < in.end) {
+        digit = Character.digit(in.buffer.getByte(readIndex++),radix);
+        //not valid digit.
+        if (digit == -1) {
+          return 1;
+        }
+        //overflow
+        if (max > result) {
+          return 2;
+        }
+        
+        ${type.primeType} next = result * radix - digit;
+        
+        //overflow
+        if (next > result) {
+          return 2;
+        }
+        result = next;
+      }
+      if (!negative) {
+        result = -result;
+        //overflow
+        if (result < 0) {
+          return 2;
+        }
+      }
+   
+      out.value = result;
+      return 0;
     <#elseif type.to == "BigInt">
       out.value = org.apache.drill.exec.expr.fn.impl.StringFunctionHelpers.varCharToLong(in.start, in.end, in.buffer);
     </#if>

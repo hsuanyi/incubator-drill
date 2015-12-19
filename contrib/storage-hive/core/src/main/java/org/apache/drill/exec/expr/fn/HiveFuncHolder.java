@@ -47,7 +47,7 @@ import com.sun.codemodel.JTryBlock;
 import com.sun.codemodel.JVar;
 
 public class HiveFuncHolder extends AbstractFuncHolder {
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(FunctionImplementationRegistry.class);
+  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(HiveFuncHolder.class);
 
   private MajorType[] argTypes;
   private ObjectInspector returnOI;

@@ -214,7 +214,7 @@ public class ExpressionInterpreterTest  extends PopUnitTestBase {
   private ValueVector evalExprWithInterpreter(String expression, RecordBatch batch, Drillbit bit) throws Exception {
     final LogicalExpression expr = parseExpr(expression);
     final ErrorCollector error = new ErrorCollectorImpl();
-    final LogicalExpression materializedExpr = ExpressionTreeMaterializer.materialize(expr, batch, error, bit.getContext().getFunctionImplementationRegistry());
+    final LogicalExpression materializedExpr = ExpressionTreeMaterializer.materialize(expr, batch, error, bit.getContext().getFunctionImplementationRegistry().getFunctionImplementationRegistryAsException());
     if (error.getErrorCount() != 0) {
       logger.error("Failure while materializing expression [{}].  Errors: {}", expression, error);
       assertEquals(0, error.getErrorCount());

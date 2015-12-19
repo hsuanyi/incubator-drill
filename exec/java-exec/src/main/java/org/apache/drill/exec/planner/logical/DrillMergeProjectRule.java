@@ -21,24 +21,24 @@ package org.apache.drill.exec.planner.logical;
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.rel.core.Project;
 import org.apache.calcite.rel.rules.ProjectMergeRule;
-import org.apache.drill.exec.expr.fn.FunctionImplementationRegistry;
 import org.apache.calcite.rel.core.RelFactories.ProjectFactory;
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexNode;
+import org.apache.drill.exec.expr.fn.GlobalFunctionRegistry;
 
 public class DrillMergeProjectRule extends ProjectMergeRule {
 
-  private FunctionImplementationRegistry functionRegistry;
+  private GlobalFunctionRegistry.FunctionImplementationRegistry functionRegistry;
   private static DrillMergeProjectRule INSTANCE = null;
 
-  public static DrillMergeProjectRule getInstance(boolean force, ProjectFactory pFactory, FunctionImplementationRegistry functionRegistry) {
+  public static DrillMergeProjectRule getInstance(boolean force, ProjectFactory pFactory, GlobalFunctionRegistry.FunctionImplementationRegistry functionRegistry) {
     if (INSTANCE == null) {
       INSTANCE = new DrillMergeProjectRule(force, pFactory, functionRegistry);
     }
     return INSTANCE;
   }
 
-  private DrillMergeProjectRule(boolean force, ProjectFactory pFactory, FunctionImplementationRegistry functionRegistry) {
+  private DrillMergeProjectRule(boolean force, ProjectFactory pFactory, GlobalFunctionRegistry.FunctionImplementationRegistry functionRegistry) {
     super(force, pFactory);
    this.functionRegistry = functionRegistry;
   }

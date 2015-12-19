@@ -28,7 +28,8 @@ import org.apache.drill.common.config.LogicalPlanPersistence;
 import org.apache.drill.common.scanner.persistence.ScanResult;
 import org.apache.drill.exec.compile.CodeCompiler;
 import org.apache.drill.exec.coord.ClusterCoordinator;
-import org.apache.drill.exec.expr.fn.FunctionImplementationRegistry;
+import org.apache.drill.exec.expr.fn.GlobalFunctionRegistry.FunctionImplementationRegistry;
+import org.apache.drill.exec.expr.fn.GlobalFunctionRegistry;
 import org.apache.drill.exec.memory.BufferAllocator;
 import org.apache.drill.exec.physical.impl.OperatorCreatorRegistry;
 import org.apache.drill.exec.planner.PhysicalPlanReader;
@@ -55,7 +56,7 @@ public class DrillbitContext {
   private final OperatorCreatorRegistry operatorCreatorRegistry;
   private final Controller controller;
   private final WorkEventBus workBus;
-  private final FunctionImplementationRegistry functionRegistry;
+  private final GlobalFunctionRegistry functionRegistry;
   private final SystemOptionManager systemOptions;
   private final PStoreProvider provider;
   private final CodeCompiler compiler;
@@ -84,11 +85,11 @@ public class DrillbitContext {
     this.reader = new PhysicalPlanReader(context.getConfig(), classpathScan, lpPersistence, endpoint, storagePlugins);
     this.operatorCreatorRegistry = new OperatorCreatorRegistry(classpathScan);
     this.systemOptions = new SystemOptionManager(lpPersistence, provider);
-    this.functionRegistry = new FunctionImplementationRegistry(context.getConfig(), classpathScan, systemOptions);
+    this.functionRegistry = new GlobalFunctionRegistry(context.getConfig(), classpathScan, systemOptions);
     this.compiler = new CodeCompiler(context.getConfig(), systemOptions);
   }
 
-  public FunctionImplementationRegistry getFunctionImplementationRegistry() {
+  public GlobalFunctionRegistry getFunctionImplementationRegistry() {
     return functionRegistry;
   }
 

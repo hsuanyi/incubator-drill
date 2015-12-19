@@ -19,7 +19,10 @@ package org.apache.drill.exec.planner.sql;
 
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Lists;
-import org.apache.drill.exec.expr.fn.FunctionImplementationRegistry;
+
+import java.util.List;
+
+import org.apache.drill.exec.expr.fn.GlobalFunctionRegistry;
 import org.apache.calcite.sql.SqlFunctionCategory;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlOperator;
@@ -27,7 +30,6 @@ import org.apache.calcite.sql.SqlOperatorTable;
 import org.apache.calcite.sql.SqlSyntax;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 
-import java.util.List;
 
 public class DrillOperatorTable extends SqlStdOperatorTable {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(DrillOperatorTable.class);
@@ -36,7 +38,7 @@ public class DrillOperatorTable extends SqlStdOperatorTable {
   private List<SqlOperator> operators;
   private ArrayListMultimap<String, SqlOperator> opMap = ArrayListMultimap.create();
 
-  public DrillOperatorTable(FunctionImplementationRegistry registry) {
+  public DrillOperatorTable(GlobalFunctionRegistry.FunctionImplementationRegistry registry) {
     operators = Lists.newArrayList();
     operators.addAll(inner.getOperatorList());
 

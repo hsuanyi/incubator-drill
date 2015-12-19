@@ -40,7 +40,7 @@ import org.apache.drill.common.types.TypeProtos;
 import org.apache.drill.common.types.TypeProtos.MinorType;
 import org.apache.drill.common.types.Types;
 import org.apache.drill.exec.ExecTest;
-import org.apache.drill.exec.expr.fn.FunctionImplementationRegistry;
+import org.apache.drill.exec.expr.fn.GlobalFunctionRegistry;
 import org.apache.drill.exec.memory.RootAllocatorFactory;
 import org.apache.drill.exec.physical.impl.project.Projector;
 import org.apache.drill.exec.record.MaterializedField;
@@ -55,7 +55,7 @@ public class ExpressionTest extends ExecTest {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ExpressionTest.class);
 
   private final DrillConfig c = DrillConfig.create();
-  private final FunctionImplementationRegistry registry = new FunctionImplementationRegistry(c);
+  private final GlobalFunctionRegistry registry = new GlobalFunctionRegistry(c);
 
   @Test
   public void testBasicExpression(@Injectable RecordBatch batch) throws Exception {
@@ -131,13 +131,13 @@ public class ExpressionTest extends ExecTest {
   private String getExpressionCode(String expression, RecordBatch batch) throws Exception {
     final LogicalExpression expr = parseExpr(expression);
     final ErrorCollector error = new ErrorCollectorImpl();
-    final LogicalExpression materializedExpr = ExpressionTreeMaterializer.materialize(expr, batch, error, registry);
+    final LogicalExpression materializedExpr = ExpressionTreeMaterializer.materialize(expr, batch, error, registry.getFunctionImplementationRegistryAsException());
     if (error.getErrorCount() != 0) {
       logger.error("Failure while materializing expression [{}].  Errors: {}", expression, error);
       assertEquals(0, error.getErrorCount());
     }
 
-    final ClassGenerator<Projector> cg = CodeGenerator.get(Projector.TEMPLATE_DEFINITION, new FunctionImplementationRegistry(DrillConfig.create())).getRoot();
+    final ClassGenerator<Projector> cg = CodeGenerator.get(Projector.TEMPLATE_DEFINITION, new GlobalFunctionRegistry.FunctionImplementationRegistry(DrillConfig.create())).getRoot();
     cg.addExpr(new ValueVectorWriteExpression(new TypedFieldId(materializedExpr.getMajorType(), -1), materializedExpr));
     return cg.getCodeGenerator().generateAndGet();
   }

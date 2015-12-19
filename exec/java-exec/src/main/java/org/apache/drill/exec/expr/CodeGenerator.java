@@ -21,7 +21,7 @@ import java.io.IOException;
 
 import org.apache.drill.exec.compile.TemplateClassDefinition;
 import org.apache.drill.exec.compile.sig.MappingSet;
-import org.apache.drill.exec.expr.fn.FunctionImplementationRegistry;
+import org.apache.drill.exec.expr.fn.GlobalFunctionRegistry.FunctionImplementationRegistry;
 
 import com.google.common.base.Preconditions;
 import com.sun.codemodel.JClassAlreadyExistsException;

@@ -30,7 +30,7 @@ import java.util.Random;
 
 import org.apache.drill.PlanTestBase;
 import org.apache.drill.exec.exception.OutOfMemoryException;
-import org.apache.drill.exec.expr.fn.FunctionImplementationRegistry;
+import org.apache.drill.exec.expr.fn.GlobalFunctionRegistry;
 import org.apache.drill.exec.ops.FragmentContext;
 import org.apache.drill.exec.ops.OperatorStats;
 import org.apache.drill.exec.physical.MinorFragmentEndpoint;
@@ -162,7 +162,7 @@ public class TestPartitionSender extends PlanTestBase {
     final PhysicalPlan physicalPlan = planReader.readPhysicalPlan(plan);
     final Fragment rootFragment = PopUnitTestBase.getRootFragmentFromPlanString(planReader, plan);
     final PlanningSet planningSet = new PlanningSet();
-    final FunctionImplementationRegistry registry = new FunctionImplementationRegistry(config);
+    final GlobalFunctionRegistry registry = new GlobalFunctionRegistry(config);
 
     // Create a planningSet to get the assignment of major fragment ids to fragments.
     PARALLELIZER.initFragmentWrappers(rootFragment, planningSet);
@@ -213,7 +213,7 @@ public class TestPartitionSender extends PlanTestBase {
    * @throws Exception
    */
   private void testThreadsHelper(HashToRandomExchange hashToRandomExchange, DrillbitContext drillbitContext, OptionList options,
-      RecordBatch incoming, FunctionImplementationRegistry registry, PhysicalPlanReader planReader, PlanningSet planningSet, Fragment rootFragment,
+      RecordBatch incoming, GlobalFunctionRegistry registry, PhysicalPlanReader planReader, PlanningSet planningSet, Fragment rootFragment,
       int expectedThreadsCount) throws Exception {
 
     final QueryContextInformation queryContextInfo = Utilities.createQueryContextInfo("dummySchemaName");

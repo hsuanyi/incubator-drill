@@ -39,7 +39,7 @@ import org.apache.drill.common.expression.SchemaPath;
 import org.apache.drill.common.types.TypeProtos;
 import org.apache.drill.common.util.FileUtils;
 import org.apache.drill.exec.exception.SchemaChangeException;
-import org.apache.drill.exec.expr.fn.FunctionImplementationRegistry;
+import org.apache.drill.exec.expr.fn.GlobalFunctionRegistry;
 import org.apache.drill.exec.memory.BufferAllocator;
 import org.apache.drill.exec.memory.RootAllocatorFactory;
 import org.apache.drill.exec.ops.FragmentContext;
@@ -606,7 +606,7 @@ public class ParquetRecordReaderTest extends BaseTestQuery {
   public void testPerformance(@Injectable final DrillbitContext bitContext,
                               @Injectable UserServer.UserClientConnection connection) throws Exception {
     final DrillConfig c = DrillConfig.create();
-    final FunctionImplementationRegistry registry = new FunctionImplementationRegistry(c);
+    final GlobalFunctionRegistry registry = new GlobalFunctionRegistry(c);
     final FragmentContext context = new FragmentContext(bitContext, BitControl.PlanFragment.getDefaultInstance(), connection, registry);
 
 //    new NonStrictExpectations() {

@@ -24,7 +24,7 @@ import org.apache.drill.common.config.DrillConfig;
 import org.apache.drill.common.scanner.ClassPathScanner;
 import org.apache.drill.exec.ExecTest;
 import org.apache.drill.exec.compile.CodeCompilerTestFactory;
-import org.apache.drill.exec.expr.fn.FunctionImplementationRegistry;
+import org.apache.drill.exec.expr.fn.GlobalFunctionRegistry;
 import org.apache.drill.exec.memory.RootAllocatorFactory;
 import org.apache.drill.exec.ops.FragmentContext;
 import org.apache.drill.exec.physical.PhysicalPlan;
@@ -50,7 +50,7 @@ public class TestStringFunctions extends ExecTest {
 
   private final DrillConfig c = DrillConfig.create();
   private PhysicalPlanReader reader;
-  private FunctionImplementationRegistry registry;
+  private GlobalFunctionRegistry registry;
   private FragmentContext context;
 
   public Object[] getRunResult(SimpleRootExec exec) {
@@ -86,7 +86,7 @@ public class TestStringFunctions extends ExecTest {
       reader = PhysicalPlanReaderTestFactory.defaultPhysicalPlanReader(c);
     }
     if (registry == null) {
-      registry = new FunctionImplementationRegistry(c);
+      registry = new GlobalFunctionRegistry(c);
     }
     if (context == null) {
       context =  new FragmentContext(bitContext, PlanFragment.getDefaultInstance(), connection, registry); //new FragmentContext(bitContext, ExecProtos.FragmentHandle.getDefaultInstance(), connection, registry);

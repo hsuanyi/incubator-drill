@@ -31,9 +31,9 @@ import org.apache.drill.common.scanner.ClassPathScanner;
 import org.apache.drill.common.scanner.persistence.ScanResult;
 import org.apache.drill.common.util.TestTools;
 import org.apache.drill.exec.ExecTest;
-import org.apache.drill.exec.expr.fn.FunctionImplementationRegistry;
 import org.apache.drill.exec.memory.BufferAllocator;
 import org.apache.drill.exec.memory.RootAllocatorFactory;
+import org.apache.drill.exec.expr.fn.GlobalFunctionRegistry;
 import org.apache.drill.exec.ops.QueryContext;
 import org.apache.drill.exec.physical.PhysicalPlan;
 import org.apache.drill.exec.planner.physical.PlannerSettings;
@@ -107,11 +107,10 @@ public class PlanningBase extends ExecTest{
 
     final StoragePluginRegistry registry = new StoragePluginRegistry(dbContext);
     registry.init();
-    final FunctionImplementationRegistry functionRegistry = new FunctionImplementationRegistry(config);
-    final DrillOperatorTable table = new DrillOperatorTable(functionRegistry);
+    final GlobalFunctionRegistry functionRegistry = new GlobalFunctionRegistry(config);
+    final DrillOperatorTable table = new DrillOperatorTable(functionRegistry.getFunctionImplementationRegistryAsException());
     final SchemaPlus root = SimpleCalciteSchema.createRootSchema(false);
     registry.getSchemaFactory().registerSchemas(SchemaConfig.newBuilder("foo", context).build(), root);
-
     new NonStrictExpectations() {
       {
         context.getNewDefaultSchema();

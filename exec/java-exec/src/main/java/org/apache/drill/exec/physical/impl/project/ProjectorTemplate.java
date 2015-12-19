@@ -44,6 +44,7 @@ public abstract class ProjectorTemplate implements Projector {
 
   @Override
   public final int projectRecords(int startIndex, final int recordCount, int firstOutputIndex) {
+    int drillErrorCode = 0;
     switch (svMode) {
     case FOUR_BYTE:
       throw new UnsupportedOperationException();
@@ -51,7 +52,7 @@ public abstract class ProjectorTemplate implements Projector {
     case TWO_BYTE:
       final int count = recordCount;
       for (int i = 0; i < count; i++, firstOutputIndex++) {
-        doEval(vector2.getIndex(i), firstOutputIndex);
+        drillErrorCode = doEval(vector2.getIndex(i), firstOutputIndex);
       }
       return recordCount;
 
@@ -59,7 +60,7 @@ public abstract class ProjectorTemplate implements Projector {
       final int countN = recordCount;
       int i;
       for (i = startIndex; i < startIndex + countN; i++, firstOutputIndex++) {
-        doEval(i, firstOutputIndex);
+        drillErrorCode = doEval(i, firstOutputIndex);
       }
       if (i < startIndex + recordCount || startIndex > 0) {
         for (TransferPair t : transfers) {
@@ -94,6 +95,6 @@ public abstract class ProjectorTemplate implements Projector {
   }
 
   public abstract void doSetup(@Named("context") FragmentContext context, @Named("incoming") RecordBatch incoming, @Named("outgoing") RecordBatch outgoing);
-  public abstract void doEval(@Named("inIndex") int inIndex, @Named("outIndex") int outIndex);
+  public abstract int doEval(@Named("inIndex") int inIndex, @Named("outIndex") int outIndex);
 
 }

@@ -18,8 +18,10 @@
 package org.apache.drill.exec.expr.fn;
 
 import java.io.Writer;
+import java.util.HashSet;
 import java.util.List;
 
+import org.codehaus.commons.compiler.Location;
 import org.codehaus.janino.Java;
 import org.codehaus.janino.UnparseVisitor;
 import org.codehaus.janino.util.AutoIndentWriter;
@@ -29,8 +31,8 @@ import org.codehaus.janino.util.AutoIndentWriter;
  * rendering few things. Based on janino version 2.7.4.
  */
 public class ModifiedUnparseVisitor extends UnparseVisitor {
-
   private String returnLabel;
+  private String functionName;
 
   /**
    * Testing of parsing/unparsing.
@@ -55,6 +57,8 @@ public class ModifiedUnparseVisitor extends UnparseVisitor {
 
   @Override
   public void visitMethodDeclarator(Java.MethodDeclarator md) {
+    this.functionName = md.name;
+
     if (md.optionalStatements == null) {
       this.pw.print(';');
     } else
@@ -76,12 +80,27 @@ public class ModifiedUnparseVisitor extends UnparseVisitor {
 
   @Override
   public void visitReturnStatement(Java.ReturnStatement rs) {
-    this.pw.print("break " + returnLabel);
     if (rs.optionalReturnValue != null) {
-      this.pw.print(' ');
-      this.unparse(rs.optionalReturnValue);
+      if(functionName.equals("eval")) {
+        final String DRILL_ERROR_CODE = rs.optionalReturnValue.toRvalue().toString();
+        if(!DRILL_ERROR_CODE.equals("0")) {
+          this.pw.print("return " + DRILL_ERROR_CODE + ";\n");
+        } else {
+          pw.print("DRILL_ERROR_CODE = ");
+          this.unparse(rs.optionalReturnValue);
+          this.pw.print(";\n");
+          this.pw.print("break " + returnLabel + ";\n");
+        }
+      } else {
+        this.pw.print("break " + returnLabel);
+        this.pw.print(' ');
+        this.unparse(rs.optionalReturnValue);
+        this.pw.print(';');
+      }
+    } else {
+      this.pw.print("break " + returnLabel);
+      this.pw.print(';');
     }
-    this.pw.print(';');
   }
 
   /*

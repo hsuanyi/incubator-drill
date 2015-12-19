@@ -61,10 +61,6 @@ public class Cast${type.from}${type.to} implements DrillSimpleErrFunc {
       out.value = ${type.javaType}.parse${type.parse}(new String(buf, com.google.common.base.Charsets.UTF_8));
       return 0;
 
-    <#elseif type.to=="Int" >
-      out.value = org.apache.drill.exec.expr.fn.impl.StringFunctionHelpers.varCharToInt(in.start, in.end, in.buffer);
-
-      return 0;
     <#elseif type.to=="Int" || type.to == "BigInt">
 
       if ((in.end - in.start) ==0) {
@@ -115,8 +111,6 @@ public class Cast${type.from}${type.to} implements DrillSimpleErrFunc {
    
       out.value = result;
       return 0;
-    <#elseif type.to == "BigInt">
-      out.value = org.apache.drill.exec.expr.fn.impl.StringFunctionHelpers.varCharToLong(in.start, in.end, in.buffer);
     </#if>
   }
 }

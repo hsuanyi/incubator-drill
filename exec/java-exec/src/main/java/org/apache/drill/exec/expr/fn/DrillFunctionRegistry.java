@@ -132,9 +132,7 @@ public class DrillFunctionRegistry {
   }
 
   public DrillFunctionRegistry createNullableDrillRegistry() {
-
     ArrayListMultimap<String, DrillFuncHolder> nullableHolderMethods = ArrayListMultimap.create();
-
     for (String str : methods.keys()) {
       List<DrillFuncHolder> holders = methods.get(str);
 

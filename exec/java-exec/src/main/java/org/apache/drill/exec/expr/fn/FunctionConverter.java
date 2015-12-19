@@ -200,6 +200,8 @@ public class FunctionConverter {
         } else {
           return new DrillSimpleFuncHolder(functionAttributes, initializer);
         }
+      case SIMPLE_ERR:
+          return new DrillSimpleErrFuncHolder(functionAttributes, initializer);
       case SC_BOOLEAN_OPERATOR:
         return new DrillBooleanOPHolder(functionAttributes, initializer);
       case DECIMAL_MAX_SCALE:

@@ -55,6 +55,7 @@ public @interface FunctionTemplate {
 
   FunctionScope scope();
   NullHandling nulls() default NullHandling.INTERNAL;
+  ErrorHandling errorHandling() default ErrorHandling.THROW_EXCEPTION;
   boolean isBinaryCommutative() default false;
   boolean isRandom()  default false;
   String desc() default "";
@@ -77,6 +78,7 @@ public @interface FunctionTemplate {
 
   public static enum FunctionScope {
     SIMPLE,
+    SIMPLE_ERR,
     POINT_AGGREGATE,
     DECIMAL_AGGREGATE,
     DECIMAL_SUM_AGGREGATE,
@@ -110,5 +112,10 @@ public @interface FunctionTemplate {
       return SIMPLE;
     }
 
+  }
+
+  enum ErrorHandling {
+    THROW_EXCEPTION,
+    RETURN_ERROR_CODE
   }
 }

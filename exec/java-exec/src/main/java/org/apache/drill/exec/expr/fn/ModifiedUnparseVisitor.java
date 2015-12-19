@@ -29,8 +29,8 @@ import org.codehaus.janino.util.AutoIndentWriter;
  * rendering few things. Based on janino version 2.7.4.
  */
 public class ModifiedUnparseVisitor extends UnparseVisitor {
-
   private String returnLabel;
+  private String functionName;
 
   /**
    * Testing of parsing/unparsing.
@@ -55,6 +55,8 @@ public class ModifiedUnparseVisitor extends UnparseVisitor {
 
   @Override
   public void visitMethodDeclarator(Java.MethodDeclarator md) {
+    this.functionName = md.name;
+
     if (md.optionalStatements == null) {
       this.pw.print(';');
     } else
@@ -76,12 +78,19 @@ public class ModifiedUnparseVisitor extends UnparseVisitor {
 
   @Override
   public void visitReturnStatement(Java.ReturnStatement rs) {
-    this.pw.print("break " + returnLabel);
     if (rs.optionalReturnValue != null) {
-      this.pw.print(' ');
-      this.unparse(rs.optionalReturnValue);
+      if(functionName.equals("eval")) {
+        this.pw.print("break " + returnLabel + ";\n");
+      } else {
+        this.pw.print("break " + returnLabel);
+        this.pw.print(' ');
+        this.unparse(rs.optionalReturnValue);
+        this.pw.print(';');
+      }
+    } else {
+      this.pw.print("break " + returnLabel);
+      this.pw.print(';');
     }
-    this.pw.print(';');
   }
 
   /*

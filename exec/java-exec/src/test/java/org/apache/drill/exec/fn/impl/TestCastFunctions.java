@@ -26,6 +26,11 @@ import org.junit.Test;
 public class TestCastFunctions extends BaseTestQuery {
 
   @Test
+  public void testCast() throws Exception {
+    test("select cast(full_name as int), cast(full_name as bigint) from cp.`employee.json`");
+  }
+
+  @Test
   public void testVarbinaryToDate() throws Exception {
     testBuilder()
       .sqlQuery("select count(*) as cnt from cp.`employee.json` where (cast(convert_to(birth_date, 'utf8') as date)) = date '1961-08-26'")

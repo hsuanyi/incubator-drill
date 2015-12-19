@@ -33,7 +33,7 @@ import org.apache.drill.common.config.DrillConfig;
 import org.apache.drill.common.types.TypeProtos;
 import org.apache.drill.common.util.FileUtils;
 import org.apache.drill.exec.exception.OutOfMemoryException;
-import org.apache.drill.exec.expr.fn.FunctionImplementationRegistry;
+import org.apache.drill.exec.expr.fn.GlobalFunctionRegistry;
 import org.apache.drill.exec.ops.FragmentContext;
 import org.apache.drill.exec.ops.OpProfileDef;
 import org.apache.drill.exec.ops.OperatorContext;
@@ -180,7 +180,7 @@ public class TestAllocators extends DrillTest {
     final Drillbit bit = new Drillbit(config, serviceSet);
     bit.run();
     final DrillbitContext bitContext = bit.getContext();
-    FunctionImplementationRegistry functionRegistry = bitContext.getFunctionImplementationRegistry();
+    GlobalFunctionRegistry functionRegistry = bitContext.getFunctionImplementationRegistry();
     StoragePluginRegistry storageRegistry = new StoragePluginRegistry(bitContext);
 
     // Create a few Fragment Contexts

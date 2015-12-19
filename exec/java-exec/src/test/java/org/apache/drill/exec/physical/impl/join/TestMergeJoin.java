@@ -28,7 +28,7 @@ import org.apache.drill.common.scanner.ClassPathScanner;
 import org.apache.drill.common.util.FileUtils;
 import org.apache.drill.exec.client.DrillClient;
 import org.apache.drill.exec.compile.CodeCompilerTestFactory;
-import org.apache.drill.exec.expr.fn.FunctionImplementationRegistry;
+import org.apache.drill.exec.expr.fn.GlobalFunctionRegistry;
 import org.apache.drill.exec.memory.RootAllocatorFactory;
 import org.apache.drill.exec.ops.FragmentContext;
 import org.apache.drill.exec.physical.PhysicalPlan;
@@ -79,7 +79,7 @@ public class TestMergeJoin extends PopUnitTestBase {
 
     final PhysicalPlanReader reader = PhysicalPlanReaderTestFactory.defaultPhysicalPlanReader(c);
     final PhysicalPlan plan = reader.readPhysicalPlan(Files.toString(FileUtils.getResourceAsFile("/join/merge_join.json"), Charsets.UTF_8));
-    final FunctionImplementationRegistry registry = new FunctionImplementationRegistry(c);
+    final GlobalFunctionRegistry registry = new GlobalFunctionRegistry(c);
     final FragmentContext context = new FragmentContext(bitContext, PlanFragment.getDefaultInstance(), connection, registry);
     final SimpleRootExec exec = new SimpleRootExec(ImplCreator.getExec(context, (FragmentRoot) plan.getSortedOperators(false).iterator().next()));
 
@@ -136,7 +136,7 @@ public class TestMergeJoin extends PopUnitTestBase {
             FileUtils.getResourceAsFile("/join/merge_single_batch.json"), Charsets.UTF_8)
             .replace("#{LEFT_FILE}", FileUtils.getResourceAsFile("/join/merge_single_batch.left.json").toURI().toString())
             .replace("#{RIGHT_FILE}", FileUtils.getResourceAsFile("/join/merge_single_batch.right.json").toURI().toString()));
-    final FunctionImplementationRegistry registry = new FunctionImplementationRegistry(c);
+    final GlobalFunctionRegistry registry = new GlobalFunctionRegistry(c);
     final FragmentContext context = new FragmentContext(bitContext, PlanFragment.getDefaultInstance(), connection, registry);
     final SimpleRootExec exec = new SimpleRootExec(ImplCreator.getExec(context, (FragmentRoot) plan.getSortedOperators(false).iterator().next()));
 
@@ -192,7 +192,7 @@ public class TestMergeJoin extends PopUnitTestBase {
             FileUtils.getResourceAsFile("/join/merge_inner_single_batch.json"), Charsets.UTF_8)
             .replace("#{LEFT_FILE}", FileUtils.getResourceAsFile("/join/merge_single_batch.left.json").toURI().toString())
             .replace("#{RIGHT_FILE}", FileUtils.getResourceAsFile("/join/merge_single_batch.right.json").toURI().toString()));
-    final FunctionImplementationRegistry registry = new FunctionImplementationRegistry(c);
+    final GlobalFunctionRegistry registry = new GlobalFunctionRegistry(c);
     final FragmentContext context = new FragmentContext(bitContext, PlanFragment.getDefaultInstance(), connection, registry);
     final SimpleRootExec exec = new SimpleRootExec(ImplCreator.getExec(context, (FragmentRoot) plan.getSortedOperators(false).iterator().next()));
 
@@ -248,7 +248,7 @@ public class TestMergeJoin extends PopUnitTestBase {
             FileUtils.getResourceAsFile("/join/merge_multi_batch.json"), Charsets.UTF_8)
             .replace("#{LEFT_FILE}", FileUtils.getResourceAsFile("/join/merge_multi_batch.left.json").toURI().toString())
             .replace("#{RIGHT_FILE}", FileUtils.getResourceAsFile("/join/merge_multi_batch.right.json").toURI().toString()));
-    final FunctionImplementationRegistry registry = new FunctionImplementationRegistry(c);
+    final GlobalFunctionRegistry registry = new GlobalFunctionRegistry(c);
     final FragmentContext context = new FragmentContext(bitContext, PlanFragment.getDefaultInstance(), connection, registry);
     final SimpleRootExec exec = new SimpleRootExec(ImplCreator.getExec(context, (FragmentRoot) plan.getSortedOperators(false).iterator().next()));
 
@@ -297,7 +297,7 @@ public class TestMergeJoin extends PopUnitTestBase {
 
     final PhysicalPlanReader reader = PhysicalPlanReaderTestFactory.defaultPhysicalPlanReader(c);
     final PhysicalPlan plan = reader.readPhysicalPlan(Files.toString(FileUtils.getResourceAsFile("/join/join_batchsize.json"), Charsets.UTF_8));
-    final FunctionImplementationRegistry registry = new FunctionImplementationRegistry(c);
+    final GlobalFunctionRegistry registry = new GlobalFunctionRegistry(c);
     final FragmentContext context = new FragmentContext(bitContext, PlanFragment.getDefaultInstance(), connection, registry);
     final SimpleRootExec exec = new SimpleRootExec(ImplCreator.getExec(context, (FragmentRoot) plan.getSortedOperators(false).iterator().next()));
     exec.next(); // skip schema batch

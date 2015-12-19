@@ -40,7 +40,11 @@ import com.google.common.collect.Sets;
 public class DrillFunctionRegistry {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(DrillFunctionRegistry.class);
 
-  private ArrayListMultimap<String, DrillFuncHolder> methods = ArrayListMultimap.create();
+  private ArrayListMultimap<String, DrillFuncHolder> methods;
+
+  public DrillFunctionRegistry(ArrayListMultimap<String, DrillFuncHolder> methods) {
+    this.methods = methods;
+  }
 
   /* Hash map to prevent registering functions with exactly matching signatures
    * key: Function Name + Input's Major Type
@@ -50,6 +54,7 @@ public class DrillFunctionRegistry {
 
   public DrillFunctionRegistry(ScanResult classpathScan) {
     FunctionConverter converter = new FunctionConverter();
+    methods = ArrayListMultimap.create();
     List<AnnotatedClassDescriptor> providerClasses = classpathScan.getAnnotatedClasses();
     for (AnnotatedClassDescriptor func : providerClasses) {
       DrillFuncHolder holder = converter.getHolder(func);
@@ -125,5 +130,4 @@ public class DrillFunctionRegistry {
       }
     }
   }
-
 }

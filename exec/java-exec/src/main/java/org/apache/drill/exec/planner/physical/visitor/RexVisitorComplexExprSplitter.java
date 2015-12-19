@@ -17,7 +17,7 @@
  ******************************************************************************/
 package org.apache.drill.exec.planner.physical.visitor;
 
-import org.apache.drill.exec.expr.fn.FunctionImplementationRegistry;
+import org.apache.drill.exec.expr.fn.GlobalFunctionRegistry;
 import org.apache.drill.exec.planner.physical.ProjectPrel;
 import org.apache.drill.exec.planner.types.RelDataTypeDrillImpl;
 import org.apache.drill.exec.planner.types.RelDataTypeHolder;
@@ -41,12 +41,12 @@ import java.util.List;
 public class RexVisitorComplexExprSplitter extends RexVisitorImpl<RexNode> {
 
   RelDataTypeFactory factory;
-  FunctionImplementationRegistry funcReg;
+  GlobalFunctionRegistry.FunctionImplementationRegistry funcReg;
   List<RexNode> complexExprs;
   List<ProjectPrel> projects;
   int lastUsedIndex;
 
-  public RexVisitorComplexExprSplitter(RelDataTypeFactory factory, FunctionImplementationRegistry funcReg, int firstUnused) {
+  public RexVisitorComplexExprSplitter(RelDataTypeFactory factory, GlobalFunctionRegistry.FunctionImplementationRegistry funcReg, int firstUnused) {
     super(true);
     this.factory = factory;
     this.funcReg = funcReg;

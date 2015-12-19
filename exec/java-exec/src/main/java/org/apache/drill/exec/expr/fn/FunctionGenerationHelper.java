@@ -59,7 +59,7 @@ public class FunctionGenerationHelper {
       boolean null_high,
       HoldingContainer left,
       HoldingContainer right,
-      FunctionImplementationRegistry registry) {
+      GlobalFunctionRegistry.FunctionImplementationRegistry registry) {
     final String comparator_name =
         null_high ? COMPARE_TO_NULLS_HIGH : COMPARE_TO_NULLS_LOW;
 
@@ -96,12 +96,12 @@ public class FunctionGenerationHelper {
   public static LogicalExpression getOrderingComparatorNullsHigh(
       HoldingContainer left,
       HoldingContainer right,
-      FunctionImplementationRegistry registry) {
+      GlobalFunctionRegistry.FunctionImplementationRegistry registry) {
     return getOrderingComparator(true, left, right, registry);
   }
 
   private static LogicalExpression getFunctionExpression(
-      String name, MajorType returnType, FunctionImplementationRegistry registry, HoldingContainer... args) {
+          String name, MajorType returnType, GlobalFunctionRegistry.FunctionImplementationRegistry registry, HoldingContainer... args) {
     List<MajorType> argTypes = new ArrayList<MajorType>(args.length);
     List<LogicalExpression> argExpressions = new ArrayList<LogicalExpression>(args.length);
     for(HoldingContainer c : args) {

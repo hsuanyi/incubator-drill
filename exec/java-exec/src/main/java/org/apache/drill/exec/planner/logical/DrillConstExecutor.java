@@ -27,7 +27,7 @@ import org.apache.drill.common.expression.LogicalExpression;
 import org.apache.drill.common.types.TypeProtos;
 import org.apache.drill.exec.expr.ExpressionTreeMaterializer;
 import org.apache.drill.exec.expr.TypeHelper;
-import org.apache.drill.exec.expr.fn.FunctionImplementationRegistry;
+import org.apache.drill.exec.expr.fn.GlobalFunctionRegistry;
 import org.apache.drill.exec.expr.fn.impl.DateUtility;
 import org.apache.drill.exec.expr.fn.impl.StringFunctionHelpers;
 import org.apache.drill.exec.expr.fn.interpreter.InterpreterEvaluator;
@@ -123,10 +123,10 @@ public class DrillConstExecutor implements RelOptPlanner.Executor {
       TypeProtos.MinorType.UINT8)
       .build();
 
-  FunctionImplementationRegistry funcImplReg;
+  GlobalFunctionRegistry.FunctionImplementationRegistry funcImplReg;
   UdfUtilities udfUtilities;
 
-  public DrillConstExecutor(FunctionImplementationRegistry funcImplReg, UdfUtilities udfUtilities, PlannerSettings plannerSettings) {
+  public DrillConstExecutor(GlobalFunctionRegistry.FunctionImplementationRegistry funcImplReg, UdfUtilities udfUtilities, PlannerSettings plannerSettings) {
     this.funcImplReg = funcImplReg;
     this.udfUtilities = udfUtilities;
     this.plannerSettings = plannerSettings;

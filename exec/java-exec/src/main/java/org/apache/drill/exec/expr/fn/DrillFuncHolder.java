@@ -57,7 +57,7 @@ public abstract class DrillFuncHolder extends AbstractFuncHolder {
 
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(DrillFuncHolder.class);
 
-  private final FunctionAttributes attributes;
+  protected final FunctionAttributes attributes;
   protected final FunctionTemplate.FunctionScope scope;
   protected final FunctionTemplate.NullHandling nullHandling;
   protected final FunctionTemplate.FunctionCostCategory costCategory;
@@ -67,7 +67,7 @@ public abstract class DrillFuncHolder extends AbstractFuncHolder {
   protected final WorkspaceReference[] workspaceVars;
   protected final ValueReference[] parameters;
   protected final ValueReference returnValue;
-  private final FunctionInitializer initializer;
+  protected final FunctionInitializer initializer;
 
   public DrillFuncHolder(
       FunctionAttributes attributes,

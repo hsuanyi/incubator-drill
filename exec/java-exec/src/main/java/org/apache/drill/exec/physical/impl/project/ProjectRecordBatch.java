@@ -17,16 +17,27 @@
  */
 package org.apache.drill.exec.physical.impl.project;
 
+import com.carrotsearch.hppc.IntOpenHashSet;
+import com.google.common.base.Preconditions;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import com.sun.codemodel.JBlock;
+import com.sun.codemodel.JExpr;
+
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
+import com.sun.codemodel.JExpression;
+import com.sun.codemodel.JPrimitiveType;
+import com.sun.codemodel.JType;
+import com.sun.codemodel.JVar;
 import org.apache.commons.collections.map.CaseInsensitiveMap;
 import org.apache.drill.common.expression.ConvertExpression;
 import org.apache.drill.common.expression.ErrorCollector;
 import org.apache.drill.common.expression.ErrorCollectorImpl;
 import org.apache.drill.common.expression.ExpressionPosition;
-import org.apache.drill.common.expression.ExpressionStringBuilder;
 import org.apache.drill.common.expression.FieldReference;
 import org.apache.drill.common.expression.FunctionCall;
 import org.apache.drill.common.expression.FunctionCallFactory;
@@ -38,7 +49,6 @@ import org.apache.drill.common.expression.fn.CastFunctions;
 import org.apache.drill.common.logical.data.NamedExpression;
 import org.apache.drill.common.types.TypeProtos.MinorType;
 import org.apache.drill.common.types.Types;
-import org.apache.drill.exec.ExecConstants;
 import org.apache.drill.exec.exception.ClassTransformationException;
 import org.apache.drill.exec.exception.OutOfMemoryException;
 import org.apache.drill.exec.exception.SchemaChangeException;
@@ -47,11 +57,11 @@ import org.apache.drill.exec.expr.ClassGenerator.HoldingContainer;
 import org.apache.drill.exec.expr.CodeGenerator;
 import org.apache.drill.exec.expr.DrillFuncHolderExpr;
 import org.apache.drill.exec.expr.ExpressionTreeMaterializer;
-import org.apache.drill.exec.expr.HashVisitor;
 import org.apache.drill.exec.expr.TypeHelper;
 import org.apache.drill.exec.expr.ValueVectorReadExpression;
 import org.apache.drill.exec.expr.ValueVectorWriteExpression;
 import org.apache.drill.exec.expr.fn.DrillComplexWriterFuncHolder;
+import org.apache.drill.exec.expr.fn.DrillSimpleErrFuncHolder;
 import org.apache.drill.exec.ops.FragmentContext;
 import org.apache.drill.exec.physical.config.Project;
 import org.apache.drill.exec.planner.StarColumnHelper;
@@ -67,11 +77,6 @@ import org.apache.drill.exec.vector.AllocationHelper;
 import org.apache.drill.exec.vector.FixedWidthVector;
 import org.apache.drill.exec.vector.ValueVector;
 import org.apache.drill.exec.vector.complex.writer.BaseWriter.ComplexWriter;
-
-import com.carrotsearch.hppc.IntOpenHashSet;
-import com.google.common.base.Preconditions;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 
 public class ProjectRecordBatch extends AbstractSingleRecordBatch<Project> {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ProjectRecordBatch.class);
@@ -299,6 +304,15 @@ public class ProjectRecordBatch extends AbstractSingleRecordBatch<Project> {
 
     final ClassGenerator<Projector> cg = CodeGenerator.getRoot(Projector.TEMPLATE_DEFINITION, context.getFunctionRegistry());
 
+    // Error Code Usage
+    final JType typeArrayList = cg.getModel().ref(ArrayList.class);
+    final JVar errorCodeList = cg.declareClassField(DrillSimpleErrFuncHolder.DRILL_ERROR_CODE_ARRAY, typeArrayList);
+
+    final JBlock setupBlock = cg.getSetupBlock();
+    final JVar tmpIntArray = setupBlock.decl(JPrimitiveType.parse(cg.getModel(), "int").array(), "tmpIntArray");
+    setupBlock.assign(errorCodeList, JExpr._new(typeArrayList));
+    final JVar errorCodeIndex = cg.getEvalBlock().decl(JPrimitiveType.parse(cg.getModel(), "int"), "errorCodeIndex");
+
     final IntOpenHashSet transferFieldIds = new IntOpenHashSet();
 
     final boolean isAnyWildcard = isAnyWildcard(exprs);
@@ -306,7 +320,7 @@ public class ProjectRecordBatch extends AbstractSingleRecordBatch<Project> {
     final ClassifierResult result = new ClassifierResult();
     final boolean classify = isClassificationNeeded(exprs);
 
-    for (int i = 0; i < exprs.size(); i++) {
+    for (int i = 0, expreIndex = 0; i < exprs.size(); i++) {
       final NamedExpression namedExpression = exprs.get(i);
       result.clear();
 
@@ -427,6 +441,8 @@ public class ProjectRecordBatch extends AbstractSingleRecordBatch<Project> {
         final TypedFieldId fid = container.getValueVectorId(outputField.getPath());
         final boolean useSetSafe = !(vector instanceof FixedWidthVector);
         final ValueVectorWriteExpression write = new ValueVectorWriteExpression(fid, expr, useSetSafe);
+
+        cg.getEvalBlock().assign(errorCodeIndex, JExpr.lit(expreIndex++));
         final HoldingContainer hc = cg.addExpr(write, false);
 
         // We cannot do multiple transfers from the same vector. However we still need to instantiate the output vector.
@@ -438,11 +454,16 @@ public class ProjectRecordBatch extends AbstractSingleRecordBatch<Project> {
             vvIn.makeTransferPair(vector);
           }
         }
+
+        setupBlock.assign(tmpIntArray, JExpr.newArray(JPrimitiveType.parse(cg.getModel(), "int"), 1));
+
+        setupBlock.add(errorCodeList.invoke("add").arg(tmpIntArray));
         logger.debug("Added eval for project expression.");
       }
     }
 
     try {
+      cg.getEvalBlock()._return(errorCodeList);
       this.projector = context.getImplementationClass(cg.getCodeGenerator());
       projector.setup(context, incoming, this, transfers);
     } catch (ClassTransformationException | IOException e) {

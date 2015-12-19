@@ -24,7 +24,7 @@ import org.apache.drill.common.config.DrillConfig;
 import org.apache.drill.common.scanner.ClassPathScanner;
 import org.apache.drill.exec.ExecTest;
 import org.apache.drill.exec.compile.CodeCompilerTestFactory;
-import org.apache.drill.exec.expr.fn.FunctionImplementationRegistry;
+import org.apache.drill.exec.expr.fn.GlobalFunctionRegistry;
 import org.apache.drill.exec.memory.RootAllocatorFactory;
 import org.apache.drill.exec.ops.FragmentContext;
 import org.apache.drill.exec.physical.PhysicalPlan;
@@ -49,7 +49,7 @@ public class TestComparisonFunctions extends ExecTest {
   private final DrillConfig c = DrillConfig.create();
   private final String COMPARISON_TEST_PHYSICAL_PLAN = "functions/comparisonTest.json";
   private PhysicalPlanReader reader;
-  private FunctionImplementationRegistry registry;
+  private GlobalFunctionRegistry registry;
 
   public void runTest(@Injectable final DrillbitContext bitContext,
                       @Injectable UserServer.UserClientConnection connection, String expression, int expectedResults) throws Throwable {
@@ -66,7 +66,7 @@ public class TestComparisonFunctions extends ExecTest {
       reader = PhysicalPlanReaderTestFactory.defaultPhysicalPlanReader(c);
     }
     if (registry == null) {
-      registry = new FunctionImplementationRegistry(c);
+      registry = new GlobalFunctionRegistry(c);
     }
     final FragmentContext context =
         new FragmentContext(bitContext, PlanFragment.getDefaultInstance(), connection, registry);

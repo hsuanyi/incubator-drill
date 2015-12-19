@@ -33,7 +33,8 @@ import org.apache.drill.exec.exception.ClassTransformationException;
 import org.apache.drill.exec.exception.OutOfMemoryException;
 import org.apache.drill.exec.expr.ClassGenerator;
 import org.apache.drill.exec.expr.CodeGenerator;
-import org.apache.drill.exec.expr.fn.FunctionImplementationRegistry;
+import org.apache.drill.exec.expr.fn.GlobalFunctionRegistry.FunctionImplementationRegistry;
+import org.apache.drill.exec.expr.fn.GlobalFunctionRegistry;
 import org.apache.drill.exec.memory.BufferAllocator;
 import org.apache.drill.exec.memory.LimitConsumer;
 import org.apache.drill.exec.physical.base.PhysicalOperator;
@@ -75,7 +76,7 @@ public class FragmentContext implements AutoCloseable, UdfUtilities {
   private final UserClientConnection connection; // is null if this context is for non-root fragment
   private final QueryContext queryContext; // is null if this context is for non-root fragment
   private final FragmentStats stats;
-  private final FunctionImplementationRegistry funcRegistry;
+  private final GlobalFunctionRegistry funcRegistry;
   private final BufferAllocator allocator;
   private final PlanFragment fragment;
   private final ContextInformation contextInformation;
@@ -114,7 +115,7 @@ public class FragmentContext implements AutoCloseable, UdfUtilities {
    * @throws ExecutionSetupException
    */
   public FragmentContext(final DrillbitContext dbContext, final PlanFragment fragment,
-      final FunctionImplementationRegistry funcRegistry) throws ExecutionSetupException {
+      final GlobalFunctionRegistry funcRegistry) throws ExecutionSetupException {
     this(dbContext, fragment, null, null, funcRegistry);
   }
 
@@ -129,7 +130,7 @@ public class FragmentContext implements AutoCloseable, UdfUtilities {
    * @throws ExecutionSetupException
    */
   public FragmentContext(final DrillbitContext dbContext, final PlanFragment fragment, final QueryContext queryContext,
-      final UserClientConnection connection, final FunctionImplementationRegistry funcRegistry)
+      final UserClientConnection connection, final GlobalFunctionRegistry funcRegistry)
     throws ExecutionSetupException {
     this.context = dbContext;
     this.queryContext = queryContext;
@@ -204,7 +205,7 @@ public class FragmentContext implements AutoCloseable, UdfUtilities {
    * the long list of test files.
    */
   public FragmentContext(DrillbitContext dbContext, PlanFragment fragment, UserClientConnection connection,
-      FunctionImplementationRegistry funcRegistry) throws ExecutionSetupException {
+      GlobalFunctionRegistry funcRegistry) throws ExecutionSetupException {
     this(dbContext, fragment, null, connection, funcRegistry);
   }
 
@@ -388,7 +389,11 @@ public class FragmentContext implements AutoCloseable, UdfUtilities {
   }
 
   public FunctionImplementationRegistry getFunctionRegistry() {
-    return funcRegistry;
+    if (context.getOptionManager() == null || fragmentOptions.getOption(ExecConstants.STOP_ON_ERROR_KEY).bool_val == true) {
+      return funcRegistry.getFunctionImplementationRegistryAsException();
+    } else {
+      return funcRegistry.getFunctionImplementationRegistryAsException();
+    }
   }
 
   public DrillConfig getConfig() {

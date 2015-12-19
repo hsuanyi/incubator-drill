@@ -1,3 +1,4 @@
+package org.apache.drill.exec.expr;
 /**
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -15,28 +16,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.drill.exec.ops;
+import org.apache.drill.exec.record.RecordBatch;
 
-import org.apache.drill.exec.expr.fn.GlobalFunctionRegistry;
-import org.apache.drill.exec.memory.BufferAllocator;
-import org.apache.drill.exec.planner.physical.PlannerSettings;
-
-public interface OptimizerRulesContext extends UdfUtilities {
-  /**
-   * Method returns the function registry
-   * @return FunctionImplementationRegistry
-   */
-  public GlobalFunctionRegistry getFunctionRegistry();
-
-  /**
-   * Method returns the allocator
-   * @return BufferAllocator
-   */
-  public BufferAllocator getAllocator();
-
-  /**
-   * Method returns the planner options
-   * @return PlannerSettings
-   */
-  public PlannerSettings getPlannerSettings();
+public interface DrillSimpleErrFunc extends DrillFunc {
+  public void setup();
+  public int eval();
 }

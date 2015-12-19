@@ -46,7 +46,7 @@ public class DrillSimpleFuncHolder extends DrillFuncHolder {
     drillFuncClass = checkNotNull(initializer.getClassName());
   }
 
-  private String setupBody() {
+  protected String setupBody() {
     return meth("setup", false);
   }
   private String evalBody() {

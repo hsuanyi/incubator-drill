@@ -18,8 +18,7 @@
 package org.apache.drill.exec.planner.physical;
 
 import org.apache.drill.exec.ExecConstants;
-import org.apache.drill.exec.expr.fn.FunctionImplementationRegistry;
-import org.apache.drill.exec.ops.QueryContext;
+import org.apache.drill.exec.expr.fn.GlobalFunctionRegistry;
 import org.apache.drill.exec.server.options.OptionManager;
 import org.apache.drill.exec.server.options.OptionValidator;
 import org.apache.drill.exec.server.options.TypeValidators.BooleanValidator;
@@ -82,11 +81,11 @@ public class PlannerSettings implements Context{
                               Integer.MAX_VALUE, DEFAULT_IDENTIFIER_MAX_LENGTH);
 
   public OptionManager options = null;
-  public FunctionImplementationRegistry functionImplementationRegistry = null;
+  public GlobalFunctionRegistry.FunctionImplementationRegistry functionImplementationRegistry = null;
 
-  public PlannerSettings(OptionManager options, FunctionImplementationRegistry functionImplementationRegistry){
+  public PlannerSettings(OptionManager options, GlobalFunctionRegistry functionImplementationRegistry){
     this.options = options;
-    this.functionImplementationRegistry = functionImplementationRegistry;
+    this.functionImplementationRegistry = functionImplementationRegistry.getFunctionImplementationRegistryAsException();
   }
 
   public OptionManager getOptions() {

@@ -360,14 +360,14 @@ public abstract class PruneScanRule extends StoragePluginOptimizerRule {
     final LogicalExpression expr = DrillOptiq.toDrill(new DrillParseContext(settings), scanRel, pruneCondition);
     final ErrorCollectorImpl errors = new ErrorCollectorImpl();
 
-    LogicalExpression materializedExpr = ExpressionTreeMaterializer.materialize(expr, container, errors, optimizerContext.getFunctionRegistry());
+    LogicalExpression materializedExpr = ExpressionTreeMaterializer.materialize(expr, container, errors, optimizerContext.getFunctionRegistry().getFunctionImplementationRegistryAsException());
     // Make sure pruneCondition's materialized expression is always of BitType, so that
     // it's same as the type of output vector.
     if (materializedExpr.getMajorType().getMode() == TypeProtos.DataMode.REQUIRED) {
       materializedExpr = ExpressionTreeMaterializer.convertToNullableType(
           materializedExpr,
           materializedExpr.getMajorType().getMinorType(),
-          optimizerContext.getFunctionRegistry(),
+          optimizerContext.getFunctionRegistry().getFunctionImplementationRegistryAsException(),
           errors);
     }
 

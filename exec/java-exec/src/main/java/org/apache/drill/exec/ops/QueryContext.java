@@ -31,7 +31,7 @@ import org.apache.drill.common.config.LogicalPlanPersistence;
 import org.apache.drill.common.exceptions.DrillRuntimeException;
 import org.apache.drill.exec.ExecConstants;
 import org.apache.drill.exec.exception.OutOfMemoryException;
-import org.apache.drill.exec.expr.fn.FunctionImplementationRegistry;
+import org.apache.drill.exec.expr.fn.GlobalFunctionRegistry;
 import org.apache.drill.exec.memory.BufferAllocator;
 import org.apache.drill.exec.planner.physical.PlannerSettings;
 import org.apache.drill.exec.planner.sql.DrillOperatorTable;
@@ -87,7 +87,7 @@ public class QueryContext implements AutoCloseable, OptimizerRulesContext {
     executionControls = new ExecutionControls(queryOptions, drillbitContext.getEndpoint());
     plannerSettings = new PlannerSettings(queryOptions, getFunctionRegistry());
     plannerSettings.setNumEndPoints(drillbitContext.getBits().size());
-    table = new DrillOperatorTable(getFunctionRegistry());
+    table = new DrillOperatorTable(getFunctionRegistry().getFunctionImplementationRegistryAsException());
 
     queryContextInfo = Utilities.createQueryContextInfo(session.getDefaultSchemaName());
     contextInformation = new ContextInformation(session.getCredentials(), queryContextInfo);
@@ -210,13 +210,13 @@ public class QueryContext implements AutoCloseable, OptimizerRulesContext {
     return drillbitContext.getConfig();
   }
 
-  @Override
-  public FunctionImplementationRegistry getFunctionRegistry() {
-    return drillbitContext.getFunctionImplementationRegistry();
-  }
-
   public ViewExpansionContext getViewExpansionContext() {
     return viewExpansionContext;
+  }
+
+  @Override
+  public GlobalFunctionRegistry getFunctionRegistry(){
+    return drillbitContext.getFunctionImplementationRegistry();
   }
 
   public boolean isImpersonationEnabled() {

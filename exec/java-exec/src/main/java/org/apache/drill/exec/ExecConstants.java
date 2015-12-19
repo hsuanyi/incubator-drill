@@ -278,4 +278,6 @@ public interface ExecConstants {
    */
   String ADMIN_USER_GROUPS_KEY = "security.admin.user_groups";
   StringValidator ADMIN_USER_GROUPS_VALIDATOR = new AdminOptionValidator(ADMIN_USER_GROUPS_KEY, "");
+  public static final String STOP_ON_ERROR_KEY = "exec.stop_on_error";
+  public static final OptionValidator STOP_ON_ERROR = new BooleanValidator(STOP_ON_ERROR_KEY, false);
 }

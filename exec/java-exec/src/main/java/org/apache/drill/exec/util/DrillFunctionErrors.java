@@ -15,28 +15,34 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.drill.exec.ops;
+package org.apache.drill.exec.util;
 
-import org.apache.drill.exec.expr.fn.GlobalFunctionRegistry;
-import org.apache.drill.exec.memory.BufferAllocator;
-import org.apache.drill.exec.planner.physical.PlannerSettings;
+public enum DrillFunctionErrors {
+  DRILL_PARSE_ERROR("Input parse exception", 1),
+  DRILL_OVERFLOW_ERROR("Input overflow exception", 2);
 
-public interface OptimizerRulesContext extends UdfUtilities {
-  /**
-   * Method returns the function registry
-   * @return FunctionImplementationRegistry
-   */
-  public GlobalFunctionRegistry getFunctionRegistry();
+  public final String errorMsg;
+  public final int value;
 
-  /**
-   * Method returns the allocator
-   * @return BufferAllocator
-   */
-  public BufferAllocator getAllocator();
+  private DrillFunctionErrors(String msg, int value) {
+    this.errorMsg = msg;
+    this.value = value;
+  }
 
-  /**
-   * Method returns the planner options
-   * @return PlannerSettings
-   */
-  public PlannerSettings getPlannerSettings();
+  public String toString() {
+    return errorMsg;
+  }
+
+  public static DrillFunctionErrors get(int a) {
+    return DrillFunctionErrors.values()[a];
+  }
+
+  public static String getErrorMsg(int a) {
+    if (a == 0) {
+      return "";
+    }
+
+    return DrillFunctionErrors.values()[a - 1].errorMsg;
+  }
 }
+

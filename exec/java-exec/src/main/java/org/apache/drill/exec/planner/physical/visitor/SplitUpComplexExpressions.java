@@ -23,7 +23,7 @@ import com.google.common.collect.Lists;
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.tools.RelConversionException;
 
-import org.apache.drill.exec.expr.fn.FunctionImplementationRegistry;
+import org.apache.drill.exec.expr.fn.GlobalFunctionRegistry;
 import org.apache.drill.exec.planner.StarColumnHelper;
 import org.apache.drill.exec.planner.physical.Prel;
 import org.apache.drill.exec.planner.physical.PrelUtil;
@@ -47,9 +47,9 @@ public class SplitUpComplexExpressions extends BasePrelVisitor<Prel, Object, Rel
 
   RelDataTypeFactory factory;
   DrillOperatorTable table;
-  FunctionImplementationRegistry funcReg;
+  GlobalFunctionRegistry.FunctionImplementationRegistry funcReg;
 
-  public SplitUpComplexExpressions(RelDataTypeFactory factory, DrillOperatorTable table, FunctionImplementationRegistry funcReg) {
+  public SplitUpComplexExpressions(RelDataTypeFactory factory, DrillOperatorTable table, GlobalFunctionRegistry.FunctionImplementationRegistry funcReg) {
     super();
     this.factory = factory;
     this.table = table;

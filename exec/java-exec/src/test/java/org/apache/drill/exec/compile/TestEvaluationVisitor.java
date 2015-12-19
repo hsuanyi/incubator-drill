@@ -31,7 +31,7 @@ import org.apache.drill.exec.expr.CodeGenerator;
 import org.apache.drill.exec.expr.EvaluationVisitor;
 import org.apache.drill.exec.expr.ValueVectorReadExpression;
 import org.apache.drill.exec.expr.ValueVectorWriteExpression;
-import org.apache.drill.exec.expr.fn.FunctionImplementationRegistry;
+import org.apache.drill.exec.expr.fn.GlobalFunctionRegistry;
 import org.apache.drill.exec.physical.impl.project.Projector;
 import org.apache.drill.exec.record.TypedFieldId;
 import org.junit.Test;
@@ -44,7 +44,7 @@ public class TestEvaluationVisitor {
   public void x() throws Exception{
     DrillConfig c = DrillConfig.create();
 
-    FunctionImplementationRegistry reg = new FunctionImplementationRegistry(c);
+    GlobalFunctionRegistry.FunctionImplementationRegistry reg = new GlobalFunctionRegistry.FunctionImplementationRegistry(c);
     EvaluationVisitor v = new EvaluationVisitor(reg);
     CodeGenerator<?> g = CodeGenerator.get(Projector.TEMPLATE_DEFINITION, reg);
     SchemaPath path = (SchemaPath) getExpr("a.b[4][2].c[6]");

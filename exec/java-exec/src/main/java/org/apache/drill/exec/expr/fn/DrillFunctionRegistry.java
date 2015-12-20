@@ -132,13 +132,17 @@ public class DrillFunctionRegistry {
   }
 
   public DrillFunctionRegistry createNullableDrillRegistry() {
-    ArrayListMultimap<String, DrillFuncHolder> nullableHolderMethods = ArrayListMultimap.create();
+    final Set<DrillFuncHolder> visited = Sets.newHashSet();
+    final ArrayListMultimap<String, DrillFuncHolder> nullableHolderMethods = ArrayListMultimap.create();
     for (String str : methods.keys()) {
       List<DrillFuncHolder> holders = methods.get(str);
 
       for (DrillFuncHolder holder : holders) {
         if (holder instanceof DrillSimpleErrFuncHolder) {
-          nullableHolderMethods.put(str, new DrillSimpleErrFuncNullableHolder((DrillSimpleErrFuncHolder) holder));
+          if(!visited.contains(holder)) {
+            nullableHolderMethods.put(str, new DrillSimpleErrFuncNullableHolder((DrillSimpleErrFuncHolder) holder));
+            visited.add(holder);
+          }
         } else {
           nullableHolderMethods.put(str, holder);
         }

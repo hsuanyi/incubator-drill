@@ -27,7 +27,7 @@ public class TestCastFunctions extends BaseTestQuery {
 
   @Test
   public void testCast() throws Exception {
-    test("select cast(r_name as int) from cp.`tpch.region.parquet`");
+    test("select cast(full_name as int) from cp.`employee.json`");
   }
 
   @Test

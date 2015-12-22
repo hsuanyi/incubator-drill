@@ -74,6 +74,7 @@ import org.apache.drill.exec.planner.logical.DrillJoinRel;
 import org.apache.drill.exec.planner.logical.DrillMergeProjectRule;
 import org.apache.drill.exec.planner.logical.DrillProjectRel;
 import org.apache.drill.exec.planner.logical.DrillPushProjectPastFilterRule;
+import org.apache.drill.exec.planner.logical.DrillReduceAggregatesRule;
 import org.apache.drill.exec.planner.logical.DrillRel;
 import org.apache.drill.exec.planner.logical.DrillRelFactories;
 import org.apache.drill.exec.planner.logical.DrillRuleSets;
@@ -567,7 +568,8 @@ public class DefaultSqlHandler extends AbstractSqlHandler {
           .add(
               DrillRuleSets.DRILL_JOIN_TO_MULTIJOIN_RULE,
               DrillRuleSets.DRILL_LOPT_OPTIMIZE_JOIN_RULE,
-              ProjectRemoveRule.INSTANCE)
+              ProjectRemoveRule.INSTANCE,
+              DrillReduceAggregatesRule.INSTANCE_SUM)
           .build();
 
       final RelNode loptNode = doHepPlan(convertedRelNode, joinOrderRules, HepMatchOrder.BOTTOM_UP);

@@ -58,6 +58,7 @@ import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.util.NlsString;
 import org.apache.drill.exec.planner.physical.PlannerSettings;
+import org.apache.drill.exec.planner.sql.TypeInferenceUtils;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 
@@ -69,34 +70,6 @@ public class DrillConstExecutor implements RelOptPlanner.Executor {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(DrillConstExecutor.class);
 
   private final PlannerSettings plannerSettings;
-
-  public static ImmutableMap<TypeProtos.MinorType, SqlTypeName> DRILL_TO_CALCITE_TYPE_MAPPING =
-      ImmutableMap.<TypeProtos.MinorType, SqlTypeName> builder()
-      .put(TypeProtos.MinorType.INT, SqlTypeName.INTEGER)
-      .put(TypeProtos.MinorType.BIGINT, SqlTypeName.BIGINT)
-      .put(TypeProtos.MinorType.FLOAT4, SqlTypeName.FLOAT)
-      .put(TypeProtos.MinorType.FLOAT8, SqlTypeName.DOUBLE)
-      .put(TypeProtos.MinorType.VARCHAR, SqlTypeName.VARCHAR)
-      .put(TypeProtos.MinorType.BIT, SqlTypeName.BOOLEAN)
-      .put(TypeProtos.MinorType.DATE, SqlTypeName.DATE)
-      .put(TypeProtos.MinorType.DECIMAL9, SqlTypeName.DECIMAL)
-      .put(TypeProtos.MinorType.DECIMAL18, SqlTypeName.DECIMAL)
-      .put(TypeProtos.MinorType.DECIMAL28SPARSE, SqlTypeName.DECIMAL)
-      .put(TypeProtos.MinorType.DECIMAL38SPARSE, SqlTypeName.DECIMAL)
-      .put(TypeProtos.MinorType.TIME, SqlTypeName.TIME)
-      .put(TypeProtos.MinorType.TIMESTAMP, SqlTypeName.TIMESTAMP)
-      .put(TypeProtos.MinorType.VARBINARY, SqlTypeName.VARBINARY)
-      .put(TypeProtos.MinorType.INTERVALYEAR, SqlTypeName.INTERVAL_YEAR_MONTH)
-      .put(TypeProtos.MinorType.INTERVALDAY, SqlTypeName.INTERVAL_DAY_TIME)
-      .put(TypeProtos.MinorType.MAP, SqlTypeName.MAP)
-      .put(TypeProtos.MinorType.LIST, SqlTypeName.ARRAY)
-      .put(TypeProtos.MinorType.LATE, SqlTypeName.ANY)
-      // These are defined in the Drill type system but have been turned off for now
-      .put(TypeProtos.MinorType.TINYINT, SqlTypeName.TINYINT)
-      .put(TypeProtos.MinorType.SMALLINT, SqlTypeName.SMALLINT)
-      // Calcite types currently not supported by Drill, nor defined in the Drill type list:
-      //      - CHAR, SYMBOL, MULTISET, DISTINCT, STRUCTURED, ROW, OTHER, CURSOR, COLUMN_LIST
-      .build();
 
   // This is a list of all types that cannot be folded at planning time for various reasons, most of the types are
   // currently not supported at all. The reasons for the others can be found in the evaluation code in the reduce method
@@ -132,9 +105,17 @@ public class DrillConstExecutor implements RelOptPlanner.Executor {
     this.plannerSettings = plannerSettings;
   }
 
-  private RelDataType createCalciteTypeWithNullability(RelDataTypeFactory typeFactory,
-                                                       SqlTypeName sqlTypeName,
-                                                       boolean isNullable) {
+  /**
+   * Given a {@link SqlTypeName} and nullability, create a RelDataType from the RelDataTypeFactory
+   *
+   * @param typeFactory RelDataTypeFactory used to create the RelDataType
+   * @param sqlTypeName the given SqlTypeName
+   * @param isNullable  the nullability of the created RelDataType
+   * @return RelDataType Type of call
+   */
+  public static RelDataType createCalciteTypeWithNullability(RelDataTypeFactory typeFactory,
+                                                             SqlTypeName sqlTypeName,
+                                                             boolean isNullable) {
     RelDataType type;
     if (sqlTypeName == SqlTypeName.INTERVAL_DAY_TIME) {
       type = typeFactory.createSqlIntervalType(
@@ -183,7 +164,7 @@ public class DrillConstExecutor implements RelOptPlanner.Executor {
       RelDataTypeFactory typeFactory = rexBuilder.getTypeFactory();
 
       if (materializedExpr.getMajorType().getMode() == TypeProtos.DataMode.OPTIONAL && TypeHelper.isNull(output)) {
-        SqlTypeName sqlTypeName = DRILL_TO_CALCITE_TYPE_MAPPING.get(materializedExpr.getMajorType().getMinorType());
+        SqlTypeName sqlTypeName = TypeInferenceUtils.getCalciteTypeFromDrillType(materializedExpr.getMajorType().getMinorType());
         if (sqlTypeName == null) {
           String message = String.format("Error reducing constant expression, unsupported type: %s.",
               materializedExpr.getMajorType().getMinorType());

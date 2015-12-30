@@ -50,9 +50,16 @@ import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexUtil;
+import org.apache.calcite.sql.SqlBasicCall;
+import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlExplainLevel;
 import org.apache.calcite.sql.SqlNode;
+import org.apache.calcite.sql.SqlOperandCountRange;
+import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.TypedSqlNode;
+import org.apache.calcite.sql.parser.SqlParserPos;
+import org.apache.calcite.sql.util.SqlShuttle;
+import org.apache.calcite.sql.util.SqlVisitor;
 import org.apache.calcite.sql.validate.SqlValidatorUtil;
 import org.apache.calcite.tools.Planner;
 import org.apache.calcite.tools.RelConversionException;
@@ -99,6 +106,9 @@ import org.apache.drill.exec.planner.physical.visitor.SelectionVectorPrelVisitor
 import org.apache.drill.exec.planner.physical.visitor.SplitUpComplexExpressions;
 import org.apache.drill.exec.planner.physical.visitor.StarColumnConverter;
 import org.apache.drill.exec.planner.physical.visitor.SwapHashJoinVisitor;
+import org.apache.drill.exec.planner.sql.DrillCalciteSqlAggFunctionWrapper;
+import org.apache.drill.exec.planner.sql.DrillCalciteSqlFunctionWrapper;
+import org.apache.drill.exec.planner.sql.DrillCalciteSqlOperatorWrapper;
 import org.apache.drill.exec.planner.sql.DrillSqlWorker;
 import org.apache.drill.exec.planner.sql.parser.UnsupportedOperatorsVisitor;
 import org.apache.drill.exec.server.options.OptionManager;
@@ -451,6 +461,7 @@ public class DefaultSqlHandler extends AbstractSqlHandler {
     TypedSqlNode typedSqlNode = planner.validateAndGetType(sqlNode);
 
     SqlNode sqlNodeValidated = typedSqlNode.getSqlNode();
+    //unwrapVisitor(sqlNodeValidated);
 
     // Check if the unsupported functionality is used
     UnsupportedOperatorsVisitor visitor = UnsupportedOperatorsVisitor.createVisitor(context);
@@ -465,6 +476,26 @@ public class DefaultSqlHandler extends AbstractSqlHandler {
     }
 
     return typedSqlNode;
+  }
+
+  private SqlNode unwrapVisitor(SqlNode node) {
+    return node.accept(new SqlShuttle() {
+      @Override
+      public SqlNode visit(SqlCall sqlCall) {
+        if((sqlCall instanceof SqlBasicCall)) {
+          final SqlOperator sqlOperator = sqlCall.getOperator();
+          if(sqlOperator instanceof DrillCalciteSqlAggFunctionWrapper) {
+            ((SqlBasicCall) sqlCall).setOperator(((DrillCalciteSqlAggFunctionWrapper) sqlOperator).getOperator());
+          } else if(sqlOperator instanceof DrillCalciteSqlFunctionWrapper) {
+            ((SqlBasicCall) sqlCall).setOperator(((DrillCalciteSqlFunctionWrapper) sqlOperator).getWrappedSqlFunction());
+          } else if(sqlOperator instanceof DrillCalciteSqlOperatorWrapper) {
+            ((SqlBasicCall) sqlCall).setOperator(((DrillCalciteSqlOperatorWrapper) sqlOperator).getWrappedSqlOperator());
+          }
+        }
+
+        return sqlCall.getOperator().acceptCall(this, sqlCall);
+      }
+    });
   }
 
   private RelNode convertToRel(SqlNode node) throws RelConversionException {

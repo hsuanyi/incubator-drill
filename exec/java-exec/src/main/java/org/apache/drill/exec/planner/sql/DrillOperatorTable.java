@@ -18,7 +18,41 @@
 package org.apache.drill.exec.planner.sql;
 
 import com.google.common.collect.ArrayListMultimap;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
+import org.apache.calcite.linq4j.Ord;
+import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.rel.type.RelDataTypeFactory;
+import org.apache.calcite.sql.ExplicitOperatorBinding;
+import org.apache.calcite.sql.SqlAggFunction;
+import org.apache.calcite.sql.SqlBasicCall;
+import org.apache.calcite.sql.SqlBinaryOperator;
+import org.apache.calcite.sql.SqlCall;
+import org.apache.calcite.sql.SqlCallBinding;
+import org.apache.calcite.sql.SqlFunction;
+import org.apache.calcite.sql.SqlKind;
+import org.apache.calcite.sql.SqlLiteral;
+import org.apache.calcite.sql.SqlNode;
+import org.apache.calcite.sql.SqlNodeList;
+import org.apache.calcite.sql.SqlOperandCountRange;
+import org.apache.calcite.sql.SqlOperatorBinding;
+import org.apache.calcite.sql.SqlUtil;
+import org.apache.calcite.sql.SqlWriter;
+import org.apache.calcite.sql.fun.SqlMonotonicBinaryOperator;
+import org.apache.calcite.sql.parser.SqlParserPos;
+import org.apache.calcite.sql.type.InferTypes;
+import org.apache.calcite.sql.type.OperandTypes;
+import org.apache.calcite.sql.type.ReturnTypes;
+import org.apache.calcite.sql.type.SqlOperandTypeChecker;
+import org.apache.calcite.sql.type.SqlOperandTypeInference;
+import org.apache.calcite.sql.type.SqlReturnTypeInference;
+import org.apache.calcite.sql.util.SqlBasicVisitor;
+import org.apache.calcite.sql.util.SqlVisitor;
+import org.apache.calcite.sql.validate.SqlMonotonicity;
+import org.apache.calcite.sql.validate.SqlValidator;
+import org.apache.calcite.sql.validate.SqlValidatorScope;
+import org.apache.calcite.sql.validate.SqlValidatorUtil;
+import org.apache.calcite.util.Util;
 import org.apache.drill.exec.expr.fn.FunctionImplementationRegistry;
 import org.apache.calcite.sql.SqlFunctionCategory;
 import org.apache.calcite.sql.SqlIdentifier;
@@ -26,9 +60,13 @@ import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlOperatorTable;
 import org.apache.calcite.sql.SqlSyntax;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
+import org.apache.drill.exec.planner.logical.DrillParseContext;
+import org.apache.drill.exec.planner.physical.PrelUtil;
 
 import java.util.Arrays;
 import java.util.List;
+
+import static org.apache.calcite.util.Static.RESOURCE;
 
 /**
  * Implementation of {@link SqlOperatorTable} that contains standard operators and functions provided through
@@ -55,21 +93,28 @@ public class DrillOperatorTable extends SqlStdOperatorTable {
 
   @Override
   public void lookupOperatorOverloads(SqlIdentifier opName, SqlFunctionCategory category,
-                                      SqlSyntax syntax, List<SqlOperator> operatorList) {
-    // first look in Calcite functions
-    inner.lookupOperatorOverloads(opName, category, syntax, operatorList);
+      SqlSyntax syntax, List<SqlOperator> operatorList) {
+
+    final List<SqlOperator> calciteOperatorList = Lists.newArrayList();
+    inner.lookupOperatorOverloads(opName, category, syntax, calciteOperatorList);
+    for(final SqlOperator calciteOperator : calciteOperatorList) {
+      final SqlOperator wrap;
+      if(calciteOperator instanceof SqlAggFunction) {
+        wrap = calciteOperator;
+      } else if(calciteOperator instanceof SqlFunction) {
+        wrap = new DrillCalciteSqlFunctionWrapper((SqlFunction) calciteOperator);
+      } else {
+        wrap = new DrillCalciteSqlOperatorWrapper(calciteOperator);
+      }
+      operatorList.add(wrap);
+    }
 
     // if no function is found, check in Drill UDFs
-    System.out.println("LOOKING FOR: " + opName.getSimple() + " SIMPLE: " + opName.isSimple() + " SYNTAX: " + syntax);
     if (operatorList.isEmpty() && syntax == SqlSyntax.FUNCTION && opName.isSimple()) {
       List<SqlOperator> drillOps = opMap.get(opName.getSimple().toLowerCase());
-      if (drillOps != null) {
+      if (drillOps != null && !drillOps.isEmpty()) {
         operatorList.addAll(drillOps);
       }
-    }
-    System.out.println("OPERATOR LOOKUP: " + operatorList);
-    for (SqlOperator operator : operatorList) {
-      System.out.println("OPERATOR: " + operator.getAllowedSignatures());
     }
   }
 
@@ -82,4 +127,5 @@ public class DrillOperatorTable extends SqlStdOperatorTable {
   public List<SqlOperator> getSqlOperator(String name) {
     return opMap.get(name.toLowerCase());
   }
+
 }

@@ -34,25 +34,27 @@ import org.apache.calcite.plan.hep.HepProgram;
 import org.apache.calcite.plan.hep.HepProgramBuilder;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelShuttleImpl;
-import org.apache.calcite.rel.core.Join;
 import org.apache.calcite.rel.core.Project;
-import org.apache.calcite.rel.core.RelFactories;
 import org.apache.calcite.rel.core.TableFunctionScan;
 import org.apache.calcite.rel.core.TableScan;
 import org.apache.calcite.rel.logical.LogicalValues;
 import org.apache.calcite.rel.metadata.CachingRelMetadataProvider;
 import org.apache.calcite.rel.metadata.ChainedRelMetadataProvider;
 import org.apache.calcite.rel.metadata.RelMetadataProvider;
-import org.apache.calcite.rel.rules.JoinToMultiJoinRule;
-import org.apache.calcite.rel.rules.LoptOptimizeJoinRule;
 import org.apache.calcite.rel.rules.ProjectRemoveRule;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexUtil;
+import org.apache.calcite.sql.SqlBasicCall;
+import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlExplainLevel;
 import org.apache.calcite.sql.SqlNode;
+import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.TypedSqlNode;
+import org.apache.calcite.sql.fun.SqlAvgAggFunction;
+import org.apache.calcite.sql.fun.SqlSumAggFunction;
+import org.apache.calcite.sql.util.SqlShuttle;
 import org.apache.calcite.sql.validate.SqlValidatorUtil;
 import org.apache.calcite.tools.Planner;
 import org.apache.calcite.tools.RelConversionException;
@@ -70,18 +72,12 @@ import org.apache.drill.exec.physical.base.PhysicalOperator;
 import org.apache.drill.exec.physical.impl.join.JoinUtils;
 import org.apache.drill.exec.planner.common.DrillRelOptUtil;
 import org.apache.drill.exec.planner.cost.DrillDefaultRelMetadataProvider;
-import org.apache.drill.exec.planner.logical.DrillJoinRel;
-import org.apache.drill.exec.planner.logical.DrillMergeProjectRule;
 import org.apache.drill.exec.planner.logical.DrillProjectRel;
-import org.apache.drill.exec.planner.logical.DrillPushProjectPastFilterRule;
 import org.apache.drill.exec.planner.logical.DrillRel;
-import org.apache.drill.exec.planner.logical.DrillRelFactories;
 import org.apache.drill.exec.planner.logical.DrillRuleSets;
 import org.apache.drill.exec.planner.logical.DrillScreenRel;
 import org.apache.drill.exec.planner.logical.DrillStoreRel;
 import org.apache.drill.exec.planner.logical.PreProcessLogicalRel;
-import org.apache.drill.exec.planner.logical.partition.ParquetPruneScanRule;
-import org.apache.drill.exec.planner.logical.partition.PruneScanRule;
 import org.apache.drill.exec.planner.physical.DrillDistributionTrait;
 import org.apache.drill.exec.planner.physical.PhysicalPlanCreator;
 import org.apache.drill.exec.planner.physical.PlannerSettings;
@@ -99,6 +95,7 @@ import org.apache.drill.exec.planner.physical.visitor.SelectionVectorPrelVisitor
 import org.apache.drill.exec.planner.physical.visitor.SplitUpComplexExpressions;
 import org.apache.drill.exec.planner.physical.visitor.StarColumnConverter;
 import org.apache.drill.exec.planner.physical.visitor.SwapHashJoinVisitor;
+import org.apache.drill.exec.planner.sql.DrillCalciteSqlWrapper;
 import org.apache.drill.exec.planner.sql.DrillSqlWorker;
 import org.apache.drill.exec.planner.sql.parser.UnsupportedOperatorsVisitor;
 import org.apache.drill.exec.server.options.OptionManager;
@@ -451,6 +448,7 @@ public class DefaultSqlHandler extends AbstractSqlHandler {
     TypedSqlNode typedSqlNode = planner.validateAndGetType(sqlNode);
 
     SqlNode sqlNodeValidated = typedSqlNode.getSqlNode();
+    // unwrapVisitor(sqlNodeValidated);
 
     // Check if the unsupported functionality is used
     UnsupportedOperatorsVisitor visitor = UnsupportedOperatorsVisitor.createVisitor(context);
@@ -465,6 +463,25 @@ public class DefaultSqlHandler extends AbstractSqlHandler {
     }
 
     return typedSqlNode;
+  }
+
+  private SqlNode unwrapVisitor(SqlNode node) {
+    return node.accept(new SqlShuttle() {
+      @Override
+      public SqlNode visit(SqlCall sqlCall) {
+        if((sqlCall instanceof SqlBasicCall)) {
+          final SqlOperator sqlOperator = sqlCall.getOperator();
+
+          if(sqlOperator instanceof DrillCalciteSqlWrapper) {
+            SqlOperator wrapped = ((DrillCalciteSqlWrapper) sqlOperator).getOperator();
+            if(!(wrapped instanceof SqlAvgAggFunction) && !(wrapped instanceof SqlSumAggFunction)) {
+              ((SqlBasicCall) sqlCall).setOperator(wrapped);
+            }
+          }
+        }
+        return sqlCall.getOperator().acceptCall(this, sqlCall);
+      }
+    });
   }
 
   private RelNode convertToRel(SqlNode node) throws RelConversionException {

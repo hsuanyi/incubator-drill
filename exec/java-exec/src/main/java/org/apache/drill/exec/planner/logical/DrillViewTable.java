@@ -19,19 +19,33 @@ package org.apache.drill.exec.planner.logical;
 
 import java.util.List;
 
+import com.google.common.collect.Lists;
+
+import org.apache.calcite.plan.RelOptTable;
+import org.apache.calcite.plan.RelOptTable.ToRelContext;
+import org.apache.calcite.plan.RelOptUtil;
+import org.apache.calcite.rel.core.AggregateCall;
+import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.RelShuttleImpl;
+import org.apache.calcite.rel.logical.LogicalAggregate;
+import org.apache.calcite.rel.logical.LogicalFilter;
+import org.apache.calcite.rel.logical.LogicalJoin;
+import org.apache.calcite.rel.logical.LogicalProject;
+import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.rel.type.RelDataTypeFactory;
+import org.apache.calcite.rex.RexBuilder;
+import org.apache.calcite.rex.RexCall;
+import org.apache.calcite.rex.RexNode;
+import org.apache.calcite.rex.RexShuttle;
 import org.apache.calcite.schema.Schema.TableType;
 import org.apache.calcite.schema.Statistic;
 import org.apache.calcite.schema.Statistics;
 import org.apache.calcite.schema.TranslatableTable;
 
+import org.apache.calcite.sql.SqlAggFunction;
 import org.apache.drill.exec.dotdrill.View;
-import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.plan.RelOptTable;
-import org.apache.calcite.plan.RelOptTable.ToRelContext;
-import org.apache.calcite.plan.RelOptUtil;
-import org.apache.calcite.rel.type.RelDataType;
-import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.drill.exec.ops.ViewExpansionContext;
+import org.apache.drill.exec.planner.sql.DrillCalciteSqlWrapper;
 
 public class DrillViewTable implements TranslatableTable, DrillViewInfoProvider {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(DrillViewTable.class);
@@ -82,6 +96,7 @@ public class DrillViewTable implements TranslatableTable, DrillViewInfoProvider 
       }
     }
   }
+
 
   @Override
   public TableType getJdbcTableType() {

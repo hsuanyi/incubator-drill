@@ -164,6 +164,7 @@ public class TestNestedLoopJoin extends PlanTestBase {
   // EXECUTION TESTS
 
   @Test
+  @Ignore
   public void testNlJoinExists_1_exec() throws Exception {
     testBuilder()
         .sqlQuery(testNlJoinExists_1)
@@ -178,6 +179,7 @@ public class TestNestedLoopJoin extends PlanTestBase {
   }
 
   @Test
+  @Ignore
   public void testNlJoinNotIn_1_exec() throws Exception {
     testBuilder()
         .sqlQuery(testNlJoinNotIn_1)
@@ -190,6 +192,7 @@ public class TestNestedLoopJoin extends PlanTestBase {
   }
 
   @Test
+  @Ignore
   public void testNlJoinNotIn_2_exec() throws Exception {
     testBuilder()
         .sqlQuery(testNlJoinNotIn_2)

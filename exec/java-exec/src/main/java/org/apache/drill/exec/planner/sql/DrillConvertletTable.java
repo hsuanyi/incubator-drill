@@ -19,6 +19,7 @@ package org.apache.drill.exec.planner.sql;
 
 import java.util.HashMap;
 
+import org.apache.calcite.sql.SqlBasicCall;
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.fun.SqlAvgAggFunction;
@@ -49,6 +50,15 @@ public class DrillConvertletTable implements SqlRexConvertletTable{
   public SqlRexConvertlet get(SqlCall call) {
 
     SqlRexConvertlet convertlet;
+
+    if(call.getOperator() instanceof DrillCalciteSqlAggFunctionWrapper) {
+      ((SqlBasicCall) call).setOperator(((DrillCalciteSqlAggFunctionWrapper) call.getOperator()).getOperator());
+    } else if(call.getOperator() instanceof DrillCalciteSqlFunctionWrapper) {
+      ((SqlBasicCall) call).setOperator(((DrillCalciteSqlFunctionWrapper) call.getOperator()).getWrappedSqlFunction());
+
+    } else if(call.getOperator() instanceof DrillCalciteSqlOperatorWrapper) {
+      ((SqlBasicCall) call).setOperator(((DrillCalciteSqlOperatorWrapper) call.getOperator()).getWrappedSqlOperator());
+    }
 
     if ((convertlet = map.get(call.getOperator())) != null) {
       return convertlet;

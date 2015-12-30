@@ -98,7 +98,7 @@ public class DrillConstExecutor implements RelOptPlanner.Executor {
       //      - CHAR, SYMBOL, MULTISET, DISTINCT, STRUCTURED, ROW, OTHER, CURSOR, COLUMN_LIST
       .build();
 
-  public static ImmutableMap<SqlTypeName, TypeProtos.MinorType> CALCITE_TO_DRILL_MAPPING =
+  private static ImmutableMap<SqlTypeName, TypeProtos.MinorType> CALCITE_TO_DRILL_MAPPING =
       ImmutableMap.<SqlTypeName, TypeProtos.MinorType> builder()
           .put(SqlTypeName.INTEGER, TypeProtos.MinorType.INT)
           .put(SqlTypeName.BIGINT, TypeProtos.MinorType.BIGINT)
@@ -107,14 +107,9 @@ public class DrillConstExecutor implements RelOptPlanner.Executor {
           .put(SqlTypeName.VARCHAR, TypeProtos.MinorType.VARCHAR)
           .put(SqlTypeName.BOOLEAN, TypeProtos.MinorType.BIT)
           .put(SqlTypeName.DATE, TypeProtos.MinorType.DATE)
-          // (1) Disabling decimal type
-          //.put(SqlTypeName.DECIMAL, TypeProtos.MinorType.DECIMAL9)
-          //.put(SqlTypeName.DECIMAL, TypeProtos.MinorType.DECIMAL18)
-          //.put(SqlTypeName.DECIMAL, TypeProtos.MinorType.DECIMAL28SPARSE)
-          //.put(SqlTypeName.DECIMAL, TypeProtos.MinorType.DECIMAL38SPARSE)
           .put(SqlTypeName.TIME, TypeProtos.MinorType.TIME)
           .put(SqlTypeName.TIMESTAMP, TypeProtos.MinorType.TIMESTAMP)
-          //.put(SqlTypeName.VARBINARY, TypeProtos.MinorType.VARBINARY)
+          .put(SqlTypeName.VARBINARY, TypeProtos.MinorType.VARBINARY)
           .put(SqlTypeName.INTERVAL_YEAR_MONTH, TypeProtos.MinorType.INTERVALYEAR)
           .put(SqlTypeName.INTERVAL_DAY_TIME, TypeProtos.MinorType.INTERVALDAY)
           //.put(SqlTypeName.MAP, TypeProtos.MinorType.MAP)
@@ -161,6 +156,28 @@ public class DrillConstExecutor implements RelOptPlanner.Executor {
     this.funcImplReg = funcImplReg;
     this.udfUtilities = udfUtilities;
     this.plannerSettings = plannerSettings;
+  }
+
+  public static TypeProtos.MinorType getDrillTypeFromCalcite(final RelDataType relDataType) {
+    final SqlTypeName sqlTypeName = relDataType.getSqlTypeName();
+    if(sqlTypeName == SqlTypeName.DECIMAL) {
+      final int precision = relDataType.getPrecision();
+      final TypeProtos.MinorType minorType;
+      if(precision < 10) {
+        minorType = TypeProtos.MinorType.DECIMAL9;
+      } else if(precision < 19) {
+        minorType = TypeProtos.MinorType.DECIMAL18;
+      } else if(precision < 29) {
+        minorType = TypeProtos.MinorType.DECIMAL28SPARSE;
+      } else if(precision < 39) {
+        minorType = TypeProtos.MinorType.DECIMAL38SPARSE;
+      } else {
+        throw new UnsupportedOperationException();
+      }
+      return minorType;
+    } else {
+      return CALCITE_TO_DRILL_MAPPING.get(sqlTypeName);
+    }
   }
 
   private RelDataType createCalciteTypeWithNullability(RelDataTypeFactory typeFactory,

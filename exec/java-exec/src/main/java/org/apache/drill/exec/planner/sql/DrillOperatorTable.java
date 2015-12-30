@@ -60,16 +60,11 @@ public class DrillOperatorTable extends SqlStdOperatorTable {
     inner.lookupOperatorOverloads(opName, category, syntax, operatorList);
 
     // if no function is found, check in Drill UDFs
-    System.out.println("LOOKING FOR: " + opName.getSimple() + " SIMPLE: " + opName.isSimple() + " SYNTAX: " + syntax);
     if (operatorList.isEmpty() && syntax == SqlSyntax.FUNCTION && opName.isSimple()) {
       List<SqlOperator> drillOps = opMap.get(opName.getSimple().toLowerCase());
       if (drillOps != null) {
         operatorList.addAll(drillOps);
       }
-    }
-    System.out.println("OPERATOR LOOKUP: " + operatorList);
-    for (SqlOperator operator : operatorList) {
-      System.out.println("OPERATOR: " + operator.getAllowedSignatures());
     }
   }
 

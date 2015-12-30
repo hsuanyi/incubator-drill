@@ -23,12 +23,18 @@ import org.apache.drill.common.expression.FunctionCall;
 public class FunctionResolverFactory {
 
   public static FunctionResolver getResolver(FunctionCall call) {
+    return getResolver();
+  }
+
+  public static FunctionResolver getResolver() {
     return new DefaultFunctionResolver();
   }
 
   public static FunctionResolver getExactResolver(FunctionCall call) {
-    return new ExactFunctionResolver();
+    return getExactResolver();
   }
 
-
+  public static FunctionResolver getExactResolver() {
+    return new ExactFunctionResolver();
+  }
 }

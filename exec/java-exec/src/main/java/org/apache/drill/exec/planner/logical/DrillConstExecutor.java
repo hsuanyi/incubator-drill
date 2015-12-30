@@ -58,6 +58,7 @@ import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.util.NlsString;
 import org.apache.drill.exec.planner.physical.PlannerSettings;
+import org.apache.drill.exec.planner.sql.TypeInferenceUtils;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 
@@ -69,65 +70,6 @@ public class DrillConstExecutor implements RelOptPlanner.Executor {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(DrillConstExecutor.class);
 
   private final PlannerSettings plannerSettings;
-
-  public static ImmutableMap<TypeProtos.MinorType, SqlTypeName> DRILL_TO_CALCITE_TYPE_MAPPING =
-      ImmutableMap.<TypeProtos.MinorType, SqlTypeName> builder()
-      .put(TypeProtos.MinorType.INT, SqlTypeName.INTEGER)
-      .put(TypeProtos.MinorType.BIGINT, SqlTypeName.BIGINT)
-      .put(TypeProtos.MinorType.FLOAT4, SqlTypeName.FLOAT)
-      .put(TypeProtos.MinorType.FLOAT8, SqlTypeName.DOUBLE)
-      .put(TypeProtos.MinorType.VARCHAR, SqlTypeName.VARCHAR)
-      .put(TypeProtos.MinorType.BIT, SqlTypeName.BOOLEAN)
-      .put(TypeProtos.MinorType.DATE, SqlTypeName.DATE)
-      .put(TypeProtos.MinorType.DECIMAL9, SqlTypeName.DECIMAL)
-      .put(TypeProtos.MinorType.DECIMAL18, SqlTypeName.DECIMAL)
-      .put(TypeProtos.MinorType.DECIMAL28SPARSE, SqlTypeName.DECIMAL)
-      .put(TypeProtos.MinorType.DECIMAL38SPARSE, SqlTypeName.DECIMAL)
-      .put(TypeProtos.MinorType.TIME, SqlTypeName.TIME)
-      .put(TypeProtos.MinorType.TIMESTAMP, SqlTypeName.TIMESTAMP)
-      .put(TypeProtos.MinorType.VARBINARY, SqlTypeName.VARBINARY)
-      .put(TypeProtos.MinorType.INTERVALYEAR, SqlTypeName.INTERVAL_YEAR_MONTH)
-      .put(TypeProtos.MinorType.INTERVALDAY, SqlTypeName.INTERVAL_DAY_TIME)
-      .put(TypeProtos.MinorType.MAP, SqlTypeName.MAP)
-      .put(TypeProtos.MinorType.LIST, SqlTypeName.ARRAY)
-      .put(TypeProtos.MinorType.LATE, SqlTypeName.ANY)
-      // These are defined in the Drill type system but have been turned off for now
-      .put(TypeProtos.MinorType.TINYINT, SqlTypeName.TINYINT)
-      .put(TypeProtos.MinorType.SMALLINT, SqlTypeName.SMALLINT)
-      // Calcite types currently not supported by Drill, nor defined in the Drill type list:
-      //      - CHAR, SYMBOL, MULTISET, DISTINCT, STRUCTURED, ROW, OTHER, CURSOR, COLUMN_LIST
-      .build();
-
-  public static ImmutableMap<SqlTypeName, TypeProtos.MinorType> CALCITE_TO_DRILL_MAPPING =
-      ImmutableMap.<SqlTypeName, TypeProtos.MinorType> builder()
-          .put(SqlTypeName.INTEGER, TypeProtos.MinorType.INT)
-          .put(SqlTypeName.BIGINT, TypeProtos.MinorType.BIGINT)
-          .put(SqlTypeName.FLOAT, TypeProtos.MinorType.FLOAT4)
-          .put(SqlTypeName.DOUBLE, TypeProtos.MinorType.FLOAT8)
-          .put(SqlTypeName.VARCHAR, TypeProtos.MinorType.VARCHAR)
-          .put(SqlTypeName.BOOLEAN, TypeProtos.MinorType.BIT)
-          .put(SqlTypeName.DATE, TypeProtos.MinorType.DATE)
-          // (1) Disabling decimal type
-          //.put(SqlTypeName.DECIMAL, TypeProtos.MinorType.DECIMAL9)
-          //.put(SqlTypeName.DECIMAL, TypeProtos.MinorType.DECIMAL18)
-          //.put(SqlTypeName.DECIMAL, TypeProtos.MinorType.DECIMAL28SPARSE)
-          //.put(SqlTypeName.DECIMAL, TypeProtos.MinorType.DECIMAL38SPARSE)
-          .put(SqlTypeName.TIME, TypeProtos.MinorType.TIME)
-          .put(SqlTypeName.TIMESTAMP, TypeProtos.MinorType.TIMESTAMP)
-          //.put(SqlTypeName.VARBINARY, TypeProtos.MinorType.VARBINARY)
-          .put(SqlTypeName.INTERVAL_YEAR_MONTH, TypeProtos.MinorType.INTERVALYEAR)
-          .put(SqlTypeName.INTERVAL_DAY_TIME, TypeProtos.MinorType.INTERVALDAY)
-          //.put(SqlTypeName.MAP, TypeProtos.MinorType.MAP)
-          //.put(SqlTypeName.ARRAY, TypeProtos.MinorType.LIST)
-          .put(SqlTypeName.CHAR, TypeProtos.MinorType.VARCHAR)
-          // (2) Avoid late binding
-          //.put(SqlTypeName.ANY, TypeProtos.MinorType.LATE)
-          // (3) These 2 types are defined in the Drill type system but have been turned off for now
-          //.put(SqlTypeName.TINYINT, TypeProtos.MinorType.TINYINT)
-          //.put(SqlTypeName.SMALLINT, TypeProtos.MinorType.SMALLINT)
-          // (4) Calcite types currently not supported by Drill, nor defined in the Drill type list:
-          //      - SYMBOL, MULTISET, DISTINCT, STRUCTURED, ROW, OTHER, CURSOR, COLUMN_LIST
-          .build();
 
   // This is a list of all types that cannot be folded at planning time for various reasons, most of the types are
   // currently not supported at all. The reasons for the others can be found in the evaluation code in the reduce method
@@ -214,7 +156,7 @@ public class DrillConstExecutor implements RelOptPlanner.Executor {
       RelDataTypeFactory typeFactory = rexBuilder.getTypeFactory();
 
       if (materializedExpr.getMajorType().getMode() == TypeProtos.DataMode.OPTIONAL && TypeHelper.isNull(output)) {
-        SqlTypeName sqlTypeName = DRILL_TO_CALCITE_TYPE_MAPPING.get(materializedExpr.getMajorType().getMinorType());
+        SqlTypeName sqlTypeName = TypeInferenceUtils.getCalciteTypeFromDrillType(materializedExpr.getMajorType().getMinorType());
         if (sqlTypeName == null) {
           String message = String.format("Error reducing constant expression, unsupported type: %s.",
               materializedExpr.getMajorType().getMinorType());

@@ -141,7 +141,8 @@ public class PreProcessLogicalRel extends RelShuttleImpl {
             }
           }
           if (newFunction == null) {
-            // we are here because we found some dummy convert function. (See DummyConvertFrom and DummyConvertTo)
+            // we are here because we found some place holder for convert function.
+            // (See DrillFunctionRegistry.registerCalcitePlaceHolderFunction())
             throw getConvertFunctionException(functionName, literal);
           }
 

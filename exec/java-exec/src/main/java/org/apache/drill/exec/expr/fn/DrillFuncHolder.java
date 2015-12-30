@@ -17,12 +17,10 @@
  */
 package org.apache.drill.exec.expr.fn;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 
-import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import org.apache.drill.common.exceptions.DrillRuntimeException;
 import org.apache.drill.common.exceptions.UserException;
@@ -264,39 +262,31 @@ public abstract class DrillFuncHolder extends AbstractFuncHolder {
     return this.parameters[i].isFieldReader;
   }
 
-  public static ArrayList<MajorType> getResultType(List<LogicalExpression> expressions) {
-    final ArrayList<MajorType> argumentTypes = Lists.newArrayList();
-    for (LogicalExpression expression : expressions) {
-      argumentTypes.add(expression.getMajorType());
-    }
-    return argumentTypes;
-  }
-
-  public MajorType getReturnType(List<LogicalExpression> expressions) {
-    return getReturnType(getResultType(expressions));
-  }
-
-  public MajorType getReturnType(ArrayList<MajorType> argumentTypes) {
+  public MajorType getReturnType(final List<LogicalExpression> logicalExpressions) {
     if (returnValue.type.getMinorType() == MinorType.UNION) {
-      Set<MinorType> subTypes = Sets.newHashSet();
-      for (ValueReference ref : parameters) {
+      final Set<MinorType> subTypes = Sets.newHashSet();
+      for(final ValueReference ref : parameters) {
         subTypes.add(ref.getType().getMinorType());
       }
-      MajorType.Builder builder = MajorType.newBuilder().setMinorType(MinorType.UNION).setMode(DataMode.OPTIONAL);
-      for (MinorType subType : subTypes) {
+
+      final MajorType.Builder builder = MajorType.newBuilder()
+          .setMinorType(MinorType.UNION)
+          .setMode(DataMode.OPTIONAL);
+
+      for(final MinorType subType : subTypes) {
         builder.addSubType(subType);
       }
       return builder.build();
     }
-    if (nullHandling == NullHandling.NULL_IF_NULL) {
+
+    if(nullHandling == NullHandling.NULL_IF_NULL) {
       // if any one of the input types is nullable, then return nullable return type
-      for (MajorType  type : argumentTypes) {
-        if (type.getMode() == TypeProtos.DataMode.OPTIONAL) {
+      for(final LogicalExpression logicalExpression : logicalExpressions) {
+        if(logicalExpression.getMajorType().getMode() == TypeProtos.DataMode.OPTIONAL) {
           return Types.optional(returnValue.type.getMinorType());
         }
       }
     }
-
     return returnValue.type;
   }
 
@@ -417,7 +407,6 @@ public abstract class DrillFuncHolder extends AbstractFuncHolder {
     public String getName() {
       return name;
     }
-
   }
 
   public boolean checkPrecisionRange() {
@@ -431,5 +420,4 @@ public abstract class DrillFuncHolder extends AbstractFuncHolder {
   public ValueReference getReturnValue() {
     return returnValue;
   }
-
 }

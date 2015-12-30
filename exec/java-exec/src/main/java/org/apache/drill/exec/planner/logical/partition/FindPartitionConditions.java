@@ -41,6 +41,8 @@ import org.apache.calcite.sql.fun.SqlRowOperator;
 import org.apache.calcite.util.Util;
 
 import com.google.common.collect.Lists;
+import org.apache.drill.exec.expr.fn.DrillFuncHolder;
+import org.apache.drill.exec.planner.sql.DrillSqlOperator;
 
 
 public class FindPartitionConditions extends RexVisitorImpl<Void> {
@@ -284,7 +286,7 @@ public class FindPartitionConditions extends RexVisitorImpl<Void> {
 
     // Even if all operands are PUSH, the call itself may
     // be non-deterministic.
-    if (!call.getOperator().isDeterministic()) {
+    if (!isDeterministic(call.getOperator())) {
       callPushDirFilter = PushDirFilter.NO_PUSH;
     } else if (call.getOperator().isDynamicFunction()) {
       // For now, treat it same as non-deterministic.
@@ -339,5 +341,23 @@ public class FindPartitionConditions extends RexVisitorImpl<Void> {
     return pushVariable();
   }
 
+  private boolean isDeterministic(SqlOperator sqlOperator) {
+    if(sqlOperator.isDeterministic()) {
+      return true;
+    }
 
+    if(sqlOperator instanceof DrillSqlOperator) {
+      DrillSqlOperator drillSqlOperator = (DrillSqlOperator) sqlOperator;
+
+      for(DrillFuncHolder drillFuncHolder : drillSqlOperator.getFunctions()) {
+        if(!drillFuncHolder.isDeterministic()) {
+          return false;
+        }
+      }
+
+      return true;
+    }
+
+    return false;
+  }
 }

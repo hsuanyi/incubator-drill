@@ -55,12 +55,13 @@ public @interface FunctionTemplate {
 
   FunctionScope scope();
   NullHandling nulls() default NullHandling.INTERNAL;
+
   boolean isBinaryCommutative() default false;
   boolean isRandom()  default false;
   String desc() default "";
   FunctionCostCategory costCategory() default FunctionCostCategory.SIMPLE;
 
-  public static enum NullHandling {
+  enum NullHandling {
     /**
      * Method handles nulls.
      */
@@ -75,7 +76,7 @@ public @interface FunctionTemplate {
     NULL_IF_NULL;
   }
 
-  public static enum FunctionScope {
+  enum FunctionScope {
     SIMPLE,
     POINT_AGGREGATE,
     DECIMAL_AGGREGATE,
@@ -93,7 +94,7 @@ public @interface FunctionTemplate {
     SC_BOOLEAN_OPERATOR
   }
 
-  public static enum FunctionCostCategory {
+  enum FunctionCostCategory {
     SIMPLE(1), MEDIUM(20), COMPLEX(50);
 
     private final int value;
@@ -109,6 +110,5 @@ public @interface FunctionTemplate {
     public static FunctionCostCategory getDefault() {
       return SIMPLE;
     }
-
   }
 }

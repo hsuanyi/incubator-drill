@@ -21,7 +21,10 @@ package org.apache.drill.exec.resolver;
 import java.util.LinkedList;
 import java.util.List;
 
+import com.google.common.collect.Lists;
 import org.apache.drill.common.expression.FunctionCall;
+import org.apache.drill.common.expression.LogicalExpression;
+import org.apache.drill.common.types.TypeProtos;
 import org.apache.drill.exec.expr.fn.DrillFuncHolder;
 import org.apache.drill.exec.util.AssertionUtil;
 
@@ -38,8 +41,11 @@ public class DefaultFunctionResolver implements FunctionResolver {
     final List<DrillFuncHolder> bestMatchAlternatives = new LinkedList<>();
 
     for (DrillFuncHolder h : methods) {
-
-      currcost = TypeCastRules.getCost(DrillFuncHolder.getResultType(call.args), h);
+      final List<TypeProtos.MajorType> argumentTypes = Lists.newArrayList();
+      for (LogicalExpression expression : call.args) {
+        argumentTypes.add(expression.getMajorType());
+      }
+      currcost = TypeCastRules.getCost(argumentTypes, h);
 
       // if cost is lower than 0, func implementation is not matched, either w/ or w/o implicit casts
       if (currcost  < 0 ) {
@@ -79,5 +85,4 @@ public class DefaultFunctionResolver implements FunctionResolver {
       return bestmatch;
     }
   }
-
 }

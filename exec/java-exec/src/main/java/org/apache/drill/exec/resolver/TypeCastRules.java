@@ -26,7 +26,8 @@ import java.util.Set;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
-import org.apache.drill.common.expression.FunctionCall;
+import org.apache.drill.common.expression.MajorTypeInLogicalExpression;
+import org.apache.drill.common.expression.LogicalExpression;
 import org.apache.drill.common.types.TypeProtos.DataMode;
 import org.apache.drill.common.types.TypeProtos.MajorType;
 import org.apache.drill.common.types.TypeProtos.MinorType;
@@ -852,8 +853,14 @@ public class TypeCastRules {
      * the function can fit the precision that we need based on the input types.
      */
     if (holder.checkPrecisionRange() == true) {
+      List<LogicalExpression> logicalExpressions = Lists.newArrayList();
+      for(MajorType majorType : argumentTypes) {
+        logicalExpressions.add(
+            new MajorTypeInLogicalExpression(majorType));
+      }
+
       if (DecimalUtility.getMaxPrecision(holder.getReturnType().getMinorType()) <
-          holder.getReturnType(Lists.newArrayList(argumentTypes)).getPrecision()) {
+          holder.getReturnType(logicalExpressions).getPrecision()) {
         return -1;
       }
     }

@@ -26,6 +26,8 @@ public class TestTpchLimit0 extends BaseTestQuery{
   private void testLimitZero(String fileName) throws Exception {
     String query = getFile(fileName);
     query = "ALTER SESSION SET `planner.slice_target` = 1; select * from \n(" + query.replace(";", ")xyz limit 0;");
+
+    System.out.println(query);
     test(query);
   }
 

@@ -41,6 +41,8 @@ import org.apache.calcite.sql.fun.SqlRowOperator;
 import org.apache.calcite.util.Util;
 
 import com.google.common.collect.Lists;
+import org.apache.drill.exec.expr.fn.DrillFuncHolder;
+import org.apache.drill.exec.planner.sql.DrillSqlOperator;
 
 
 public class FindPartitionConditions extends RexVisitorImpl<Void> {
@@ -338,6 +340,4 @@ public class FindPartitionConditions extends RexVisitorImpl<Void> {
   public Void visitFieldAccess(RexFieldAccess fieldAccess) {
     return pushVariable();
   }
-
-
 }

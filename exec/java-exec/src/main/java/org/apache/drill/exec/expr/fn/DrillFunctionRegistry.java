@@ -17,7 +17,6 @@
  */
 package org.apache.drill.exec.expr.fn;
 
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -26,6 +25,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 
 import com.google.common.collect.Lists;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.drill.common.scanner.persistence.AnnotatedClassDescriptor;
 import org.apache.drill.common.scanner.persistence.ScanResult;
 import org.apache.drill.exec.planner.logical.DrillConstExecutor;
@@ -108,36 +108,96 @@ public class DrillFunctionRegistry {
 
   public void register(DrillOperatorTable operatorTable) {
     for (Entry<String, Collection<DrillFuncHolder>> function : registeredFunctions.asMap().entrySet()) {
-      final ArrayListMultimap<Integer, DrillFuncHolder> functions = ArrayListMultimap.create();
+      final ArrayListMultimap<Pair<Integer, Integer>, DrillFuncHolder> functions = ArrayListMultimap.create();
       final ArrayListMultimap<Integer, DrillFuncHolder> aggregateFunctions = ArrayListMultimap.create();
       final String name = function.getKey().toUpperCase();
-      if(name.equalsIgnoreCase("CONVERT_TO")) {
-        System.out.println("CONVERT FUNC: " + Arrays.toString(function.getValue().toArray()));
-      }
-
-      boolean isDeterministic = false;
+      boolean isDeterministic = true;
       for (DrillFuncHolder func : function.getValue()) {
+        final int paramCount = func.getParamCount();
         if(func.isAggregating()) {
-          aggregateFunctions.put(func.getParamCount(), func);
+          aggregateFunctions.put(paramCount, func);
         } else {
-          functions.put(func.getParamCount(), func);
+          final Pair<Integer, Integer> argNumerRange = getArgNumerRange(name, func);
+          functions.put(argNumerRange, func);
         }
-        // prevent Drill from folding constant functions with types that cannot be materialized
-        // into literals
-        if (DrillConstExecutor.NON_REDUCIBLE_TYPES.contains(func.getReturnType().getMinorType())) {
+
+        if(!func.isDeterministic()) {
           isDeterministic = false;
-        } else {
-          isDeterministic = func.isDeterministic();
         }
       }
-      for (Entry<Integer, Collection<DrillFuncHolder>> entry : functions.asMap().entrySet()) {
-        operatorTable.add(name, new DrillSqlOperator(name, Lists.newArrayList(entry.getValue()), entry.getKey(),
-            isDeterministic));
+      for (Entry<Pair<Integer, Integer>, Collection<DrillFuncHolder>> entry : functions.asMap().entrySet()) {
+        final DrillSqlOperator drillSqlOperator;
+        final Pair<Integer, Integer> range = entry.getKey();
+        final int max = range.getRight();
+        final int min = range.getLeft();
+        drillSqlOperator = new DrillSqlOperator(
+            name,
+            Lists.newArrayList(entry.getValue()),
+            min,
+            max,
+            isDeterministic);
+        operatorTable.add(name, drillSqlOperator);
       }
       for (Entry<Integer, Collection<DrillFuncHolder>> entry : aggregateFunctions.asMap().entrySet()) {
         operatorTable.add(name, new DrillSqlAggOperator(name, Lists.newArrayList(entry.getValue()), entry.getKey()));
       }
     }
+
+    registerCalcitePlaceHolderFunction(operatorTable);
   }
 
+  /**
+   * These {@link DrillSqlOperator} merely act as a placeholder so that Calcite
+   * allows convert_to(), convert_from(), flatten(), date_part() functions in SQL.
+   */
+  private void registerCalcitePlaceHolderFunction(DrillOperatorTable operatorTable) {
+    final String convert_to = "CONVERT_TO";
+    final String convert_from = "CONVERT_FROM";
+    final String flatten = "FLATTEN";
+    final String date_part = "DATE_PART";
+
+    operatorTable.add(convert_to,
+        new DrillSqlOperator(convert_to,
+            2,
+            true));
+    operatorTable.add(convert_from,
+        new DrillSqlOperator(convert_from,
+            2,
+            true));
+    operatorTable.add(flatten,
+        new DrillSqlOperator(flatten,
+            1,
+            true));
+    operatorTable.add(date_part,
+        new DrillSqlOperator(date_part,
+            2,
+            true));
+  }
+
+  private Pair<Integer, Integer> getArgNumerRange(final String name, final DrillFuncHolder func) {
+    switch(name.toUpperCase()) {
+      case "CONCAT":
+        return Pair.of(1, Integer.MAX_VALUE);
+
+      // Drill does not have a FunctionTemplate for the lpad/rpad with two arguments.
+      // It relies on DrillOptiq.java to add a third dummy argument to be acceptable
+      // by the FunctionTemplate in StringFunctions.java
+      case "LPAD":
+      case "RPAD":
+        return Pair.of(2, 3);
+
+      // Similar to the reason above, DrillOptiq.java is used for rewritting
+      case "LTRIM":
+      case "RTRIM":
+      case "BTRIM":
+        return Pair.of(1, 2);
+
+      // Similar to the reason above, DrillOptiq.java is used for rewritting
+      case "LENGTH":
+        return Pair.of(1, 2);
+
+      default:
+        return Pair.of(func.getParamCount(), func.getParamCount());
+    }
+  }
 }

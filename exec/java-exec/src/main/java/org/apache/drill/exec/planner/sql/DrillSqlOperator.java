@@ -166,21 +166,13 @@ public class DrillSqlOperator extends SqlFunction {
     final String name = opBinding.getOperator().getName().toUpperCase();
     if(name.equals("CONCAT")) {
       final RelDataType type = factory.createSqlType(SqlTypeName.VARCHAR);
-      return type;
+      return factory.createTypeWithNullability(type, true);
     } else if(name.equals("CONVERT_TO") || name.equals("CONVERT_FROM")) {
       final RelDataType type = factory.createSqlType(SqlTypeName.ANY);
-      if(opBinding.getOperandType(0).isNullable()) {
-        return factory.createTypeWithNullability(type, true);
-      } else {
-        return type;
-      }
+      return factory.createTypeWithNullability(type, true);
     } else if(name.equals("CHAR_LENGTH") || name.equals("CHARACTER_LENGTH") || name.equals("LENGTH")) {
       final RelDataType type = factory.createSqlType(SqlTypeName.BIGINT);
-      if(opBinding.getOperandType(0).isNullable()) {
-        return factory.createTypeWithNullability(type, true);
-      } else {
-        return type;
-      }
+      return factory.createTypeWithNullability(type, true);
     } else if(name.equals("DATE_PART")) {
       final String toType = opBinding.getOperandLiteralValue(0).toString().toUpperCase();
       assert toType.charAt(0) == '\'' && toType.charAt(toType.length() - 1) == '\'';
@@ -203,11 +195,7 @@ public class DrillSqlOperator extends SqlFunction {
       }
 
       final RelDataType type = factory.createSqlType(sqlTypeName);
-      if(opBinding.getOperandType(0).isNullable()) {
-        return factory.createTypeWithNullability(type, true);
-      } else {
-        return type;
-      }
+      return factory.createTypeWithNullability(type, true);
     }
 
     // Ensure the

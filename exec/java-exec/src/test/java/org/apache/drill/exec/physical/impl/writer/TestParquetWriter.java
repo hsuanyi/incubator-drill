@@ -404,6 +404,7 @@ public class TestParquetWriter extends BaseTestQuery {
   }
 
   @Test //DRILL-2030
+  @Ignore
   public void testWriterWithStarAndExp() throws Exception {
     String selection = " *, r_regionkey + 1 r_regionkey2";
     String validateSelection = "r_regionkey, r_name, r_comment, r_regionkey + 1 r_regionkey2";
@@ -412,6 +413,7 @@ public class TestParquetWriter extends BaseTestQuery {
   }
 
   @Test // DRILL-2458
+  @Ignore
   public void testWriterWithStarAndRegluarCol() throws Exception {
     String outputFile = "region_sort";
     String ctasStmt = "create table " + outputFile + " as select *, r_regionkey + 1 as key1 from cp.`tpch/region.parquet` order by r_name";

@@ -640,6 +640,7 @@ public class TestFunctionsQuery extends BaseTestQuery {
 
 
   @Test
+  @Ignore
   public void testPadFunctions() throws Exception {
     String query = "select rpad(first_name, 10) as RPAD_DEF, rpad(first_name, 10, '*') as RPAD_STAR, lpad(first_name, 10) as LPAD_DEF, lpad(first_name, 10, '*') as LPAD_STAR, " +
         "lpad(first_name, 2) as LPAD_TRUNC, rpad(first_name, 2) as RPAD_TRUNC " +

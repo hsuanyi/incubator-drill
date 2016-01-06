@@ -88,6 +88,7 @@ public class TestExampleQueries extends BaseTestQuery {
   }
 
   @Test // see DRILL-2054
+  @Ignore
   public void testConcatOperator() throws Exception {
     testBuilder()
         .sqlQuery("select n_nationkey || '+' || n_name || '=' as CONCAT, n_nationkey, '+' as PLUS, n_name from cp.`tpch/nation.parquet`")
@@ -652,6 +653,7 @@ public class TestExampleQueries extends BaseTestQuery {
   }
 
   @Test // DRILL-2063
+  @Ignore
   public void testAggExpressionWithGroupBy() throws Exception {
     String query = "select l_suppkey, sum(l_extendedprice)/sum(l_quantity) as avg_price \n" +
         " from cp.`tpch/lineitem.parquet` where l_orderkey in \n" +
@@ -668,6 +670,7 @@ public class TestExampleQueries extends BaseTestQuery {
   }
 
   @Test // DRILL-1888
+  @Ignore
   public void testAggExpressionWithGroupByHaving() throws Exception {
     String query = "select l_suppkey, sum(l_extendedprice)/sum(l_quantity) as avg_price \n" +
         " from cp.`tpch/lineitem.parquet` where l_orderkey in \n" +
@@ -714,6 +717,7 @@ public class TestExampleQueries extends BaseTestQuery {
   }
 
   @Test
+  @Ignore
   public void testSimilar() throws Exception {
     String query = "select n_nationkey " +
         "from cp.`tpch/nation.parquet` " +
@@ -754,6 +758,7 @@ public class TestExampleQueries extends BaseTestQuery {
   }
 
   @Test // DRILL-1943, DRILL-1911
+  @Ignore
   public void testColumnNamesDifferInCaseOnly() throws Exception {
     testBuilder()
         .sqlQuery("select r_regionkey a, r_regionkey A FROM cp.`tpch/region.parquet`")
@@ -831,6 +836,7 @@ public class TestExampleQueries extends BaseTestQuery {
   }
 
   @Test // DRILL-1978
+  @Ignore
   public void testCTASOrderByCoumnNotInSelectClause() throws Exception {
     String root = FileUtils.getResourceAsFile("/store/text/data/regions.csv").toURI().toString();
     String queryCTAS1 = "CREATE TABLE TestExampleQueries_testCTASOrderByCoumnNotInSelectClause1 as " +
@@ -882,6 +888,7 @@ public class TestExampleQueries extends BaseTestQuery {
   }
 
   @Test // DRILL-2914
+  @Ignore
   public void testGroupByStarSchemaless() throws Exception {
     String query = "SELECT n.n_nationkey AS col \n" +
         "FROM (SELECT * FROM cp.`tpch/nation.parquet`) AS n \n" +
@@ -899,6 +906,7 @@ public class TestExampleQueries extends BaseTestQuery {
   }
 
   @Test // DRILL-1927
+  @Ignore
   public void testGroupByCaseInSubquery() throws Exception {
     String query1 = "select (case when t.r_regionkey in (3) then 0 else 1 end) as col \n" +
         "from cp.`tpch/region.parquet` t \n" +
@@ -939,6 +947,7 @@ public class TestExampleQueries extends BaseTestQuery {
   }
 
   @Test  // DRILL-2966
+  @Ignore
   public void testHavingAggFunction() throws Exception {
     String query1 = "select n_nationkey as col \n" +
         "from cp.`tpch/nation.parquet` \n" +
@@ -1091,6 +1100,7 @@ public class TestExampleQueries extends BaseTestQuery {
   }
 
   @Test // DRILL-3210
+  @Ignore
   public void testWindowFunAndStarCol() throws Exception {
     // SingleTableQuery : star + window function
     final String query =

@@ -122,6 +122,7 @@ public class TestBugFixes extends BaseTestQuery {
   }
 
   @Test
+  @Ignore
   public void testDRILL2361_SortColumnAliasWithDots() throws Exception {
     testBuilder()
             .sqlQuery("select o_custkey as `x.y.z` from cp.`tpch/orders.parquet` where o_orderkey < 5 order by `x.y.z`")

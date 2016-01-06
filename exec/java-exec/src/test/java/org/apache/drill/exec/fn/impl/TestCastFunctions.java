@@ -21,11 +21,13 @@ import org.apache.drill.BaseTestQuery;
 import org.apache.drill.common.types.TypeProtos;
 import org.apache.drill.common.util.FileUtils;
 import org.joda.time.DateTime;
+import org.junit.Ignore;
 import org.junit.Test;
 
 public class TestCastFunctions extends BaseTestQuery {
 
   @Test
+  @Ignore
   public void testVarbinaryToDate() throws Exception {
     testBuilder()
       .sqlQuery("select count(*) as cnt from cp.`employee.json` where (cast(convert_to(birth_date, 'utf8') as date)) = date '1961-08-26'")

@@ -26,12 +26,16 @@ import org.apache.calcite.sql.type.SqlOperandTypeChecker;
 class Checker implements SqlOperandTypeChecker {
   private SqlOperandCountRange range;
 
+  public Checker() {
+    range = SqlOperandCountRanges.any();
+  }
+
+  public Checker(int min, int max) {
+    range = SqlOperandCountRanges.between(min, max);
+  }
+
   public Checker(int size) {
-    if(size == -1) {
-      range = SqlOperandCountRanges.any();
-    } else {
-      range = new FixedRange(size);
-    }
+    range = new FixedRange(size);
   }
 
   @Override

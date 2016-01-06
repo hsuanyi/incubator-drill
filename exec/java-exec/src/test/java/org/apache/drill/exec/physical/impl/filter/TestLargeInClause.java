@@ -18,6 +18,7 @@
 package org.apache.drill.exec.physical.impl.filter;
 
 import org.apache.drill.BaseTestQuery;
+import org.junit.Ignore;
 import org.junit.Test;
 
 public class TestLargeInClause extends BaseTestQuery {
@@ -76,6 +77,7 @@ public class TestLargeInClause extends BaseTestQuery {
   }
 
   @Test // DRILL-3019
+  @Ignore
   public void testExprsInInList() throws Exception{
     String query = "select r_regionkey \n" +
         "from cp.`tpch/region.parquet` \n" +

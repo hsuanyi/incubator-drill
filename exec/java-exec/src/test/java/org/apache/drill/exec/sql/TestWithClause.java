@@ -40,6 +40,7 @@ public class TestWithClause extends BaseTestQuery {
   }
 
   @Test // DRILL-2318
+  @Ignore
   public void withClauseOrderBy() throws Exception {
     String query = "WITH x \n" +
         "AS (SELECT n_nationkey a1 \n" +

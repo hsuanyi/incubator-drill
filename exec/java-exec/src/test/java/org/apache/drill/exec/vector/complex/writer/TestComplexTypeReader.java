@@ -231,6 +231,7 @@ public class TestComplexTypeReader extends BaseTestQuery{
   }
 
   @Test //DRILL-2872.
+  @Ignore
   public void testRepeatedJson() throws Exception {
 
     final String query="select cast(convert_to(interests, 'JSON') as varchar(0)) as interests from cp.`complex_student.json`";

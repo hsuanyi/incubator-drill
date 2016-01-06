@@ -77,6 +77,7 @@ public class TestConvertFunctions extends BaseTestQuery {
   String textFileContent;
 
   @Test // DRILL-3854
+  @Ignore
   public void testConvertFromConvertToInt() throws Exception {
     final OptionValue srOption = setupScalarReplacementOption(bits[0], ScalarReplacementOption.OFF);
     try {
@@ -111,6 +112,7 @@ public class TestConvertFunctions extends BaseTestQuery {
   }
 
   @Test
+  @Ignore
   public void test_JSON_convertTo_empty_list_drill_1416() throws Exception {
 
     String listStr = "[ 4, 6 ]";
@@ -149,6 +151,7 @@ public class TestConvertFunctions extends BaseTestQuery {
   }
 
   @Test
+  @Ignore
   public void testConvertToComplexJSON() throws Exception {
 
     String result1 =

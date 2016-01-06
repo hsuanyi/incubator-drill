@@ -23,6 +23,8 @@ import com.google.common.collect.Lists;
 import java.util.List;
 
 import org.apache.calcite.avatica.util.TimeUnit;
+import org.apache.calcite.sql.SqlCall;
+import org.apache.calcite.sql.SqlCallBinding;
 import org.apache.calcite.sql.SqlIntervalQualifier;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
@@ -33,6 +35,8 @@ import org.apache.calcite.sql.SqlOperatorBinding;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.sql.type.SqlTypeName;
 
+import org.apache.calcite.sql.validate.SqlValidator;
+import org.apache.calcite.sql.validate.SqlValidatorScope;
 import org.apache.drill.common.expression.DumbLogicalExpression;
 import org.apache.drill.common.expression.ExpressionPosition;
 import org.apache.drill.common.expression.FunctionCall;
@@ -95,22 +99,6 @@ public class DrillSqlOperator extends SqlFunction {
 
   private RelDataType getReturnType(final SqlOperatorBinding opBinding, final DrillFuncHolder func) {
     final RelDataTypeFactory factory = opBinding.getTypeFactory();
-    final String name = opBinding.getOperator().getName().toUpperCase();
-    if(name.equals("CONCAT")) {
-      final RelDataType type = factory.createSqlType(SqlTypeName.VARCHAR);
-      return type;
-    } else if(name.equals("CONVERT_TO")) {
-      final RelDataType type = factory.createSqlType(SqlTypeName.VARBINARY);
-
-      if(opBinding.getOperandType(0).isNullable()) {
-        return factory.createTypeWithNullability(type, true);
-      } else {
-        return type;
-      }
-    } else if(name.equals("CONVERT_FROM")) {
-      final RelDataType type = factory.createSqlType(SqlTypeName.ANY);
-      return factory.createTypeWithNullability(type, true);
-    }
 
     // least restrictive type (nullable ANY type)
     final RelDataType anyType = factory.createSqlType(SqlTypeName.ANY);
@@ -173,6 +161,46 @@ public class DrillSqlOperator extends SqlFunction {
           .createTypeWithNullability(opBinding.getTypeFactory().createSqlType(SqlTypeName.ANY), true);
     }
 
+    final RelDataTypeFactory factory = opBinding.getTypeFactory();
+    final String name = opBinding.getOperator().getName().toUpperCase();
+    if(name.equals("CONCAT")) {
+      final RelDataType type = factory.createSqlType(SqlTypeName.VARCHAR);
+      return type;
+    } else if(name.equals("CONVERT_TO")) {
+      final RelDataType type = factory.createSqlType(SqlTypeName.VARBINARY);
+
+      if(opBinding.getOperandType(0).isNullable()) {
+        return factory.createTypeWithNullability(type, true);
+      } else {
+        return type;
+      }
+    } else if(name.equals("CONVERT_FROM")) {
+      final RelDataType type = factory.createSqlType(SqlTypeName.ANY);
+      return factory.createTypeWithNullability(type, true);
+    } else if(name.equals("CHAR_LENGTH") || name.equals("CHARACTER_LENGTH") || name.equals("LENGTH")) {
+      final RelDataType type = factory.createSqlType(SqlTypeName.BIGINT);
+
+      if(opBinding.getOperandType(0).isNullable()) {
+        return factory.createTypeWithNullability(type, true);
+      } else {
+        return type;
+      }
+    }
+
+
+    // Ensure the
+    boolean allBooleanOutput = true;
+    for(DrillFuncHolder function : functions) {
+      if(function.getReturnType().getMinorType() != MinorType.BIT) {
+        allBooleanOutput = false;
+        break;
+      }
+    }
+    if(allBooleanOutput) {
+      return opBinding.getTypeFactory().createSqlType(SqlTypeName.BOOLEAN);
+    }
+
+    //
     for (RelDataType type : opBinding.collectOperandTypes()) {
       if (type.getSqlTypeName() == SqlTypeName.ANY) {
         return opBinding.getTypeFactory()
@@ -180,14 +208,20 @@ public class DrillSqlOperator extends SqlFunction {
       }
     }
 
-    final FunctionResolver functionResolver = FunctionResolverFactory.getResolver();
     final List<LogicalExpression> args = Lists.newArrayList();
     for(final RelDataType type : opBinding.collectOperandTypes()) {
       final MajorType majorType = getMajorType(type);
       args.add(new DumbLogicalExpression(majorType));
     }
     final FunctionCall functionCall = new FunctionCall(opBinding.getOperator().getName(), args, ExpressionPosition.UNKNOWN);
+    final FunctionResolver functionResolver = FunctionResolverFactory.getResolver();
     final DrillFuncHolder func = functionResolver.getBestMatch(functions, functionCall);
     return getReturnType(opBinding, func);
+  }
+
+  @Override
+  public RelDataType deriveType(SqlValidator validator, SqlValidatorScope scope, SqlCall call) {
+    final SqlCallBinding opBinding = new SqlCallBinding(validator, scope, call);
+    return inferReturnType(opBinding);
   }
 }

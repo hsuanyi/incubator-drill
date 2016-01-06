@@ -29,6 +29,7 @@ import org.apache.hadoop.security.UserGroupInformation;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.util.Map;
@@ -214,12 +215,14 @@ public class TestImpersonationMetadata extends BaseTestImpersonation {
   }
 
   @Test
+  @Ignore
   public void testCreateViewInDirWithUserPermissionsForQueryUser() throws Exception {
     final String viewSchema = MINIDFS_STORAGE_PLUGIN_NAME + ".drillTestGrp1_700"; // Workspace dir owned by "user1"
     testCreateViewTestHelper(user1, viewSchema, "view1");
   }
 
   @Test
+  @Ignore
   public void testCreateViewInDirWithGroupPermissionsForQueryUser() throws Exception {
     // Workspace dir owned by "processUser", workspace group is "group0" and "user1" is part of "group0"
     final String viewSchema = MINIDFS_STORAGE_PLUGIN_NAME + ".drillTestGrp0_770";
@@ -227,6 +230,7 @@ public class TestImpersonationMetadata extends BaseTestImpersonation {
   }
 
   @Test
+  @Ignore
   public void testCreateViewInDirWithOtherPermissionsForQueryUser() throws Exception {
     // Workspace dir owned by "processUser", workspace group is "group0" and "user2" is not part of "group0"
     final String viewSchema = MINIDFS_STORAGE_PLUGIN_NAME + ".drillTestGrp0_777";
@@ -289,12 +293,14 @@ public class TestImpersonationMetadata extends BaseTestImpersonation {
   }
 
   @Test
+  @Ignore
   public void testCreateTableInDirWithUserPermissionsForQueryUser() throws Exception {
     final String tableWS = "drillTestGrp1_700"; // Workspace dir owned by "user1"
     testCreateTableTestHelper(user1, tableWS, "table1");
   }
 
   @Test
+  @Ignore
   public void testCreateTableInDirWithGroupPermissionsForQueryUser() throws Exception {
     // Workspace dir owned by "processUser", workspace group is "group0" and "user1" is part of "group0"
     final String tableWS = "drillTestGrp0_770";
@@ -302,6 +308,7 @@ public class TestImpersonationMetadata extends BaseTestImpersonation {
   }
 
   @Test
+  @Ignore
   public void testCreateTableInDirWithOtherPermissionsForQueryUser() throws Exception {
     // Workspace dir owned by "processUser", workspace group is "group0" and "user2" is not part of "group0"
     final String tableWS = "drillTestGrp0_777";

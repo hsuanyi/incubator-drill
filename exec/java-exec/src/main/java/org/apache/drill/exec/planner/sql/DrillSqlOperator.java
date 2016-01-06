@@ -41,6 +41,7 @@ import org.apache.drill.common.expression.DumbLogicalExpression;
 import org.apache.drill.common.expression.ExpressionPosition;
 import org.apache.drill.common.expression.FunctionCall;
 import org.apache.drill.common.expression.LogicalExpression;
+import org.apache.drill.common.expression.ValueExpressions;
 import org.apache.drill.common.types.TypeProtos.MajorType;
 import org.apache.drill.common.types.TypeProtos.MinorType;
 import org.apache.drill.common.types.Types;
@@ -175,6 +176,33 @@ public class DrillSqlOperator extends SqlFunction {
       }
     } else if(name.equals("CHAR_LENGTH") || name.equals("CHARACTER_LENGTH") || name.equals("LENGTH")) {
       final RelDataType type = factory.createSqlType(SqlTypeName.BIGINT);
+      if(opBinding.getOperandType(0).isNullable()) {
+        return factory.createTypeWithNullability(type, true);
+      } else {
+        return type;
+      }
+    } else if(name.equals("DATE_PART")) {
+      final String toType = opBinding.getOperandLiteralValue(0).toString().toUpperCase();
+      assert toType.charAt(0) == '\'' && toType.charAt(toType.length() - 1) == '\'';
+
+      final SqlTypeName sqlTypeName;
+      switch(toType) {
+        case "'SECOND'":
+          sqlTypeName = SqlTypeName.DOUBLE;
+          break;
+
+        case "'MINUTE'":
+        case "'HOUR'":
+        case "'DAY'":
+        case "'MONTH'":
+        case "'YEAR'":
+          sqlTypeName = SqlTypeName.BIGINT;
+          break;
+        default:
+          throw new UnsupportedOperationException();
+      }
+
+      final RelDataType type = factory.createSqlType(sqlTypeName);
       if(opBinding.getOperandType(0).isNullable()) {
         return factory.createTypeWithNullability(type, true);
       } else {

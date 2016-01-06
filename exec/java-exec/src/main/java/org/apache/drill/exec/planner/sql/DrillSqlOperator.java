@@ -165,7 +165,7 @@ public class DrillSqlOperator extends SqlFunction {
     final RelDataTypeFactory factory = opBinding.getTypeFactory();
     final String name = opBinding.getOperator().getName().toUpperCase();
     if(name.equals("CONCAT")) {
-      final RelDataType type = factory.createSqlType(SqlTypeName.VARCHAR);
+      final RelDataType type = factory.createSqlType(SqlTypeName.ANY);
       return factory.createTypeWithNullability(type, true);
     } else if(name.equals("CONVERT_TO") || name.equals("CONVERT_FROM")) {
       final RelDataType type = factory.createSqlType(SqlTypeName.ANY);

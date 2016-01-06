@@ -41,7 +41,6 @@ import org.apache.drill.common.expression.DumbLogicalExpression;
 import org.apache.drill.common.expression.ExpressionPosition;
 import org.apache.drill.common.expression.FunctionCall;
 import org.apache.drill.common.expression.LogicalExpression;
-import org.apache.drill.common.expression.ValueExpressions;
 import org.apache.drill.common.types.TypeProtos.MajorType;
 import org.apache.drill.common.types.TypeProtos.MinorType;
 import org.apache.drill.common.types.Types;
@@ -66,7 +65,7 @@ public class DrillSqlOperator extends SqlFunction {
     super(new SqlIdentifier(name, SqlParserPos.ZERO),
         null,
         null,
-        new Checker(argCount),
+        argCount >= 0 ? new Checker(argCount) : new Checker(),
         null,
         SqlFunctionCategory.USER_DEFINED_FUNCTION);
     this.isDeterministic = isDeterministic;
@@ -77,7 +76,7 @@ public class DrillSqlOperator extends SqlFunction {
     super(new SqlIdentifier(name, SqlParserPos.ZERO),
         null,
         null,
-        new Checker(argCount),
+        argCount >= 0 ? new Checker(argCount) : new Checker(),
         null,
         SqlFunctionCategory.USER_DEFINED_FUNCTION);
     this.functions = functions;
@@ -165,7 +164,7 @@ public class DrillSqlOperator extends SqlFunction {
     final RelDataTypeFactory factory = opBinding.getTypeFactory();
     final String name = opBinding.getOperator().getName().toUpperCase();
     if(name.equals("CONCAT")) {
-      final RelDataType type = factory.createSqlType(SqlTypeName.ANY);
+      final RelDataType type = factory.createSqlType(SqlTypeName.VARCHAR);
       return factory.createTypeWithNullability(type, true);
     } else if(name.equals("CONVERT_TO") || name.equals("CONVERT_FROM")) {
       final RelDataType type = factory.createSqlType(SqlTypeName.ANY);

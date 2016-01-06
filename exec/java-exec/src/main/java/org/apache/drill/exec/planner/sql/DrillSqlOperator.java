@@ -166,27 +166,21 @@ public class DrillSqlOperator extends SqlFunction {
     if(name.equals("CONCAT")) {
       final RelDataType type = factory.createSqlType(SqlTypeName.VARCHAR);
       return type;
-    } else if(name.equals("CONVERT_TO")) {
-      final RelDataType type = factory.createSqlType(SqlTypeName.VARBINARY);
-
+    } else if(name.equals("CONVERT_TO") || name.equals("CONVERT_FROM")) {
+      final RelDataType type = factory.createSqlType(SqlTypeName.ANY);
       if(opBinding.getOperandType(0).isNullable()) {
         return factory.createTypeWithNullability(type, true);
       } else {
         return type;
       }
-    } else if(name.equals("CONVERT_FROM")) {
-      final RelDataType type = factory.createSqlType(SqlTypeName.ANY);
-      return factory.createTypeWithNullability(type, true);
     } else if(name.equals("CHAR_LENGTH") || name.equals("CHARACTER_LENGTH") || name.equals("LENGTH")) {
       final RelDataType type = factory.createSqlType(SqlTypeName.BIGINT);
-
       if(opBinding.getOperandType(0).isNullable()) {
         return factory.createTypeWithNullability(type, true);
       } else {
         return type;
       }
     }
-
 
     // Ensure the
     boolean allBooleanOutput = true;

@@ -33,6 +33,7 @@ import org.apache.calcite.sql.SqlFunctionCategory;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlOperatorBinding;
 import org.apache.calcite.sql.parser.SqlParserPos;
+import org.apache.calcite.sql.type.SqlOperandTypeChecker;
 import org.apache.calcite.sql.type.SqlTypeName;
 
 import org.apache.calcite.sql.validate.SqlValidator;
@@ -58,25 +59,25 @@ public class DrillSqlOperator extends SqlFunction {
   private final List<DrillFuncHolder> functions;
 
   public DrillSqlOperator(String name, int argCount, boolean isDeterministic) {
-    this(name, null, argCount, isDeterministic);
+    this(name, null, new Checker(argCount), isDeterministic);
   }
 
   public DrillSqlOperator(String name, int argCount, MajorType returnType, boolean isDeterministic) {
     super(new SqlIdentifier(name, SqlParserPos.ZERO),
         null,
         null,
-        argCount >= 0 ? new Checker(argCount) : new Checker(),
+        new Checker(argCount),
         null,
         SqlFunctionCategory.USER_DEFINED_FUNCTION);
     this.isDeterministic = isDeterministic;
     this.functions = Lists.newArrayList();
   }
 
-  public DrillSqlOperator(String name, List<DrillFuncHolder> functions, int argCount, boolean isDeterministic) {
+  public DrillSqlOperator(String name, List<DrillFuncHolder> functions, SqlOperandTypeChecker sqlOperandTypeChecker, boolean isDeterministic) {
     super(new SqlIdentifier(name, SqlParserPos.ZERO),
         null,
         null,
-        argCount >= 0 ? new Checker(argCount) : new Checker(),
+        sqlOperandTypeChecker,
         null,
         SqlFunctionCategory.USER_DEFINED_FUNCTION);
     this.functions = functions;
@@ -228,9 +229,10 @@ public class DrillSqlOperator extends SqlFunction {
     return getReturnType(opBinding, func);
   }
 
+  /*
   @Override
   public RelDataType deriveType(SqlValidator validator, SqlValidatorScope scope, SqlCall call) {
     final SqlCallBinding opBinding = new SqlCallBinding(validator, scope, call);
     return inferReturnType(opBinding);
-  }
+  }*/
 }

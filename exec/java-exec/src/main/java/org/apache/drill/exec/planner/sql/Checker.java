@@ -23,7 +23,7 @@ import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.type.SqlOperandCountRanges;
 import org.apache.calcite.sql.type.SqlOperandTypeChecker;
 
-class Checker implements SqlOperandTypeChecker {
+public class Checker implements SqlOperandTypeChecker {
   private SqlOperandCountRange range;
 
   public Checker() {

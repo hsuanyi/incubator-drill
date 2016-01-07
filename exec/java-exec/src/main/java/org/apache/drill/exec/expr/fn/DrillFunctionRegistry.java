@@ -25,10 +25,13 @@ import java.util.Map;
 import java.util.Map.Entry;
 
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import org.apache.calcite.sql.type.SqlOperandTypeChecker;
 import org.apache.drill.common.scanner.persistence.AnnotatedClassDescriptor;
 import org.apache.drill.common.scanner.persistence.ScanResult;
 import org.apache.drill.exec.expr.annotations.FunctionTemplate.FunctionArgumentNumber;
 import org.apache.drill.exec.planner.logical.DrillConstExecutor;
+import org.apache.drill.exec.planner.sql.Checker;
 import org.apache.drill.exec.planner.sql.DrillOperatorTable;
 import org.apache.drill.exec.planner.sql.DrillSqlAggOperator;
 import org.apache.drill.exec.planner.sql.DrillSqlOperator;
@@ -108,16 +111,28 @@ public class DrillFunctionRegistry {
 
   public void register(DrillOperatorTable operatorTable) {
     for (Entry<String, Collection<DrillFuncHolder>> function : registeredFunctions.asMap().entrySet()) {
-      final ArrayListMultimap<Integer, DrillFuncHolder> functions = ArrayListMultimap.create();
-      final ArrayListMultimap<Integer, DrillFuncHolder> aggregateFunctions = ArrayListMultimap.create();
+      final Map<Integer, ArrayListMultimap<Integer, DrillFuncHolder>> functions = Maps.newHashMap();
+      final Map<Integer, ArrayListMultimap<Integer, DrillFuncHolder>> aggregateFunctions = Maps.newHashMap();
       final String name = function.getKey().toUpperCase();
       boolean isDeterministic = false;
       for (DrillFuncHolder func : function.getValue()) {
         final int paramCount = func.getFunctionArgumentNumber() == FunctionArgumentNumber.VARIABLE ? -1 : func.getParamCount();
         if(func.isAggregating()) {
-          aggregateFunctions.put(paramCount, func);
+          if(!aggregateFunctions.containsKey(paramCount)) {
+            final ArrayListMultimap<Integer, DrillFuncHolder> innerMap = ArrayListMultimap.create();
+            aggregateFunctions.put(paramCount, innerMap);
+          }
+
+          final int optionalArgNum = func.getFunctionArgumentNumber().getNumOptionalField();
+          aggregateFunctions.get(paramCount).put(optionalArgNum, func);
         } else {
-          functions.put(paramCount, func);
+          if(!functions.containsKey(paramCount)) {
+            final ArrayListMultimap<Integer, DrillFuncHolder> innerMap = ArrayListMultimap.create();
+            functions.put(paramCount, innerMap);
+          }
+
+          final int optionalArgNum = func.getFunctionArgumentNumber().getNumOptionalField();
+          functions.get(paramCount).put(optionalArgNum, func);
         }
         // prevent Drill from folding constant functions with types that cannot be materialized
         // into literals
@@ -127,12 +142,49 @@ public class DrillFunctionRegistry {
           isDeterministic = func.isDeterministic();
         }
       }
-      for (Entry<Integer, Collection<DrillFuncHolder>> entry : functions.asMap().entrySet()) {
-        operatorTable.add(name, new DrillSqlOperator(name, Lists.newArrayList(entry.getValue()), entry.getKey(),
-            isDeterministic));
+
+      for(Entry<Integer, ArrayListMultimap<Integer, DrillFuncHolder>> numArgToFnEntry : functions.entrySet()) {
+        final int numArg = numArgToFnEntry.getKey();
+        for (Entry<Integer, Collection<DrillFuncHolder>> numOptArgToFnEntry : numArgToFnEntry.getValue().asMap().entrySet()) {
+          final int optArgNum = numOptArgToFnEntry.getKey();
+          final SqlOperandTypeChecker sqlOperandTypeChecker;
+          switch(optArgNum) {
+            case -1:
+              sqlOperandTypeChecker = new Checker();
+              break;
+            case 0:
+              sqlOperandTypeChecker = new Checker(numArg);
+              break;
+            default:
+              sqlOperandTypeChecker = new Checker(numArg - optArgNum, numArg);
+              break;
+          }
+
+          operatorTable.add(name,
+              new DrillSqlOperator(name, Lists.newArrayList(numOptArgToFnEntry.getValue()), sqlOperandTypeChecker, isDeterministic));
+        }
       }
-      for (Entry<Integer, Collection<DrillFuncHolder>> entry : aggregateFunctions.asMap().entrySet()) {
-        operatorTable.add(name, new DrillSqlAggOperator(name, Lists.newArrayList(entry.getValue()), entry.getKey()));
+
+      for(Entry<Integer, ArrayListMultimap<Integer, DrillFuncHolder>> numArgToFnEntry : aggregateFunctions.entrySet()) {
+        final int numArg = numArgToFnEntry.getKey();
+        for (Entry<Integer, Collection<DrillFuncHolder>> numOptArgToFnEntry : numArgToFnEntry.getValue().asMap().entrySet()) {
+          final int optArgNum = numOptArgToFnEntry.getKey();
+          final SqlOperandTypeChecker sqlOperandTypeChecker;
+          switch(optArgNum) {
+            case -1:
+              sqlOperandTypeChecker = new Checker();
+              break;
+            case 0:
+              sqlOperandTypeChecker = new Checker(numArg);
+              break;
+            default:
+              sqlOperandTypeChecker = new Checker(numArg - optArgNum, numArg);
+              break;
+          }
+
+          operatorTable.add(name,
+              new DrillSqlAggOperator(name, Lists.newArrayList(numOptArgToFnEntry.getValue()), sqlOperandTypeChecker));
+        }
       }
     }
   }

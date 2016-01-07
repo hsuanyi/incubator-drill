@@ -217,6 +217,20 @@ public class StringFunctions{
   }
 
   @FunctionTemplate(names = {"char_length", "character_length", "length"}, scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL)
+  public static class DummyCharLength implements DrillSimpleFunc {
+    @Param  VarCharHolder input1;
+    @Param  VarCharHolder input2;
+    @Output BigIntHolder out;
+
+    @Override
+    public void setup() {}
+
+    @Override
+    public void eval() {
+    }
+  }
+
+  @FunctionTemplate(names = {"char_length", "character_length", "length"}, scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL)
   public static class CharLength implements DrillSimpleFunc {
     @Param  VarCharHolder input;
     @Output BigIntHolder out;
@@ -700,7 +714,7 @@ public class StringFunctions{
    * Fill up the string to length 'length' by prepending the characters 'fill' in the beginning of 'text'.
    * If the string is already longer than length, then it is truncated (on the right).
    */
-  @FunctionTemplate(name = "lpad", scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL)
+  @FunctionTemplate(name = "lpad", scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL, argNumber = FunctionArgumentNumber.OPTIONAL_ONE)
   public static class Lpad implements DrillSimpleFunc {
     @Param  VarCharHolder text;
     @Param  BigIntHolder length;
@@ -775,7 +789,7 @@ public class StringFunctions{
    * Fill up the string to length "length" by appending the characters 'fill' at the end of 'text'
    * If the string is already longer than length then it is truncated.
    */
-  @FunctionTemplate(name = "rpad", scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL)
+  @FunctionTemplate(name = "rpad", scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL, argNumber = FunctionArgumentNumber.OPTIONAL_ONE)
   public static class Rpad implements DrillSimpleFunc {
     @Param  VarCharHolder text;
     @Param  BigIntHolder length;
@@ -852,7 +866,7 @@ public class StringFunctions{
   /**
    * Remove the longest string containing only characters from "from"  from the start of "text"
    */
-  @FunctionTemplate(name = "ltrim", scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL)
+  @FunctionTemplate(name = "ltrim", scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL, argNumber = FunctionArgumentNumber.OPTIONAL_ONE)
   public static class Ltrim implements DrillSimpleFunc {
     @Param  VarCharHolder text;
     @Param  VarCharHolder from;
@@ -885,7 +899,7 @@ public class StringFunctions{
   /**
    * Remove the longest string containing only characters from "from"  from the end of "text"
    */
-  @FunctionTemplate(name = "rtrim", scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL)
+  @FunctionTemplate(name = "rtrim", scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL, argNumber = FunctionArgumentNumber.OPTIONAL_ONE)
   public static class Rtrim implements DrillSimpleFunc {
     @Param  VarCharHolder text;
     @Param  VarCharHolder from;
@@ -921,7 +935,7 @@ public class StringFunctions{
   /**
    * Remove the longest string containing only characters from "from"  from the start of "text"
    */
-  @FunctionTemplate(name = "btrim", scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL)
+  @FunctionTemplate(name = "btrim", scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL, argNumber = FunctionArgumentNumber.OPTIONAL_ONE)
   public static class Btrim implements DrillSimpleFunc {
     @Param  VarCharHolder text;
     @Param  VarCharHolder from;

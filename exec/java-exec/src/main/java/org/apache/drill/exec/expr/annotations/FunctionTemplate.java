@@ -113,6 +113,22 @@ public @interface FunctionTemplate {
   }
 
   enum FunctionArgumentNumber {
-    FIXED, VARIABLE
+    VARIABLE(-1),
+    FIXED(0),
+    OPTIONAL_ONE(1),
+    OPTIONAL_TWO(2),
+    OPTIONAL_THREE(3),
+    OPTIONAL_FOUR(4),
+    OPTIONAL_FIVE(5);
+
+    private int numOptionalField;
+
+    FunctionArgumentNumber(final int numOptionalField) {
+      this.numOptionalField = numOptionalField;
+    }
+
+    public int getNumOptionalField() {
+      return numOptionalField;
+    }
   }
 }

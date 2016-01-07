@@ -29,6 +29,7 @@ import org.apache.calcite.sql.SqlIntervalQualifier;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlOperatorBinding;
 import org.apache.calcite.sql.parser.SqlParserPos;
+import org.apache.calcite.sql.type.SqlOperandTypeChecker;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.sql.validate.SqlValidator;
 import org.apache.calcite.sql.validate.SqlValidatorScope;
@@ -59,9 +60,9 @@ public class DrillSqlAggOperator extends SqlAggFunction {
 
   private final List<DrillFuncHolder> functions;
 
-  public DrillSqlAggOperator(String name, ArrayList<DrillFuncHolder> functions, int argCount) {
+  public DrillSqlAggOperator(String name, ArrayList<DrillFuncHolder> functions, SqlOperandTypeChecker sqlOperandTypeChecker) {
     super(name, new SqlIdentifier(name, SqlParserPos.ZERO), SqlKind.OTHER_FUNCTION, DynamicReturnType.INSTANCE,
-        null, new Checker(argCount), SqlFunctionCategory.USER_DEFINED_FUNCTION);
+        null, sqlOperandTypeChecker, SqlFunctionCategory.USER_DEFINED_FUNCTION, false, false);
     this.functions = functions;
   }
 

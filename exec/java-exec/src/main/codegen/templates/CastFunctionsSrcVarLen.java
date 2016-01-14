@@ -50,17 +50,26 @@ public class Cast${type.from}${type.to} implements DrillSimpleErrFunc {
   }
 
   public int eval() {
-<#if type.to == "Float4" || type.to == "Float8">
-      
+    <#if type.to == "Float4" || type.to == "Float8">
       byte[] buf = new byte[in.end - in.start];
       in.buffer.getBytes(in.start, buf, 0, in.end - in.start);
-    
-      //TODO: need capture format exception, and issue SQLERR code.
-      out.value = ${type.javaType}.parse${type.parse}(new String(buf, com.google.common.base.Charsets.UTF_8));
+
+      ${type.javaType} result;
+      try{
+        result = ${type.javaType}.parse${type.parse}(new String(buf,com.google.common.base.Charsets.UTF_8));
+      } catch(NumberFormatException e) {
+        return 1;
+      }
+
+      if(result == <#if type.to == "Float4"> Float.NEGATIVE_INFINITY <#else> Double.NEGATIVE_INFINITY </#if>
+          || result == <#if type.to == "Float4"> Float.POSITIVE_INFINITY <#else> Double.POSITIVE_INFINITY </#if>) {
+        return 2;
+      }
+
+      out.value = result;
       return 0;
 
     <#elseif type.to=="Int" || type.to == "BigInt">
-
       if ((in.end - in.start) ==0) {
         //empty, not a valid number
         return 1;
@@ -70,7 +79,7 @@ public class Cast${type.from}${type.to} implements DrillSimpleErrFunc {
 
       boolean negative = in.buffer.getByte(readIndex) == '-';
       
-      if (negative && ++readIndex == in.end) {
+      if(negative && ++readIndex == in.end) {
         //only one single '-'
         return 1;
       }

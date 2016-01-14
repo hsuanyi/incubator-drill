@@ -132,7 +132,8 @@ public class SystemOptionManager extends BaseOptionManager {
       ExecConstants.ENABLE_WINDOW_FUNCTIONS_VALIDATOR,
       ClassTransformer.SCALAR_REPLACEMENT_VALIDATOR,
       ExecConstants.ENABLE_NEW_TEXT_READER,
-      ExecConstants.STOP_ON_ERROR
+      ExecConstants.ENABLE_SKIP_INVALID_RECORD,
+      ExecConstants.SKIP_INVALID_RECORD_THRESHOLD
     };
     final Map<String, OptionValidator> tmp = new HashMap<>();
     for (final OptionValidator validator : validators) {

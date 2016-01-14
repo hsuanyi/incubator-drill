@@ -281,6 +281,12 @@ public interface ExecConstants {
    */
   String ADMIN_USER_GROUPS_KEY = "security.admin.user_groups";
   StringValidator ADMIN_USER_GROUPS_VALIDATOR = new AdminOptionValidator(ADMIN_USER_GROUPS_KEY, "");
-  public static final String STOP_ON_ERROR_KEY = "exec.stop_on_error";
-  public static final OptionValidator STOP_ON_ERROR = new BooleanValidator(STOP_ON_ERROR_KEY, false);
+
+  String ENABLE_SKIP_INVALID_RECORD_KEY = "exec.enable_skip_invalid_record";
+  BooleanValidator ENABLE_SKIP_INVALID_RECORD = new BooleanValidator(ENABLE_SKIP_INVALID_RECORD_KEY, true);
+
+  String SKIP_INVALID_RECORD_THRESHOLD_KEY = "exec.skip_invalid_record_threshold";
+  LongValidator SKIP_INVALID_RECORD_THRESHOLD = new LongValidator(SKIP_INVALID_RECORD_THRESHOLD_KEY, 100);
+
+
 }

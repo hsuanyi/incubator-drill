@@ -23,6 +23,10 @@ import com.google.common.collect.Lists;
 import org.apache.calcite.linq4j.Ord;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
+import org.apache.calcite.rel.type.RelDataTypeSystem;
+import org.apache.calcite.rex.RexBuilder;
+import org.apache.calcite.rex.RexCall;
+import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.ExplicitOperatorBinding;
 import org.apache.calcite.sql.SqlAggFunction;
 import org.apache.calcite.sql.SqlBasicCall;
@@ -53,6 +57,9 @@ import org.apache.calcite.sql.validate.SqlValidator;
 import org.apache.calcite.sql.validate.SqlValidatorScope;
 import org.apache.calcite.sql.validate.SqlValidatorUtil;
 import org.apache.calcite.util.Util;
+import org.apache.drill.common.expression.ExpressionPosition;
+import org.apache.drill.common.expression.FunctionCallFactory;
+import org.apache.drill.common.expression.LogicalExpression;
 import org.apache.drill.exec.expr.fn.FunctionImplementationRegistry;
 import org.apache.calcite.sql.SqlFunctionCategory;
 import org.apache.calcite.sql.SqlIdentifier;
@@ -60,9 +67,12 @@ import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlOperatorTable;
 import org.apache.calcite.sql.SqlSyntax;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
+import org.apache.drill.exec.planner.logical.DrillOptiq;
 import org.apache.drill.exec.planner.logical.DrillParseContext;
 import org.apache.drill.exec.planner.physical.PrelUtil;
+import org.apache.drill.exec.planner.types.DrillRelDataTypeSystem;
 
+import java.math.BigDecimal;
 import java.util.Arrays;
 import java.util.List;
 
@@ -99,15 +109,16 @@ public class DrillOperatorTable extends SqlStdOperatorTable {
     inner.lookupOperatorOverloads(opName, category, syntax, calciteOperatorList);
 
     for(final SqlOperator calciteOperator : calciteOperatorList) {
-      final SqlOperator wrap;
-      if(calciteOperator instanceof SqlAggFunction) {
-        wrap = new DrillCalciteSqlAggFunctionWrapper((SqlAggFunction) calciteOperator);
+      final List<SqlOperator> drillSubstitute = getSubstituteFromDrillOptiq(calciteOperator);
+      if(!drillSubstitute.isEmpty()) {
+        operatorList.addAll(drillSubstitute);
+      } else if(calciteOperator instanceof SqlAggFunction) {
+        operatorList.add(new DrillCalciteSqlAggFunctionWrapper((SqlAggFunction) calciteOperator));
       } else if(calciteOperator instanceof SqlFunction) {
-        wrap = new DrillCalciteSqlFunctionWrapper((SqlFunction) calciteOperator);
+        operatorList.add(new DrillCalciteSqlFunctionWrapper((SqlFunction) calciteOperator));
       } else {
-        wrap = new DrillCalciteSqlOperatorWrapper(calciteOperator);
+        operatorList.add(new DrillCalciteSqlOperatorWrapper(calciteOperator));
       }
-      operatorList.add(wrap);
     }
 
     // if no function is found, check in Drill UDFs
@@ -129,4 +140,36 @@ public class DrillOperatorTable extends SqlStdOperatorTable {
     return opMap.get(name.toLowerCase());
   }
 
+  private List<SqlOperator> getSubstituteFromDrillOptiq(final SqlOperator calciteOperator) {
+    final String functionName = getDrillOptiqRewrittenName(calciteOperator).toLowerCase();
+    final List<SqlOperator> drillOps = opMap.get(functionName);
+    return drillOps;
+  }
+
+  private String getDrillOptiqRewrittenName(final SqlOperator calciteOperator) {
+
+    /*
+    final SqlSyntax syntax = calciteOperator.getSyntax();
+    switch (syntax) {
+      case FUNCTION:
+      case FUNCTION_ID:
+
+      case SPECIAL:
+        switch(calciteOperator.getKind()){
+          case CAST:
+            return getDrillCastFunctionFromOptiq(call);
+          case LIKE:
+          case SIMILAR:
+            return getDrillFunctionFromOptiqCall(call);
+          case CASE:
+
+        return getDrillFunctionFromOptiqCall(call);
+    }
+    throw new AssertionError("todo: implement syntax " + syntax + "(" + call + ")");
+
+
+*/
+
+    return calciteOperator.getName();
+  }
 }

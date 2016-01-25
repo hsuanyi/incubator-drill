@@ -157,10 +157,22 @@ public class TestFunctionsWithTypeExpoQueries extends BaseTestQuery {
   }
 
   @Test
-  @Ignore
   public void testMinusDate() throws Exception {
     test("explain plan for select * \n" +
         "from cp.`employee.json` \n" +
         "where to_timestamp(3) < interval '5 15:40:50' day to second");
+  }
+
+  @Test
+  public void testZ() throws Exception {
+    final String query = "select extract(second from cast(col1 as interval day)) \n" +
+        "from cp.`employee.json`";
+
+    test(query);
+  }
+
+  @Test
+  public void testDrillOptiq() throws Exception {
+    test("select NOT a from cp.`tpch/region.parquet`;");
   }
 }

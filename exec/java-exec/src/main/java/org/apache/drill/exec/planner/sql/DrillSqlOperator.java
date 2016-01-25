@@ -31,12 +31,15 @@ import org.apache.calcite.sql.SqlFunctionCategory;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlOperatorBinding;
 import org.apache.calcite.sql.parser.SqlParserPos;
+import org.apache.calcite.sql.type.IntervalSqlType;
 import org.apache.calcite.sql.type.SqlTypeName;
 
 import org.apache.drill.common.expression.DumbLogicalExpression;
 import org.apache.drill.common.expression.ExpressionPosition;
 import org.apache.drill.common.expression.FunctionCall;
+import org.apache.drill.common.expression.FunctionCallFactory;
 import org.apache.drill.common.expression.LogicalExpression;
+import org.apache.drill.common.expression.ValueExpressions;
 import org.apache.drill.common.types.TypeProtos.MajorType;
 import org.apache.drill.common.types.TypeProtos.MinorType;
 import org.apache.drill.common.types.Types;
@@ -183,7 +186,7 @@ public class DrillSqlOperator extends SqlFunction {
       final SqlTypeName sqlTypeName;
       switch(toType) {
         case "'SECOND'":
-          sqlTypeName = SqlTypeName.DOUBLE;
+          sqlTypeName = SqlTypeName.FLOAT;
           break;
 
         case "'MINUTE'":
@@ -196,6 +199,33 @@ public class DrillSqlOperator extends SqlFunction {
         default:
           throw new UnsupportedOperationException();
       }
+
+      final RelDataType type = factory.createSqlType(sqlTypeName);
+      if(opBinding.getOperandType(0).isNullable()) {
+        return factory.createTypeWithNullability(type, true);
+      } else {
+        return type;
+      }
+    } else if(name.equals("EXTRACT")) {
+        // Assert that the first argument to extract is a QuotedString
+      assert opBinding.getOperandType(0) instanceof IntervalSqlType;
+      final TimeUnit timeUnit = ((IntervalSqlType) opBinding.getOperandType(0)).getIntervalQualifier().getStartUnit();
+
+      final SqlTypeName sqlTypeName;
+      switch (timeUnit){
+        case YEAR:
+        case MONTH:
+        case DAY:
+        case HOUR:
+        case MINUTE:
+          sqlTypeName = SqlTypeName.BIGINT;
+          break;
+        case SECOND:
+          sqlTypeName = SqlTypeName.FLOAT;
+          break;
+          default:
+            throw new UnsupportedOperationException("extract function supports the following time units: YEAR, MONTH, DAY, HOUR, MINUTE, SECOND");
+        }
 
       final RelDataType type = factory.createSqlType(sqlTypeName);
       if(opBinding.getOperandType(0).isNullable()) {

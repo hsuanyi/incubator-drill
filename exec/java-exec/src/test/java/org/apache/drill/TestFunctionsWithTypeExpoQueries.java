@@ -173,6 +173,6 @@ public class TestFunctionsWithTypeExpoQueries extends BaseTestQuery {
 
   @Test
   public void testDrillOptiq() throws Exception {
-    test("select NOT a from cp.`tpch/region.parquet`;");
+    test("select flatten( a) from cp.`tpch/region.parquet`;");
   }
 }

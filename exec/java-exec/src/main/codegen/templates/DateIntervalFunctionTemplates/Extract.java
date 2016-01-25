@@ -31,6 +31,22 @@ import org.apache.drill.exec.record.RecordBatch;
 
 public class ${className} {
 
+@FunctionTemplate(name = "extract", scope = FunctionTemplate.FunctionScope.SIMPLE, nulls = FunctionTemplate.NullHandling.NULL_IF_NULL)
+public static class DummyExtractFromVarChar implements DrillSimpleFunc {
+  @Param VarCharHolder in1;
+  @Param VarCharHolder in;
+  @Output BigIntHolder out;
+
+  public void setup() {
+  }
+
+  public void eval() {
+    if (1 == 1) {
+      throw new UnsupportedOperationException("extract function should be rewritten as extract() functions");
+    }
+  }
+}
+
 /* Dummy function template to allow Optiq to validate this function call.
  * At DrillOptiq time we rewrite all date_part() functions to extract functions,
  * since they are essentially the same

@@ -73,6 +73,7 @@ import org.apache.drill.exec.planner.physical.PrelUtil;
 import org.apache.drill.exec.planner.types.DrillRelDataTypeSystem;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
@@ -142,8 +143,12 @@ public class DrillOperatorTable extends SqlStdOperatorTable {
 
   private List<SqlOperator> getSubstituteFromDrillOptiq(final SqlOperator calciteOperator) {
     final String functionName = getDrillOptiqRewrittenName(calciteOperator).toLowerCase();
-    final List<SqlOperator> drillOps = opMap.get(functionName);
-    return drillOps;
+    if(functionName.equals("extract") || functionName.equals("date_part")) {
+      final List<SqlOperator> drillOps = opMap.get(functionName);
+      return drillOps;
+    } else {
+      return new ArrayList<>();
+    }
   }
 
   private String getDrillOptiqRewrittenName(final SqlOperator calciteOperator) {

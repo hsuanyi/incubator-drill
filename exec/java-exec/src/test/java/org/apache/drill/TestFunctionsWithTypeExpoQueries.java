@@ -24,8 +24,8 @@ import org.junit.Test;
 
 public class TestFunctionsWithTypeExpoQueries extends BaseTestQuery {
   @Test
-  public void test() throws Exception {
-    final String query = "select r_regionkey + r_regionkey \n" +
+  public void testMinus() throws Exception {
+    final String query = "select r_regionkey - r_regionkey \n" +
             "from cp.`tpch/region.parquet`";
    test(query);
   }
@@ -131,7 +131,15 @@ public class TestFunctionsWithTypeExpoQueries extends BaseTestQuery {
    */
   @Test
   public void testExtractSecond() throws Exception {
-    test("select extract(second from time '02:30:45.100') from cp.`tpch/region.parquet`");
+    final String query = "select cast(extract(second from time '02:30:45.100') as Float) as col from cp.`tpch/region.parquet`";
+
+    testBuilder()
+        .sqlQuery(query)
+        .ordered()
+        .baselineColumns("col")
+        .baselineValues("d")
+        .build()
+        .run();
   }
 
   @Test
@@ -164,15 +172,27 @@ public class TestFunctionsWithTypeExpoQueries extends BaseTestQuery {
   }
 
   @Test
-  public void testZ() throws Exception {
-    final String query = "select extract(second from cast(col1 as interval day)) \n" +
+  public void testExtract() throws Exception {
+    final String query = "select extract(second from col1) \n" +
         "from cp.`employee.json`";
 
-    test(query);
+    test("explain plan for " + query);
   }
 
   @Test
-  public void testDrillOptiq() throws Exception {
-    test("select flatten( a) from cp.`tpch/region.parquet`;");
+  public void testFlatten() throws Exception {
+    test("explain plan for select flatten(a) from cp.`tpch/region.parquet`;");
+  }
+
+  @Test
+  public void tesIsNull() throws Exception {
+    test("select r_name is null from cp.`tpch/region.parquet`;");
+  }
+
+  @Test
+  public void testAnyTypeMinusTimestamp() throws Exception {
+    final String query = "select c_timestamp + interval '30-11' year to month as col1 from cp.`tpch/region.parquet` \n" +
+        "where (c_timestamp - to_timestamp('2014-02-13 17:32:33','YYYY-MM-dd HH:mm:ss') < interval '5 15:40:50' day to second)";
+    test("explain plan for " + query);
   }
 }

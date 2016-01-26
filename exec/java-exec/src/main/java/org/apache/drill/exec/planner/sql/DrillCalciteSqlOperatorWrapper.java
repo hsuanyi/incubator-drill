@@ -17,7 +17,13 @@
  */
 package org.apache.drill.exec.planner.sql;
 
+import com.google.common.collect.Lists;
 import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.rex.RexBuilder;
+import org.apache.calcite.rex.RexDynamicParam;
+import org.apache.calcite.rex.RexInputRef;
+import org.apache.calcite.rex.RexNode;
+import org.apache.calcite.schema.Function;
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlCallBinding;
 import org.apache.calcite.sql.SqlFunction;
@@ -29,6 +35,7 @@ import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlOperatorBinding;
 import org.apache.calcite.sql.SqlSyntax;
 import org.apache.calcite.sql.SqlWriter;
+import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.sql.type.SqlOperandTypeChecker;
 import org.apache.calcite.sql.type.SqlOperandTypeInference;
@@ -36,9 +43,17 @@ import org.apache.calcite.sql.type.SqlReturnTypeInference;
 import org.apache.calcite.sql.validate.SqlMonotonicity;
 import org.apache.calcite.sql.validate.SqlValidator;
 import org.apache.calcite.sql.validate.SqlValidatorScope;
+import org.apache.drill.common.expression.FunctionCall;
+import org.apache.drill.common.expression.LogicalExpression;
+import org.apache.drill.exec.expr.fn.DrillFuncHolder;
+import org.apache.drill.exec.planner.logical.DrillOptiq;
+import org.apache.drill.exec.planner.logical.DrillParseContext;
+import org.apache.drill.exec.planner.physical.PrelUtil;
+
+import java.util.List;
 
 public class DrillCalciteSqlOperatorWrapper extends SqlOperator {
-  public final SqlOperator wrappedOperator;
+  public SqlOperator wrappedOperator;
   private SqlOperandTypeChecker operandTypeChecker = new Checker();
 
   public DrillCalciteSqlOperatorWrapper(SqlOperator wrappedOperator) {
@@ -55,6 +70,30 @@ public class DrillCalciteSqlOperatorWrapper extends SqlOperator {
 
   public final SqlOperator getWrappedSqlOperator() {
     return wrappedOperator;
+  }
+
+  @Override
+  public RelDataType inferReturnType(SqlOperatorBinding opBinding) {
+    if(wrappedOperator != SqlStdOperatorTable.ITEM) {
+      final List<RexNode> operands = Lists.newArrayList();
+      for(int i = 0; i < opBinding.getOperandCount(); ++i) {
+        final RexNode operandType = new RexInputRef(i, opBinding.getOperandType(i));
+        operands.add(operandType);
+      }
+
+      final DrillSqlOperator.RexCallFake rexCall = new DrillSqlOperator.RexCallFake(
+          wrappedOperator,
+          operands,
+          opBinding.getTypeFactory());
+
+      final FunctionCall functionCall = (FunctionCall) DrillOptiq.toDrill(new RexBuilder(opBinding.getTypeFactory()), rexCall);
+      final String funcName = functionCall.getName();
+
+      return wrappedOperator.inferReturnType(opBinding);
+
+    } else {
+      return wrappedOperator.inferReturnType(opBinding);
+    }
   }
 
   @Override
@@ -95,12 +134,6 @@ public class DrillCalciteSqlOperatorWrapper extends SqlOperator {
     }
 
   @Override
-  public RelDataType inferReturnType(
-            SqlOperatorBinding opBinding) {
-    return wrappedOperator.inferReturnType(opBinding);
-  }
-
-  @Override
   public RelDataType deriveType(
             SqlValidator validator,
             SqlValidatorScope scope,
@@ -134,7 +167,7 @@ public class DrillCalciteSqlOperatorWrapper extends SqlOperator {
 
   @Override
   public SqlOperandTypeInference getOperandTypeInference() {
-        return wrappedOperator.getOperandTypeInference();
+    return wrappedOperator.getOperandTypeInference();
     }
 
   @Override
@@ -144,41 +177,36 @@ public class DrillCalciteSqlOperatorWrapper extends SqlOperator {
 
   @Override
   public boolean requiresOrder() {
-        return wrappedOperator.requiresOrder();
-    }
+    return wrappedOperator.requiresOrder();
+  }
 
   @Override
   public boolean allowsFraming() {
-        return wrappedOperator.allowsFraming();
-    }
-
-  @Override
-  public SqlReturnTypeInference getReturnTypeInference() {
-        return wrappedOperator.getReturnTypeInference();
-    }
+    return wrappedOperator.allowsFraming();
+  }
 
   @Override
   public SqlMonotonicity getMonotonicity(SqlOperatorBinding call) {
-        return wrappedOperator.getMonotonicity(call);
-    }
+    return wrappedOperator.getMonotonicity(call);
+  }
 
   @Override
   public boolean isDeterministic() {
-        return wrappedOperator.isDeterministic();
-    }
+    return wrappedOperator.isDeterministic();
+  }
 
   @Override
   public boolean isDynamicFunction() {
-        return wrappedOperator.isDynamicFunction();
-    }
+    return wrappedOperator.isDynamicFunction();
+  }
 
   @Override
   public boolean requiresDecimalExpansion() {
-        return wrappedOperator.requiresDecimalExpansion();
-    }
+    return wrappedOperator.requiresDecimalExpansion();
+  }
 
   @Override
   public boolean argumentMustBeScalar(int ordinal) {
-        return wrappedOperator.argumentMustBeScalar(ordinal);
-    }
+    return wrappedOperator.argumentMustBeScalar(ordinal);
+  }
 }

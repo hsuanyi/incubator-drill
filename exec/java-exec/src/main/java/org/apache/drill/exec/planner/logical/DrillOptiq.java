@@ -76,19 +76,37 @@ public class DrillOptiq {
     return expr.accept(visitor);
   }
 
+  public static LogicalExpression toDrill(RexBuilder rexBuilder, RexNode expr) {
+    final RexToDrill visitor = new RexToDrill(rexBuilder);
+    return expr.accept(visitor);
+  }
+
   private static class RexToDrill extends RexVisitorImpl<LogicalExpression> {
     private final RelNode input;
     private final DrillParseContext context;
+    private final RexBuilder builder;
 
     RexToDrill(DrillParseContext context, RelNode input) {
       super(true);
       this.context = context;
       this.input = input;
+      this.builder = input.getCluster().getRexBuilder();
+    }
+
+    RexToDrill(RexBuilder builder) {
+      super(true);
+      this.context = null;
+      this.input = null;
+      this.builder = builder;
     }
 
     @Override
     public LogicalExpression visitInputRef(RexInputRef inputRef) {
       final int index = inputRef.getIndex();
+      if(input == null) {
+        return FieldReference.getWithQuotedRef("dummy");
+      }
+
       final RelDataTypeField field = input.getRowType().getFieldList().get(index);
       return FieldReference.getWithQuotedRef(field.getName());
     }
@@ -128,7 +146,6 @@ public class DrillOptiq {
             return FunctionCallFactory.createExpression(call.getOperator().getName().toLowerCase(),
                 ExpressionPosition.UNKNOWN, arg);
           case MINUS_PREFIX:
-            final RexBuilder builder = input.getCluster().getRexBuilder();
             final List<RexNode> operands = Lists.newArrayList();
             operands.add(builder.makeExactLiteral(new BigDecimal(-1)));
             operands.add(call.getOperands().get(0));
@@ -240,7 +257,7 @@ public class DrillOptiq {
 
     @Override
     public LogicalExpression visitDynamicParam(RexDynamicParam dynamicParam) {
-      return doUnknown(dynamicParam);
+      return null;
     }
 
     @Override
@@ -267,7 +284,7 @@ public class DrillOptiq {
       case "FLOAT": castType = Types.required(MinorType.FLOAT4); break;
       case "DOUBLE": castType = Types.required(MinorType.FLOAT8); break;
       case "DECIMAL":
-        if (context.getPlannerSettings().getOptions().
+        if (context != null && context.getPlannerSettings().getOptions().
             getOption(PlannerSettings.ENABLE_DECIMAL_DATA_TYPE_KEY).bool_val == false ) {
           throw UserException
               .unsupportedError()

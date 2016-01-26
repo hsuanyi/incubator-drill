@@ -131,13 +131,17 @@ public class TestFunctionsWithTypeExpoQueries extends BaseTestQuery {
    */
   @Test
   public void testExtractSecond() throws Exception {
-    final String query = "select cast(extract(second from time '02:30:45.100') as Float) as col from cp.`tpch/region.parquet`";
+    final String query = "select extract(second from time '02:30:45.100') as col from cp.`tpch/region.parquet`";
 
     testBuilder()
         .sqlQuery(query)
         .ordered()
         .baselineColumns("col")
-        .baselineValues("d")
+        .baselineValues(45.1)
+        .baselineValues(45.1)
+        .baselineValues(45.1)
+        .baselineValues(45.1)
+        .baselineValues(45.1)
         .build()
         .run();
   }
@@ -165,13 +169,6 @@ public class TestFunctionsWithTypeExpoQueries extends BaseTestQuery {
   }
 
   @Test
-  public void testMinusDate() throws Exception {
-    test("explain plan for select * \n" +
-        "from cp.`employee.json` \n" +
-        "where to_timestamp(3) < interval '5 15:40:50' day to second");
-  }
-
-  @Test
   public void testExtract() throws Exception {
     final String query = "select extract(second from col1) \n" +
         "from cp.`employee.json`";
@@ -193,6 +190,12 @@ public class TestFunctionsWithTypeExpoQueries extends BaseTestQuery {
   public void testAnyTypeMinusTimestamp() throws Exception {
     final String query = "select c_timestamp + interval '30-11' year to month as col1 from cp.`tpch/region.parquet` \n" +
         "where (c_timestamp - to_timestamp('2014-02-13 17:32:33','YYYY-MM-dd HH:mm:ss') < interval '5 15:40:50' day to second)";
+    test("explain plan for " + query);
+  }
+
+  @Test
+  public void testCast() throws Exception {
+    final String query = "select cast(a as Integer) as col1 from cp.`tpch/region.parquet`";
     test("explain plan for " + query);
   }
 }

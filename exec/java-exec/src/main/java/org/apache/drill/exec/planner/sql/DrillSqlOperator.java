@@ -21,10 +21,13 @@ package org.apache.drill.exec.planner.sql;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.calcite.avatica.util.TimeUnit;
+import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexCall;
+import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlIntervalQualifier;
 import org.apache.calcite.rel.type.RelDataType;
@@ -34,6 +37,8 @@ import org.apache.calcite.sql.SqlFunctionCategory;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlOperatorBinding;
+import org.apache.calcite.sql.SqlOperatorTable;
+import org.apache.calcite.sql.SqlSyntax;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.sql.type.IntervalSqlType;
 import org.apache.calcite.sql.type.SqlTypeName;
@@ -50,6 +55,7 @@ import org.apache.drill.common.types.Types;
 import org.apache.drill.exec.expr.annotations.FunctionTemplate.NullHandling;
 import org.apache.drill.exec.expr.fn.DrillFuncHolder;
 import org.apache.drill.exec.planner.logical.DrillConstExecutor;
+import org.apache.drill.exec.planner.logical.DrillOptiq;
 import org.apache.drill.exec.resolver.FunctionResolver;
 import org.apache.drill.exec.resolver.FunctionResolverFactory;
 
@@ -205,7 +211,9 @@ public class DrillSqlOperator extends SqlFunction {
 
   @Override
   public RelDataType inferReturnType(SqlOperatorBinding opBinding) {
-    if(functions == null || functions.isEmpty() || opBinding.getOperator().getName().toUpperCase().equals("FALTTEN")) {
+    if(functions == null || functions.isEmpty()
+        || opBinding.getOperator().getName().toUpperCase().equals("FALTTEN")
+            || opBinding.getOperator().getName().toUpperCase().equals("KVGEN")) {
       return opBinding.getTypeFactory()
           .createTypeWithNullability(opBinding.getTypeFactory().createSqlType(SqlTypeName.ANY), true);
     }
@@ -254,9 +262,7 @@ public class DrillSqlOperator extends SqlFunction {
         return type;
       }
     } else if(name.equals("EXTRACT")) {
-        // Assert that the first argument to extract is a QuotedString
-      assert opBinding.getOperandType(0) instanceof IntervalSqlType;
-      final TimeUnit timeUnit = ((IntervalSqlType) opBinding.getOperandType(0)).getIntervalQualifier().getStartUnit();
+      final TimeUnit timeUnit = opBinding.getOperandType(0).getIntervalQualifier().getStartUnit();
 
       final SqlTypeName sqlTypeName;
       switch (timeUnit){
@@ -283,10 +289,6 @@ public class DrillSqlOperator extends SqlFunction {
     }
 
     return getReturnType(opBinding, functions);
-  }
-
-  public final List<DrillFuncHolder> getFunctions() {
-    return functions;
   }
 
   public static class RexCallFake extends RexCall {

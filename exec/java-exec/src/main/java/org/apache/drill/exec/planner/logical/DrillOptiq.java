@@ -90,7 +90,7 @@ public class DrillOptiq {
       super(true);
       this.context = context;
       this.input = input;
-      this.builder = input.getCluster().getRexBuilder();
+      this.builder = input == null ? null : input.getCluster().getRexBuilder();
     }
 
     RexToDrill(RexBuilder builder) {
@@ -257,7 +257,7 @@ public class DrillOptiq {
 
     @Override
     public LogicalExpression visitDynamicParam(RexDynamicParam dynamicParam) {
-      return null;
+      return doUnknown(dynamicParam);
     }
 
     @Override

@@ -142,39 +142,12 @@ public class DrillOperatorTable extends SqlStdOperatorTable {
   }
 
   private List<SqlOperator> getSubstituteFromDrillOptiq(final SqlOperator calciteOperator) {
-    final String functionName = getDrillOptiqRewrittenName(calciteOperator).toLowerCase();
+    final String functionName = calciteOperator.getName().toLowerCase();
     if(functionName.equals("extract") || functionName.equals("date_part")) {
       final List<SqlOperator> drillOps = opMap.get(functionName);
       return drillOps;
     } else {
-      return new ArrayList<>();
+      return Lists.newArrayList();
     }
-  }
-
-  private String getDrillOptiqRewrittenName(final SqlOperator calciteOperator) {
-
-    /*
-    final SqlSyntax syntax = calciteOperator.getSyntax();
-    switch (syntax) {
-      case FUNCTION:
-      case FUNCTION_ID:
-
-      case SPECIAL:
-        switch(calciteOperator.getKind()){
-          case CAST:
-            return getDrillCastFunctionFromOptiq(call);
-          case LIKE:
-          case SIMILAR:
-            return getDrillFunctionFromOptiqCall(call);
-          case CASE:
-
-        return getDrillFunctionFromOptiqCall(call);
-    }
-    throw new AssertionError("todo: implement syntax " + syntax + "(" + call + ")");
-
-
-*/
-
-    return calciteOperator.getName();
   }
 }

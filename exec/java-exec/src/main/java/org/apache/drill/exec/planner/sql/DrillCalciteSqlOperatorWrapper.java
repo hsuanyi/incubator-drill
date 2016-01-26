@@ -74,26 +74,7 @@ public class DrillCalciteSqlOperatorWrapper extends SqlOperator {
 
   @Override
   public RelDataType inferReturnType(SqlOperatorBinding opBinding) {
-    if(wrappedOperator != SqlStdOperatorTable.ITEM) {
-      final List<RexNode> operands = Lists.newArrayList();
-      for(int i = 0; i < opBinding.getOperandCount(); ++i) {
-        final RexNode operandType = new RexInputRef(i, opBinding.getOperandType(i));
-        operands.add(operandType);
-      }
-
-      final DrillSqlOperator.RexCallFake rexCall = new DrillSqlOperator.RexCallFake(
-          wrappedOperator,
-          operands,
-          opBinding.getTypeFactory());
-
-      final FunctionCall functionCall = (FunctionCall) DrillOptiq.toDrill(new RexBuilder(opBinding.getTypeFactory()), rexCall);
-      final String funcName = functionCall.getName();
-
-      return wrappedOperator.inferReturnType(opBinding);
-
-    } else {
-      return wrappedOperator.inferReturnType(opBinding);
-    }
+    return wrappedOperator.inferReturnType(opBinding);
   }
 
   @Override

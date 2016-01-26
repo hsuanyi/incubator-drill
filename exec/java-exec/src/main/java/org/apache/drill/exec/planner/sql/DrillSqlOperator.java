@@ -18,27 +18,18 @@
 
 package org.apache.drill.exec.planner.sql;
 
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 
-import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.calcite.avatica.util.TimeUnit;
-import org.apache.calcite.rex.RexBuilder;
-import org.apache.calcite.rex.RexCall;
-import org.apache.calcite.rex.RexInputRef;
-import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlIntervalQualifier;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.sql.SqlFunction;
 import org.apache.calcite.sql.SqlFunctionCategory;
 import org.apache.calcite.sql.SqlIdentifier;
-import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlOperatorBinding;
-import org.apache.calcite.sql.SqlOperatorTable;
-import org.apache.calcite.sql.SqlSyntax;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.sql.type.IntervalSqlType;
 import org.apache.calcite.sql.type.SqlTypeName;
@@ -55,7 +46,6 @@ import org.apache.drill.common.types.Types;
 import org.apache.drill.exec.expr.annotations.FunctionTemplate.NullHandling;
 import org.apache.drill.exec.expr.fn.DrillFuncHolder;
 import org.apache.drill.exec.planner.logical.DrillConstExecutor;
-import org.apache.drill.exec.planner.logical.DrillOptiq;
 import org.apache.drill.exec.resolver.FunctionResolver;
 import org.apache.drill.exec.resolver.FunctionResolverFactory;
 
@@ -108,40 +98,7 @@ public class DrillSqlOperator extends SqlFunction {
     }
   }
 
-  public static RelDataType getReturnType(final SqlOperatorBinding opBinding, final List<DrillFuncHolder> functions) {
-    boolean allBooleanOutput = true;
-    for(DrillFuncHolder function : functions) {
-      if(function.getReturnType().getMinorType() != MinorType.BIT) {
-        allBooleanOutput = false;
-        break;
-      }
-    }
-    if(allBooleanOutput) {
-      return opBinding.getTypeFactory().createSqlType(SqlTypeName.BOOLEAN);
-    }
-
-    // The following logic is just a safe play:
-    // Even if any of the input arguments has ANY type,
-    // it "might" still be possible to determine the return type based on other non-ANY types
-    for (RelDataType type : opBinding.collectOperandTypes()) {
-      if (type.getSqlTypeName() == SqlTypeName.ANY) {
-        return opBinding.getTypeFactory()
-                .createTypeWithNullability(opBinding.getTypeFactory().createSqlType(SqlTypeName.ANY), true);
-      }
-    }
-
-    final List<LogicalExpression> args = Lists.newArrayList();
-    for(final RelDataType type : opBinding.collectOperandTypes()) {
-      final MajorType majorType = getMajorType(type);
-      args.add(new DumbLogicalExpression(majorType));
-    }
-    final FunctionCall functionCall = new FunctionCall(opBinding.getOperator().getName(), args, ExpressionPosition.UNKNOWN);
-    // If the return type is VarChar,
-    // set the precision as the maximum
-
-    final FunctionResolver functionResolver = FunctionResolverFactory.getResolver();
-    final DrillFuncHolder func = functionResolver.getBestMatch(functions, functionCall);
-
+  private RelDataType getReturnType(final SqlOperatorBinding opBinding, final DrillFuncHolder func) {
     final RelDataTypeFactory factory = opBinding.getTypeFactory();
 
     // least restrictive type (nullable ANY type)
@@ -159,7 +116,7 @@ public class DrillSqlOperator extends SqlFunction {
       return factory.createTypeWithNullability(nullableAnyType, true);
     }
 
-    RelDataType relReturnType;
+    final RelDataType relReturnType;
     switch (sqlTypeName) {
       case INTERVAL_DAY_TIME:
         relReturnType = factory.createSqlIntervalType(
@@ -181,33 +138,23 @@ public class DrillSqlOperator extends SqlFunction {
 
     switch(returnType.getMode()) {
       case OPTIONAL:
-        relReturnType = factory.createTypeWithNullability(relReturnType, true);
-        break;
+        return factory.createTypeWithNullability(relReturnType, true);
       case REQUIRED:
         if(func.getNullHandling() == NullHandling.INTERNAL
             || (func.getNullHandling() == NullHandling.NULL_IF_NULL
                 && opBinding.getOperandCount() > 0
                     && opBinding.getOperandType(0).isNullable())) {
-          relReturnType = factory.createTypeWithNullability(relReturnType, true);
+          return factory.createTypeWithNullability(relReturnType, true);
+        } else {
+          return relReturnType;
         }
-
-        break;
       case REPEATED:
-        break;
+        return relReturnType;
       default:
         throw new UnsupportedOperationException();
     }
-
-    if(relReturnType.getSqlTypeName() == SqlTypeName.VARCHAR) {
-      final boolean isNullable = relReturnType.isNullable();
-      relReturnType = factory.createSqlType(SqlTypeName.VARCHAR, MAX_VARCHAR_LENGTH);
-
-      if(isNullable) {
-        relReturnType = factory.createTypeWithNullability(relReturnType, true);
-      }
-    }
-    return relReturnType;
   }
+
 
   @Override
   public RelDataType inferReturnType(SqlOperatorBinding opBinding) {
@@ -262,7 +209,9 @@ public class DrillSqlOperator extends SqlFunction {
         return type;
       }
     } else if(name.equals("EXTRACT")) {
-      final TimeUnit timeUnit = opBinding.getOperandType(0).getIntervalQualifier().getStartUnit();
+        // Assert that the first argument to extract is a QuotedString
+      assert opBinding.getOperandType(0) instanceof IntervalSqlType;
+      final TimeUnit timeUnit = ((IntervalSqlType) opBinding.getOperandType(0)).getIntervalQualifier().getStartUnit();
 
       final SqlTypeName sqlTypeName;
       switch (timeUnit){
@@ -288,12 +237,49 @@ public class DrillSqlOperator extends SqlFunction {
       }
     }
 
-    return getReturnType(opBinding, functions);
-  }
-
-  public static class RexCallFake extends RexCall {
-    public RexCallFake(SqlOperator op, List<? extends RexNode> operands, final RelDataTypeFactory factory) {
-      super(factory.createSqlType(SqlTypeName.ANY), op, operands);
+    //
+    boolean allBooleanOutput = true;
+    for(DrillFuncHolder function : functions) {
+      if(function.getReturnType().getMinorType() != MinorType.BIT) {
+        allBooleanOutput = false;
+        break;
+      }
     }
+    if(allBooleanOutput) {
+      return opBinding.getTypeFactory().createSqlType(SqlTypeName.BOOLEAN);
+    }
+
+    // The following logic is just a safe play:
+    // Even if any of the input arguments has ANY type,
+    // it "might" still be possible to determine the return type based on other non-ANY types
+    for (RelDataType type : opBinding.collectOperandTypes()) {
+      if (type.getSqlTypeName() == SqlTypeName.ANY) {
+        return opBinding.getTypeFactory()
+            .createTypeWithNullability(opBinding.getTypeFactory().createSqlType(SqlTypeName.ANY), true);
+      }
+    }
+
+    final List<LogicalExpression> args = Lists.newArrayList();
+    for(final RelDataType type : opBinding.collectOperandTypes()) {
+      final MajorType majorType = getMajorType(type);
+      args.add(new DumbLogicalExpression(majorType));
+    }
+    final FunctionCall functionCall = new FunctionCall(opBinding.getOperator().getName(), args, ExpressionPosition.UNKNOWN);
+    final FunctionResolver functionResolver = FunctionResolverFactory.getResolver();
+    final DrillFuncHolder func = functionResolver.getBestMatch(functions, functionCall);
+
+    // If the return type is VarChar,
+    // set the precision as the maximum
+    RelDataType returnType = getReturnType(opBinding, func);
+    if(returnType.getSqlTypeName() == SqlTypeName.VARCHAR) {
+      final boolean isNullable = returnType.isNullable();
+      returnType = factory.createSqlType(SqlTypeName.VARCHAR, MAX_VARCHAR_LENGTH);
+
+      if(isNullable) {
+        returnType = factory.createTypeWithNullability(returnType, true);
+      }
+    }
+
+    return returnType;
   }
 }

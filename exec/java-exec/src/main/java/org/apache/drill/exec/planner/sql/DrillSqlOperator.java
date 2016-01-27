@@ -203,7 +203,7 @@ public class DrillSqlOperator extends SqlFunction {
       }
 
       final RelDataType type = factory.createSqlType(sqlTypeName);
-      if(opBinding.getOperandType(0).isNullable()) {
+      if(opBinding.getOperandType(1).isNullable()) {
         return factory.createTypeWithNullability(type, true);
       } else {
         return type;
@@ -230,7 +230,7 @@ public class DrillSqlOperator extends SqlFunction {
         }
 
       final RelDataType type = factory.createSqlType(sqlTypeName);
-      if(opBinding.getOperandType(0).isNullable()) {
+      if(opBinding.getOperandType(1).isNullable()) {
         return factory.createTypeWithNullability(type, true);
       } else {
         return type;

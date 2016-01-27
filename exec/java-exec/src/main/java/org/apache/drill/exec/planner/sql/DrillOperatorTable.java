@@ -114,7 +114,7 @@ public class DrillOperatorTable extends SqlStdOperatorTable {
       if(!drillSubstitute.isEmpty()) {
         operatorList.addAll(drillSubstitute);
       } else if(calciteOperator instanceof SqlAggFunction) {
-        operatorList.add(new DrillCalciteSqlAggFunctionWrapper((SqlAggFunction) calciteOperator));
+        operatorList.add(calciteOperator);
       } else if(calciteOperator instanceof SqlFunction) {
         operatorList.add(new DrillCalciteSqlFunctionWrapper((SqlFunction) calciteOperator));
       } else {

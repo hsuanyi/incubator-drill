@@ -23,6 +23,7 @@ import com.google.common.base.Preconditions;
 import org.antlr.runtime.ANTLRStringStream;
 import org.antlr.runtime.CommonTokenStream;
 import org.antlr.runtime.RecognitionException;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.drill.common.expression.SchemaPath;
 import org.apache.drill.common.expression.parser.ExprLexer;
 import org.apache.drill.common.expression.parser.ExprParser;
@@ -41,6 +42,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
 
 public class TestBuilder {
 
@@ -122,7 +124,16 @@ public class TestBuilder {
       throw new Exception("High performance comparison only available for ordered checks, to enforce this restriction, ordered() must be called first.");
     }
     return new DrillTestWrapper(this, allocator, query, queryType, baselineOptionSettingQueries, testOptionSettingQueries,
-        getValidationQueryType(), ordered, approximateEquality, highPerformanceComparison, baselineRecords, expectedNumBatches);
+        getValidationQueryType(), ordered, approximateEquality, highPerformanceComparison, baselineRecords, expectedNumBatches,
+        isCheckSchemaOnly(), getExpectedSchema());
+  }
+
+  public boolean isCheckSchemaOnly() {
+    return false;
+  }
+
+  public List<Pair<SchemaPath, TypeProtos.MajorType>> getExpectedSchema() {
+    return null;
   }
 
   public void go() throws Exception {
@@ -233,6 +244,17 @@ public class TestBuilder {
     return new CSVTestBuilder(filePath, allocator, query, queryType, ordered, approximateEquality,
         baselineTypeMap, baselineOptionSettingQueries, testOptionSettingQueries, highPerformanceComparison,
         expectedNumBatches);
+  }
+
+  public SchemaTestBuilder schemaBaseLine(List<Pair<SchemaPath, TypeProtos.MajorType>> expectedSchema) {
+    assert expectedSchema != null;
+    return new SchemaTestBuilder(
+        allocator,
+        query,
+        queryType,
+        baselineOptionSettingQueries,
+        testOptionSettingQueries,
+        expectedSchema);
   }
 
   public TestBuilder baselineTypes(Map<SchemaPath, TypeProtos.MajorType> baselineTypeMap) {
@@ -470,6 +492,30 @@ public class TestBuilder {
       return UserBitShared.QueryType.SQL;
     }
 
+  }
+
+  public class SchemaTestBuilder extends TestBuilder {
+    private List<Pair<SchemaPath, TypeProtos.MajorType>> expectedSchema;
+    SchemaTestBuilder(BufferAllocator allocator, String query, UserBitShared.QueryType queryType,
+        String baselineOptionSettingQueries, String testOptionSettingQueries, List<Pair<SchemaPath, TypeProtos.MajorType>> expectedSchema) {
+      super(allocator, query, queryType, false, false, null, baselineOptionSettingQueries, testOptionSettingQueries, false, 0);
+      this.expectedSchema = expectedSchema;
+    }
+
+    @Override
+    protected UserBitShared.QueryType getValidationQueryType() throws Exception {
+      return null;
+    }
+
+    @Override
+    public boolean isCheckSchemaOnly() {
+      return true;
+    }
+
+    @Override
+    public List<Pair<SchemaPath, TypeProtos.MajorType>> getExpectedSchema() {
+      return expectedSchema;
+    }
   }
 
   public class JSONTestBuilder extends TestBuilder {

@@ -17,6 +17,7 @@
  ******************************************************************************/
 package org.apache.drill;
 
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.drill.common.expression.SchemaPath;
 import org.apache.drill.common.types.TypeProtos;
 import org.apache.drill.exec.HyperVectorValueIterator;
@@ -101,10 +102,15 @@ public class DrillTestWrapper {
 
   private int expectedNumBatches;
 
+  private boolean isCheckShemaOnly;
+
+  private List<Pair<SchemaPath, TypeProtos.MajorType>> expectedSchema;
+
   public DrillTestWrapper(TestBuilder testBuilder, BufferAllocator allocator, String query, QueryType queryType,
                           String baselineOptionSettingQueries, String testOptionSettingQueries,
                           QueryType baselineQueryType, boolean ordered, boolean approximateEquality,
-                          boolean highPerformanceComparison, List<Map> baselineRecords, int expectedNumBatches) {
+                          boolean highPerformanceComparison, List<Map> baselineRecords, int expectedNumBatches,
+                          boolean isCheckShemaOnly, List<Pair<SchemaPath, TypeProtos.MajorType>> expectedSchema) {
     this.testBuilder = testBuilder;
     this.allocator = allocator;
     this.query = query;
@@ -117,10 +123,14 @@ public class DrillTestWrapper {
     this.highPerformanceComparison = highPerformanceComparison;
     this.baselineRecords = baselineRecords;
     this.expectedNumBatches = expectedNumBatches;
+    this.isCheckShemaOnly = isCheckShemaOnly;
+    this.expectedSchema = expectedSchema;
   }
 
   public void run() throws Exception {
-    if (ordered) {
+    if(isCheckShemaOnly) {
+      compareSchemaOnly();
+    } else if (ordered) {
       compareOrderedResults();
     } else {
       compareUnorderedResults();
@@ -296,6 +306,45 @@ public class DrillTestWrapper {
     return combinedVectors;
   }
 
+  protected void compareSchemaOnly() throws Exception {
+    RecordBatchLoader loader = new RecordBatchLoader(getAllocator());
+    List<QueryDataBatch> actual = Collections.EMPTY_LIST;
+
+
+    QueryDataBatch batch = null;
+    try {
+      BaseTestQuery.test(testOptionSettingQueries);
+      actual = BaseTestQuery.testRunAndReturn(queryType, query);
+      batch = actual.get(0);
+      loader.load(batch.getHeader().getDef(), batch.getData());
+
+      final BatchSchema schema = loader.getSchema();
+      if(schema.getFieldCount() != expectedSchema.size()) {
+        throw new Exception("The column numbers for actual schema and expected schema do not match");
+      }
+
+      for(int i = 0; i < schema.getFieldCount(); ++i) {
+        final SchemaPath actualSchemaPath = schema.getColumn(i).getPath();
+        final TypeProtos.MajorType actualMajorType = schema.getColumn(i).getType();
+
+        final SchemaPath expectedSchemaPath = schema.getColumn(i).getPath();
+        final TypeProtos.MajorType expectedlMajorType = schema.getColumn(i).getType();
+
+        if(!actualSchemaPath.equals(expectedSchemaPath)
+            || !actualMajorType.equals(expectedlMajorType)) {
+          throw new Exception("The type of the " + i + "-th column is '" + actualSchemaPath + "' mismatched, expected: '"
+              + expectedlMajorType + "'");
+        }
+      }
+
+    }  finally {
+      if(batch != null) {
+        batch.release();
+      }
+      loader.clear();
+    }
+  }
+
   /**
    * Use this method only if necessary to validate one query against another. If you are just validating against a
    * baseline file use one of the simpler interfaces that will write the validation query for you.
@@ -306,7 +355,7 @@ public class DrillTestWrapper {
     RecordBatchLoader loader = new RecordBatchLoader(getAllocator());
     BatchSchema schema = null;
 
-    List<QueryDataBatch> actual = Collections.EMPTY_LIST;;
+    List<QueryDataBatch> actual = Collections.EMPTY_LIST;
     List<QueryDataBatch> expected = Collections.EMPTY_LIST;
     List<Map> expectedRecords = new ArrayList<>();
     List<Map> actualRecords = new ArrayList<>();

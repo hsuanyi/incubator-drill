@@ -121,10 +121,10 @@ public class DrillCalciteSqlAggFunctionWrapper extends SqlAggFunction {
         return operandTypeChecker.getOperandCountRange();
     }
 
-    @Override
-    public RelDataType inferReturnType(SqlOperatorBinding opBinding) {
-        return operator.inferReturnType(opBinding);
-    }
+  @Override
+  public RelDataType inferReturnType(SqlOperatorBinding opBinding) {
+    return operator.inferReturnType(opBinding);
+  }
 
     @Override
     public boolean checkOperandTypes(

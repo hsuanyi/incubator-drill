@@ -20,13 +20,16 @@ package org.apache.drill.exec;
 
 import static org.junit.Assert.assertEquals;
 
+import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.drill.common.config.DrillConfig;
 import org.apache.drill.common.config.LogicalPlanPersistence;
 import org.apache.drill.common.expression.ExpressionPosition;
 import org.apache.drill.common.expression.ValueExpressions;
 import org.apache.drill.common.logical.PlanProperties;
+import org.apache.drill.common.types.TypeProtos;
 import org.apache.drill.exec.physical.PhysicalPlan;
 import org.apache.drill.exec.physical.base.PhysicalOperator;
 import org.apache.drill.exec.physical.config.Filter;
@@ -35,7 +38,9 @@ import org.apache.drill.exec.physical.config.UnionExchange;
 import org.apache.drill.exec.planner.PhysicalPlanReader;
 import org.apache.drill.exec.planner.PhysicalPlanReaderTestFactory;
 import org.apache.drill.exec.proto.CoordinationProtos;
+import org.apache.drill.exec.record.BatchSchema;
 import org.apache.drill.exec.store.mock.MockSubScanPOP;
+import org.apache.hadoop.io.retry.RetryPolicies;
 import org.junit.Test;
 
 import com.google.common.collect.Lists;
@@ -53,7 +58,7 @@ public class TestOpSerialization {
     f.setOperatorId(2);
     UnionExchange e = new UnionExchange(f);
     e.setOperatorId(1);
-    Screen screen = new Screen(e, CoordinationProtos.DrillbitEndpoint.getDefaultInstance());
+    Screen screen = new Screen(e, CoordinationProtos.DrillbitEndpoint.getDefaultInstance(), new ArrayList<TypeProtos.MinorType>());
     screen.setOperatorId(0);
 
     boolean reversed = false;

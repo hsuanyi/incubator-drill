@@ -19,8 +19,9 @@ package org.apache.drill.exec.physical.impl;
 
 import java.util.List;
 
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.drill.common.exceptions.ExecutionSetupException;
-import org.apache.drill.exec.exception.OutOfMemoryException;
+import org.apache.drill.common.types.TypeProtos;
 import org.apache.drill.exec.exception.OutOfMemoryException;
 import org.apache.drill.exec.ops.AccountingUserConnection;
 import org.apache.drill.exec.ops.FragmentContext;
@@ -29,8 +30,11 @@ import org.apache.drill.exec.physical.config.Screen;
 import org.apache.drill.exec.physical.impl.materialize.QueryWritableBatch;
 import org.apache.drill.exec.physical.impl.materialize.RecordMaterializer;
 import org.apache.drill.exec.physical.impl.materialize.VectorRecordMaterializer;
+import org.apache.drill.exec.planner.StarColumnHelper;
 import org.apache.drill.exec.proto.UserBitShared.QueryData;
 import org.apache.drill.exec.proto.UserBitShared.RecordBatchDef;
+import org.apache.drill.exec.record.BatchSchema;
+import org.apache.drill.exec.record.MaterializedField;
 import org.apache.drill.exec.record.RecordBatch;
 import org.apache.drill.exec.record.RecordBatch.IterOutcome;
 
@@ -57,6 +61,8 @@ public class ScreenCreator implements RootCreator<Screen> {
     private final FragmentContext context;
     private final AccountingUserConnection userConnection;
     private RecordMaterializer materializer;
+    private final List<TypeProtos.MinorType> schemaInPlanning;
+    private boolean isSchemaValidation;
 
     private boolean firstBatch = true;
 
@@ -74,6 +80,13 @@ public class ScreenCreator implements RootCreator<Screen> {
       this.context = context;
       this.incoming = incoming;
       userConnection = context.getUserDataTunnel();
+      this.schemaInPlanning = config.getSchemaInPlanning();
+
+      if(schemaInPlanning.size() > 0) {
+        isSchemaValidation = true;
+      } else {
+        isSchemaValidation = false;
+      }
     }
 
     @Override
@@ -107,6 +120,18 @@ public class ScreenCreator implements RootCreator<Screen> {
 
         return false;
       case OK_NEW_SCHEMA:
+         if(isSchemaValidation) {
+          final int numOfCols = schemaInPlanning.size();
+          assert numOfCols == incoming.getSchema().getFieldCount();
+
+          for(int i = 0; i < numOfCols; ++i) {
+            if(schemaInPlanning.get(i) != TypeProtos.MinorType.LATE) {
+              assert schemaInPlanning.get(i)
+                  == incoming.getSchema().getColumn(i).getType().getMinorType();
+            }
+          }
+        }
+
         materializer = new VectorRecordMaterializer(context, oContext, incoming);
         //$FALL-THROUGH$
       case OK:

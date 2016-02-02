@@ -461,7 +461,7 @@ public class DefaultSqlHandler extends AbstractSqlHandler {
     TypedSqlNode typedSqlNode = planner.validateAndGetType(sqlNode);
 
     SqlNode sqlNodeValidated = typedSqlNode.getSqlNode();
-    //unwrapVisitor(sqlNodeValidated);
+    unwrapVisitor(sqlNodeValidated);
 
     // Check if the unsupported functionality is used
     UnsupportedOperatorsVisitor visitor = UnsupportedOperatorsVisitor.createVisitor(context);

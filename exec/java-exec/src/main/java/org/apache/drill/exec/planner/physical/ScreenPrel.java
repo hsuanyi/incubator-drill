@@ -18,25 +18,45 @@
 package org.apache.drill.exec.planner.physical;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
+import com.google.common.collect.Lists;
+import org.apache.calcite.rel.type.RelDataTypeField;
+import org.apache.commons.lang3.tuple.Pair;
+import org.apache.drill.common.expression.SchemaPath;
+import org.apache.drill.common.types.TypeProtos;
 import org.apache.drill.exec.physical.base.PhysicalOperator;
 import org.apache.drill.exec.physical.config.Screen;
+import org.apache.drill.exec.planner.StarColumnHelper;
 import org.apache.drill.exec.planner.common.DrillScreenRelBase;
+import org.apache.drill.exec.planner.logical.DrillConstExecutor;
 import org.apache.drill.exec.planner.physical.visitor.PrelVisitor;
+import org.apache.drill.exec.record.BatchSchema;
 import org.apache.drill.exec.record.BatchSchema.SelectionVectorMode;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTraitSet;
+import org.apache.drill.exec.record.MaterializedField;
+import org.apache.drill.exec.record.SchemaBuilder;
 
 public class ScreenPrel extends DrillScreenRelBase implements Prel {
-
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ScreenPrel.class);
-
+  //private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ScreenPrel.class);
+  // private final BatchSchema schemaInPlanning;
+  private List<TypeProtos.MinorType> schemaInPlanning;
 
   public ScreenPrel(RelOptCluster cluster, RelTraitSet traits, RelNode child) {
     super(Prel.DRILL_PHYSICAL, cluster, traits, child);
+    schemaInPlanning = Lists.newArrayList();
+    final List<RelDataTypeField> fieldList = child.getRowType().getFieldList();
+    for(RelDataTypeField relDataTypeField : fieldList) {
+      if(relDataTypeField.getName().equals(StarColumnHelper.STAR_COLUMN)) {
+        schemaInPlanning.clear();
+        break;
+      }
+      schemaInPlanning.add(DrillConstExecutor.getDrillTypeFromCalcite(relDataTypeField.getType()));
+    }
   }
 
   @Override
@@ -50,7 +70,7 @@ public class ScreenPrel extends DrillScreenRelBase implements Prel {
 
     PhysicalOperator childPOP = child.getPhysicalOperator(creator);
 
-    Screen s = new Screen(childPOP, creator.getContext().getCurrentEndpoint());
+    Screen s = new Screen(childPOP, creator.getContext().getCurrentEndpoint(), schemaInPlanning);
     return creator.addMetadata(this, s);
   }
 

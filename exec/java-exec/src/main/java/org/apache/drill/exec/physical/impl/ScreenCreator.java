@@ -63,7 +63,6 @@ public class ScreenCreator implements RootCreator<Screen> {
     private final AccountingUserConnection userConnection;
     private RecordMaterializer materializer;
     private final Map<String, TypeProtos.MinorType> schemaInPlanning;
-    private boolean isSchemaValidation;
 
     private boolean firstBatch = true;
 
@@ -82,7 +81,6 @@ public class ScreenCreator implements RootCreator<Screen> {
       this.incoming = incoming;
       userConnection = context.getUserDataTunnel();
       this.schemaInPlanning = config.getSchemaInPlanning();
-      this.isSchemaValidation = schemaInPlanning.size() > 0;
     }
 
     @Override
@@ -116,12 +114,14 @@ public class ScreenCreator implements RootCreator<Screen> {
 
         return false;
       case OK_NEW_SCHEMA:
-         if(isSchemaValidation) {
+         if(schemaInPlanning.size() > 0) {
           for(int i = 0; i < incoming.getSchema().getFieldCount(); ++i) {
             final String col = incoming.getSchema().getColumn(i).getPath().getRootSegment().getPath();
             if(schemaInPlanning.containsKey(col) && schemaInPlanning.get(col) != TypeProtos.MinorType.LATE) {
-              assert schemaInPlanning.get(col)
-                  == incoming.getSchema().getColumn(i).getType().getMinorType();
+              assert schemaInPlanning.get(col) == incoming.getSchema().getColumn(i).getType().getMinorType()
+                  : "Types for column `" + col + "` do not match \n "
+                      + "Planning: " + schemaInPlanning.get(col) + "\n"
+                      + "Execution: " +  incoming.getSchema().getColumn(i).getType().getMinorType();
             }
           }
         }

@@ -31,6 +31,7 @@ import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.type.SqlOperandTypeChecker;
 import org.apache.calcite.sql.type.SqlOperandTypeInference;
 import org.apache.calcite.sql.type.SqlReturnTypeInference;
+import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.sql.validate.SqlMonotonicity;
 import org.apache.calcite.sql.validate.SqlValidator;
 import org.apache.calcite.sql.validate.SqlValidatorScope;
@@ -127,6 +128,10 @@ public class DrillCalciteSqlAggFunctionWrapper extends SqlAggFunction {
 
   @Override
   public RelDataType inferReturnType(SqlOperatorBinding opBinding) {
+    if(sqlOperators.isEmpty()) {
+      return opBinding.getTypeFactory()
+          .createTypeWithNullability(opBinding.getTypeFactory().createSqlType(SqlTypeName.ANY), true);
+    }
     return sqlOperators.get(0).inferReturnType(opBinding);
   }
 

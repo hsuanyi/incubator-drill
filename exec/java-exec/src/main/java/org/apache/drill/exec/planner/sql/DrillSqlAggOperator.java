@@ -137,6 +137,11 @@ public class DrillSqlAggOperator extends SqlAggFunction {
     final FunctionResolver functionResolver = FunctionResolverFactory.getResolver();
     final List<LogicalExpression> args = Lists.newArrayList();
     for(final RelDataType type : opBinding.collectOperandTypes()) {
+      if (type.getSqlTypeName() == SqlTypeName.ANY || type.getSqlTypeName() == SqlTypeName.DECIMAL) {
+        return opBinding.getTypeFactory()
+            .createTypeWithNullability(opBinding.getTypeFactory().createSqlType(SqlTypeName.ANY), true);
+      }
+
       final MajorType majorType = getMajorType(type);
       args.add(new DumbLogicalExpression(majorType));
     }

@@ -201,7 +201,7 @@ public class DrillSqlOperator extends SqlFunction {
     // Even if any of the input arguments has ANY type,
     // it "might" still be possible to determine the return type based on other non-ANY types
     for (RelDataType type : opBinding.collectOperandTypes()) {
-      if (type.getSqlTypeName() == SqlTypeName.ANY) {
+      if (type.getSqlTypeName() == SqlTypeName.ANY || type.getSqlTypeName() == SqlTypeName.DECIMAL) {
         return opBinding.getTypeFactory()
             .createTypeWithNullability(opBinding.getTypeFactory().createSqlType(SqlTypeName.ANY), true);
       }

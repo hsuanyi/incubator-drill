@@ -112,14 +112,14 @@ public class DrillConstExecutor implements RelOptPlanner.Executor {
           .put(SqlTypeName.VARBINARY, TypeProtos.MinorType.VARBINARY)
           .put(SqlTypeName.INTERVAL_YEAR_MONTH, TypeProtos.MinorType.INTERVALYEAR)
           .put(SqlTypeName.INTERVAL_DAY_TIME, TypeProtos.MinorType.INTERVALDAY)
-          .put(SqlTypeName.MAP, TypeProtos.MinorType.MAP)
-          .put(SqlTypeName.ARRAY, TypeProtos.MinorType.LIST)
+          //.put(SqlTypeName.MAP, TypeProtos.MinorType.MAP)
+          //.put(SqlTypeName.ARRAY, TypeProtos.MinorType.LIST)
           .put(SqlTypeName.CHAR, TypeProtos.MinorType.VARCHAR)
           // (2) Avoid late binding
           .put(SqlTypeName.ANY, TypeProtos.MinorType.LATE)
           // (3) These 2 types are defined in the Drill type system but have been turned off for now
-          .put(SqlTypeName.TINYINT, TypeProtos.MinorType.TINYINT)
-          .put(SqlTypeName.SMALLINT, TypeProtos.MinorType.SMALLINT)
+          // .put(SqlTypeName.TINYINT, TypeProtos.MinorType.TINYINT)
+          // .put(SqlTypeName.SMALLINT, TypeProtos.MinorType.SMALLINT)
           // (4) Calcite types currently not supported by Drill, nor defined in the Drill type list:
           //      - SYMBOL, MULTISET, DISTINCT, STRUCTURED, ROW, OTHER, CURSOR, COLUMN_LIST
           .build();
@@ -160,24 +160,11 @@ public class DrillConstExecutor implements RelOptPlanner.Executor {
 
   public static TypeProtos.MinorType getDrillTypeFromCalcite(final RelDataType relDataType) {
     final SqlTypeName sqlTypeName = relDataType.getSqlTypeName();
-    if(sqlTypeName == SqlTypeName.DECIMAL) {
-      final int precision = relDataType.getPrecision();
-      final TypeProtos.MinorType minorType;
-      if(precision < 10) {
-        minorType = TypeProtos.MinorType.DECIMAL9;
-      } else if(precision < 19) {
-        minorType = TypeProtos.MinorType.DECIMAL18;
-      } else if(precision < 29) {
-        minorType = TypeProtos.MinorType.DECIMAL28SPARSE;
-      } else if(precision < 39) {
-        minorType = TypeProtos.MinorType.DECIMAL38SPARSE;
-      } else {
-        throw new UnsupportedOperationException();
-      }
-      return minorType;
-    } else {
-      return CALCITE_TO_DRILL_MAPPING.get(sqlTypeName);
+    TypeProtos.MinorType minorType = CALCITE_TO_DRILL_MAPPING.get(sqlTypeName);
+    if(minorType == null) {
+      minorType = TypeProtos.MinorType.LATE;
     }
+    return minorType;
   }
 
   private RelDataType createCalciteTypeWithNullability(RelDataTypeFactory typeFactory,

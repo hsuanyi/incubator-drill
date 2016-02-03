@@ -38,7 +38,9 @@ import org.apache.calcite.sql.SqlOperandCountRange;
 import org.apache.calcite.sql.SqlOperatorBinding;
 import org.apache.calcite.sql.SqlUtil;
 import org.apache.calcite.sql.SqlWriter;
+import org.apache.calcite.sql.fun.SqlAvgAggFunction;
 import org.apache.calcite.sql.fun.SqlMonotonicBinaryOperator;
+import org.apache.calcite.sql.fun.SqlSumAggFunction;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.sql.type.InferTypes;
 import org.apache.calcite.sql.type.OperandTypes;
@@ -75,7 +77,7 @@ import static org.apache.calcite.util.Static.RESOURCE;
 public class DrillOperatorTable extends SqlStdOperatorTable {
 //  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(DrillOperatorTable.class);
 
-  public static final SqlOperatorTable inner = SqlStdOperatorTable.instance();
+  private static final SqlOperatorTable inner = SqlStdOperatorTable.instance();
   private List<SqlOperator> operators;
   private ArrayListMultimap<String, SqlOperator> opMap = ArrayListMultimap.create();
 
@@ -100,10 +102,7 @@ public class DrillOperatorTable extends SqlStdOperatorTable {
     for(final SqlOperator calciteOperator : calciteOperatorList) {
       if(calciteOperator instanceof SqlAggFunction) {
         final SqlOperator wrap = new DrillCalciteSqlAggFunctionWrapper((SqlAggFunction) calciteOperator, opMap.get(opName.getSimple().toLowerCase()));
-        List<SqlOperator> drillOps = opMap.get(opName.getSimple().toLowerCase());
-        //operatorList.addAll(drillOps);
         operatorList.add(wrap);
-        // operatorList.add(calciteOperator);
       } else if(calciteOperator instanceof SqlFunction) {
         final SqlOperator wrap = new DrillCalciteSqlFunctionWrapper((SqlFunction) calciteOperator);
         operatorList.add(wrap);

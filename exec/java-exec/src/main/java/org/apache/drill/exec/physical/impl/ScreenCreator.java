@@ -18,9 +18,13 @@
 package org.apache.drill.exec.physical.impl;
 
 import java.util.List;
+import java.util.Map;
 
+import org.apache.drill.common.exceptions.DrillRuntimeException;
 import org.apache.drill.common.exceptions.ExecutionSetupException;
-import org.apache.drill.exec.exception.OutOfMemoryException;
+import org.apache.drill.common.types.TypeProtos;
+import org.apache.drill.common.types.Types;
+import org.apache.drill.exec.ExecConstants;
 import org.apache.drill.exec.exception.OutOfMemoryException;
 import org.apache.drill.exec.ops.AccountingUserConnection;
 import org.apache.drill.exec.ops.FragmentContext;
@@ -31,6 +35,7 @@ import org.apache.drill.exec.physical.impl.materialize.RecordMaterializer;
 import org.apache.drill.exec.physical.impl.materialize.VectorRecordMaterializer;
 import org.apache.drill.exec.proto.UserBitShared.QueryData;
 import org.apache.drill.exec.proto.UserBitShared.RecordBatchDef;
+import org.apache.drill.exec.record.MaterializedField;
 import org.apache.drill.exec.record.RecordBatch;
 import org.apache.drill.exec.record.RecordBatch.IterOutcome;
 
@@ -38,6 +43,7 @@ import com.google.common.base.Preconditions;
 
 import org.apache.drill.exec.testing.ControlsInjector;
 import org.apache.drill.exec.testing.ControlsInjectorFactory;
+import org.apache.drill.exec.util.AssertionUtil;
 
 public class ScreenCreator implements RootCreator<Screen> {
   //private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ScreenCreator.class);
@@ -57,6 +63,7 @@ public class ScreenCreator implements RootCreator<Screen> {
     private final FragmentContext context;
     private final AccountingUserConnection userConnection;
     private RecordMaterializer materializer;
+    private final Map<String, TypeProtos.MajorType> schemaInPlanning;
 
     private boolean firstBatch = true;
 
@@ -74,6 +81,7 @@ public class ScreenCreator implements RootCreator<Screen> {
       this.context = context;
       this.incoming = incoming;
       userConnection = context.getUserDataTunnel();
+      this.schemaInPlanning = config.getSchemaInPlanning();
     }
 
     @Override
@@ -107,6 +115,25 @@ public class ScreenCreator implements RootCreator<Screen> {
 
         return false;
       case OK_NEW_SCHEMA:
+        if (AssertionUtil.isAssertionsEnabled() &&
+            context.getOptions().getOption(ExecConstants.ENABLE_RESULT_TYPE_CHECK) &&
+            schemaInPlanning.size() > 0) {
+          for (int i = 0; i < incoming.getSchema().getFieldCount(); ++i) {
+            MaterializedField field = incoming.getSchema().getColumn(i);
+            final String columnName = field.getPath();
+            if (schemaInPlanning.containsKey(columnName) &&
+                schemaInPlanning.get(columnName).getMinorType() != TypeProtos.MinorType.LATE) {
+              final TypeProtos.MajorType executionType = field.getType();
+              if (schemaInPlanning.get(columnName).equals(executionType)) {
+                throw new DrillRuntimeException(
+                    "Types for column `" + columnName + "` do not match.\n"
+                        + "Planning : " + Types.toString(schemaInPlanning.get(columnName)) + "\n"
+                        + "Execution: " + Types.toString(executionType));
+              }
+            }
+          }
+        }
+
         materializer = new VectorRecordMaterializer(context, oContext, incoming);
         //$FALL-THROUGH$
       case OK:

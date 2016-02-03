@@ -20,23 +20,46 @@ package org.apache.drill.exec.planner.physical;
 import java.io.IOException;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 
+import com.google.common.collect.Maps;
+import org.apache.calcite.rel.type.RelDataTypeField;
+import org.apache.drill.common.types.TypeProtos;
+import org.apache.drill.common.types.Types;
 import org.apache.drill.exec.physical.base.PhysicalOperator;
 import org.apache.drill.exec.physical.config.Screen;
+import org.apache.drill.exec.planner.StarColumnHelper;
 import org.apache.drill.exec.planner.common.DrillScreenRelBase;
 import org.apache.drill.exec.planner.physical.visitor.PrelVisitor;
+import org.apache.drill.exec.planner.sql.TypeInferenceUtils;
 import org.apache.drill.exec.record.BatchSchema.SelectionVectorMode;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTraitSet;
+import org.apache.drill.exec.util.AssertionUtil;
 
 public class ScreenPrel extends DrillScreenRelBase implements Prel {
-
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ScreenPrel.class);
-
+  //private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ScreenPrel.class);
+  // private final BatchSchema schemaInPlanning;
+  private Map<String, TypeProtos.MajorType> schemaInPlanning;
 
   public ScreenPrel(RelOptCluster cluster, RelTraitSet traits, RelNode child) {
     super(Prel.DRILL_PHYSICAL, cluster, traits, child);
+    if (AssertionUtil.isAssertionsEnabled()) {
+      schemaInPlanning = Maps.newHashMap();
+      final List<RelDataTypeField> fieldList = child.getRowType().getFieldList();
+      for (RelDataTypeField relDataTypeField : fieldList) {
+        if (relDataTypeField.getName().equals(StarColumnHelper.STAR_COLUMN)) {
+          schemaInPlanning.clear();
+          break;
+        }
+        final TypeProtos.MinorType minorType =
+            TypeInferenceUtils.getDrillTypeFromCalciteType(relDataTypeField.getType());
+        final TypeProtos.MajorType majorType =
+            relDataTypeField.getType().isNullable() ? Types.optional(minorType) : Types.required(minorType);
+        schemaInPlanning.put(relDataTypeField.getName(), majorType);
+      }
+    }
   }
 
   @Override
@@ -50,7 +73,7 @@ public class ScreenPrel extends DrillScreenRelBase implements Prel {
 
     PhysicalOperator childPOP = child.getPhysicalOperator(creator);
 
-    Screen s = new Screen(childPOP, creator.getContext().getCurrentEndpoint());
+    Screen s = new Screen(childPOP, creator.getContext().getCurrentEndpoint(), schemaInPlanning);
     return creator.addMetadata(this, s);
   }
 

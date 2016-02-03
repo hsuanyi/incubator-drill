@@ -260,6 +260,12 @@ public interface ExecConstants {
   OptionValidator DRILLBIT_CONTROLS_VALIDATOR =
     new ExecutionControls.ControlsOptionValidator(DRILLBIT_CONTROL_INJECTIONS, ExecutionControls.DEFAULT_CONTROLS, 1);
 
+  /**
+   * Option to check that planning and execution types match.
+   */
+  String ENABLE_RESULT_TYPE_CHECK_KEY = "drill.exec.testing.result_type_check";
+  BooleanValidator ENABLE_RESULT_TYPE_CHECK = new BooleanValidator(ENABLE_RESULT_TYPE_CHECK_KEY, true);
+
   String NEW_VIEW_DEFAULT_PERMS_KEY = "new_view_default_permissions";
   OptionValidator NEW_VIEW_DEFAULT_PERMS_VALIDATOR =
       new StringValidator(NEW_VIEW_DEFAULT_PERMS_KEY, "700");

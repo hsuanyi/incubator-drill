@@ -142,6 +142,7 @@ public class SystemOptionManager extends BaseOptionManager implements AutoClosea
     }
     if (AssertionUtil.isAssertionsEnabled()) {
       tmp.put(ExecConstants.DRILLBIT_CONTROL_INJECTIONS, ExecConstants.DRILLBIT_CONTROLS_VALIDATOR);
+      tmp.put(ExecConstants.ENABLE_RESULT_TYPE_CHECK_KEY, ExecConstants.ENABLE_RESULT_TYPE_CHECK);
     }
     VALIDATORS = CaseInsensitiveMap.newImmutableMap(tmp);
   }

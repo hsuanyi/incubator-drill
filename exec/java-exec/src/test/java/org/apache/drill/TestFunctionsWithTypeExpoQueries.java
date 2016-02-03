@@ -24,6 +24,17 @@ import org.junit.Test;
 
 public class TestFunctionsWithTypeExpoQueries extends BaseTestQuery {
   @Test
+  public void testViewAverage() throws Exception {
+    try {
+      test("use dfs_test.tmp;");
+      test("create view TestFunctionsWithTypeExpoQueries_testViewAverage as \n select avg(n_nationkey) from cp.`tpch/nation.parquet`;");
+      test("select * from TestFunctionsWithTypeExpoQueries_testViewAverage;");
+    } finally {
+      test("drop view TestFunctionsWithTypeExpoQueries_testViewAverage;");
+    }
+  }
+
+  @Test
   public void testCastVarbinaryToInt() throws Exception {
     test("explain plan for select cast(a as int) \n" +
       "from cp.`tpch/region.parquet`");

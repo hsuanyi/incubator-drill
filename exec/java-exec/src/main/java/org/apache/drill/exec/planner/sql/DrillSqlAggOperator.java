@@ -115,14 +115,8 @@ public class DrillSqlAggOperator extends SqlAggFunction {
       case OPTIONAL:
         return factory.createTypeWithNullability(relReturnType, true);
       case REQUIRED:
-        if(func.getNullHandling() == FunctionTemplate.NullHandling.INTERNAL
-                || (func.getNullHandling() == FunctionTemplate.NullHandling.NULL_IF_NULL
-                && opBinding.getOperandCount() > 0
-                && opBinding.getOperandType(0).isNullable())) {
-          return factory.createTypeWithNullability(relReturnType, true);
-        } else {
-          return relReturnType;
-        }
+       return relReturnType;
+
       case REPEATED:
         return relReturnType;
       default:

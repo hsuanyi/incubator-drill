@@ -24,6 +24,7 @@ import org.apache.calcite.sql.SqlCallBinding;
 import org.apache.calcite.sql.SqlFunctionCategory;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlOperandCountRange;
+import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlOperatorBinding;
 import org.apache.calcite.sql.SqlSyntax;
 import org.apache.calcite.sql.SqlWriter;
@@ -38,12 +39,14 @@ import java.util.List;
 
 public class DrillCalciteSqlAggFunctionWrapper extends SqlAggFunction {
   private final SqlAggFunction operator;
+  private final List<SqlOperator> sqlOperators;
   private final SqlOperandTypeChecker operandTypeChecker = new Checker();
+
   public SqlAggFunction getOperator() {
     return operator;
   }
 
-  public DrillCalciteSqlAggFunctionWrapper(SqlAggFunction sqlAggFunction) {
+  public DrillCalciteSqlAggFunctionWrapper(SqlAggFunction sqlAggFunction, List<SqlOperator> sqlOperators) {
     super(sqlAggFunction.getName(),
         sqlAggFunction.getSqlIdentifier(),
         sqlAggFunction.getKind(),
@@ -54,6 +57,7 @@ public class DrillCalciteSqlAggFunctionWrapper extends SqlAggFunction {
         sqlAggFunction.requiresOrder(),
         sqlAggFunction.requiresOver());
     this.operator = sqlAggFunction;
+    this.sqlOperators = sqlOperators;
   }
 
     @Override
@@ -123,7 +127,7 @@ public class DrillCalciteSqlAggFunctionWrapper extends SqlAggFunction {
 
   @Override
   public RelDataType inferReturnType(SqlOperatorBinding opBinding) {
-    return operator.inferReturnType(opBinding);
+    return sqlOperators.get(0).inferReturnType(opBinding);
   }
 
     @Override

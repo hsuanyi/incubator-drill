@@ -75,7 +75,7 @@ import static org.apache.calcite.util.Static.RESOURCE;
 public class DrillOperatorTable extends SqlStdOperatorTable {
 //  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(DrillOperatorTable.class);
 
-  private static final SqlOperatorTable inner = SqlStdOperatorTable.instance();
+  public static final SqlOperatorTable inner = SqlStdOperatorTable.instance();
   private List<SqlOperator> operators;
   private ArrayListMultimap<String, SqlOperator> opMap = ArrayListMultimap.create();
 
@@ -99,10 +99,11 @@ public class DrillOperatorTable extends SqlStdOperatorTable {
     inner.lookupOperatorOverloads(opName, category, syntax, calciteOperatorList);
     for(final SqlOperator calciteOperator : calciteOperatorList) {
       if(calciteOperator instanceof SqlAggFunction) {
-        final SqlOperator wrap = new DrillCalciteSqlAggFunctionWrapper((SqlAggFunction) calciteOperator);
+        final SqlOperator wrap = new DrillCalciteSqlAggFunctionWrapper((SqlAggFunction) calciteOperator, opMap.get(opName.getSimple().toLowerCase()));
         List<SqlOperator> drillOps = opMap.get(opName.getSimple().toLowerCase());
         //operatorList.addAll(drillOps);
-        operatorList.add(calciteOperator);
+        operatorList.add(wrap);
+        // operatorList.add(calciteOperator);
       } else if(calciteOperator instanceof SqlFunction) {
         final SqlOperator wrap = new DrillCalciteSqlFunctionWrapper((SqlFunction) calciteOperator);
         operatorList.add(wrap);

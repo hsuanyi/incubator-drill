@@ -81,12 +81,7 @@ public class ScreenCreator implements RootCreator<Screen> {
       this.incoming = incoming;
       userConnection = context.getUserDataTunnel();
       this.schemaInPlanning = config.getSchemaInPlanning();
-
-      if(schemaInPlanning.size() > 0) {
-        isSchemaValidation = true;
-      } else {
-        isSchemaValidation = false;
-      }
+      this.isSchemaValidation = schemaInPlanning.size() > 0;
     }
 
     @Override

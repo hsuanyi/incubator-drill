@@ -485,7 +485,7 @@ public class DefaultSqlHandler extends AbstractSqlHandler {
         if((sqlCall instanceof SqlBasicCall)) {
           final SqlOperator sqlOperator = sqlCall.getOperator();
           if(sqlOperator instanceof DrillCalciteSqlAggFunctionWrapper) {
-            ((SqlBasicCall) sqlCall).setOperator(((DrillCalciteSqlAggFunctionWrapper) sqlOperator).getOperator());
+          //  ((SqlBasicCall) sqlCall).setOperator(((DrillCalciteSqlAggFunctionWrapper) sqlOperator).getOperator());
           } else if(sqlOperator instanceof DrillCalciteSqlFunctionWrapper) {
             ((SqlBasicCall) sqlCall).setOperator(((DrillCalciteSqlFunctionWrapper) sqlOperator).getWrappedSqlFunction());
           } else if(sqlOperator instanceof DrillCalciteSqlOperatorWrapper) {

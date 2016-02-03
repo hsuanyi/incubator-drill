@@ -26,10 +26,15 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.calcite.plan.RelOptCluster;
+import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.core.Aggregate;
 import org.apache.calcite.rel.logical.LogicalAggregate;
 import org.apache.calcite.sql.fun.SqlCountAggFunction;
 import org.apache.calcite.sql.type.SqlTypeName;
+import org.apache.calcite.util.ImmutableBitSet;
+import org.apache.drill.exec.planner.sql.DrillCalciteSqlAggFunctionWrapper;
+import org.apache.drill.exec.planner.sql.DrillSqlAggOperator;
 import org.apache.drill.exec.planner.sql.DrillSqlOperator;
 import org.apache.calcite.rel.core.AggregateCall;
 import org.apache.calcite.rel.RelNode;
@@ -100,8 +105,13 @@ public class DrillReduceAggregatesRule extends RelOptRule {
    */
   private boolean containsAvgStddevVarCall(List<AggregateCall> aggCallList) {
     for (AggregateCall call : aggCallList) {
-      if (call.getAggregation() instanceof SqlAvgAggFunction
-          || call.getAggregation() instanceof SqlSumAggFunction) {
+      SqlAggFunction sqlAggFunction = call.getAggregation();
+      if(sqlAggFunction instanceof DrillCalciteSqlAggFunctionWrapper) {
+        sqlAggFunction = ((DrillCalciteSqlAggFunctionWrapper) sqlAggFunction).getOperator();
+      }
+
+      if (sqlAggFunction instanceof SqlAvgAggFunction
+          || sqlAggFunction instanceof SqlSumAggFunction) {
         return true;
       }
     }
@@ -203,9 +213,18 @@ public class DrillReduceAggregatesRule extends RelOptRule {
       // case COUNT(x) when 0 then null else SUM0(x) end
       return reduceSum(oldAggRel, oldCall, newCalls, aggCallMapping);
     }
-    if (oldCall.getAggregation() instanceof SqlAvgAggFunction) {
-      final SqlAvgAggFunction.Subtype subtype =
-          ((SqlAvgAggFunction) oldCall.getAggregation()).getSubtype();
+
+    SqlAggFunction sqlAggFunction = oldCall.getAggregation();
+
+
+    if (sqlAggFunction instanceof SqlAvgAggFunction
+        || ((sqlAggFunction instanceof DrillCalciteSqlAggFunctionWrapper) && ((DrillCalciteSqlAggFunctionWrapper) sqlAggFunction).getOperator() instanceof SqlAvgAggFunction)) {
+      final SqlAvgAggFunction.Subtype subtype;
+      if(sqlAggFunction instanceof SqlAvgAggFunction) {
+        subtype = ((SqlAvgAggFunction) oldCall.getAggregation()).getSubtype();
+      } else {
+        subtype = ((SqlAvgAggFunction) ((DrillCalciteSqlAggFunctionWrapper) sqlAggFunction).getOperator()).getSubtype();
+      }
 
       switch (subtype) {
       case AVG:

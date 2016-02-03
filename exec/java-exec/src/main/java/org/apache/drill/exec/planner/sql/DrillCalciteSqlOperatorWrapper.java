@@ -18,6 +18,7 @@
 package org.apache.drill.exec.planner.sql;
 
 import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlCallBinding;
 import org.apache.calcite.sql.SqlFunction;
@@ -33,6 +34,7 @@ import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.sql.type.SqlOperandTypeChecker;
 import org.apache.calcite.sql.type.SqlOperandTypeInference;
 import org.apache.calcite.sql.type.SqlReturnTypeInference;
+import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.sql.validate.SqlMonotonicity;
 import org.apache.calcite.sql.validate.SqlValidator;
 import org.apache.calcite.sql.validate.SqlValidatorScope;
@@ -72,13 +74,13 @@ public class DrillCalciteSqlOperatorWrapper extends SqlOperator {
         return wrappedOperator.getSyntax();
     }
 
-    @Override
-    public SqlCall createCall(
-            SqlLiteral functionQualifier,
-            SqlParserPos pos,
-            SqlNode... operands) {
-        return wrappedOperator.createCall(functionQualifier, pos, operands);
-    }
+  @Override
+  public SqlCall createCall(
+      SqlLiteral functionQualifier,
+      SqlParserPos pos,
+      SqlNode... operands) {
+    return wrappedOperator.createCall(functionQualifier, pos, operands);
+  }
 
     @Override
     public SqlNode rewriteCall(SqlValidator validator, SqlCall call) {
@@ -95,8 +97,18 @@ public class DrillCalciteSqlOperatorWrapper extends SqlOperator {
     }
 
   @Override
-  public RelDataType inferReturnType(
-            SqlOperatorBinding opBinding) {
+  public RelDataType inferReturnType(SqlOperatorBinding opBinding) {
+    if(opBinding.getOperator().getName().toUpperCase().equals("ROW")) {
+      SqlTypeName sqlTypeName = opBinding.getOperandType(0).getSqlTypeName();
+      if(sqlTypeName == SqlTypeName.INTEGER) {
+        final RelDataType type = opBinding.getTypeFactory().createSqlType(SqlTypeName.BIGINT);
+        return type;
+      } else if(sqlTypeName == SqlTypeName.FLOAT) {
+        final RelDataType type = opBinding.getTypeFactory().createSqlType(SqlTypeName.DOUBLE);
+        return type;
+      }
+    }
+
     return wrappedOperator.inferReturnType(opBinding);
   }
 

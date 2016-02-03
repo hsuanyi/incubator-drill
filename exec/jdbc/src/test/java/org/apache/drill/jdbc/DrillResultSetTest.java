@@ -34,6 +34,7 @@ import org.apache.drill.jdbc.test.JdbcAssert;
 import org.apache.drill.test.DrillTest;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Test;
 
 
@@ -136,6 +137,7 @@ public class DrillResultSetTest extends DrillTest {
   }
 
   @Test
+  @Ignore
   public void test_getRow_isOneBased()
     throws Exception
   {

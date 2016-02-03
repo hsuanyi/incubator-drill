@@ -36,18 +36,6 @@ public class TestFunctionsWithTypeExpoQueries extends BaseTestQuery {
   }
 
   @Test
-  public void testViewExtract() throws Exception {
-    try {
-      test("use dfs_test.tmp;");
-      test("create view TestFunctionsWithTypeExpoQueries_testViewExtract as \n" +
-              "select extract(second from time '02:30:45.100') from cp.`tpch/nation.parquet`;");
-      test("select * from TestFunctionsWithTypeExpoQueries_testViewExtract;");
-    } finally {
-      test("drop view TestFunctionsWithTypeExpoQueries_testViewExtract;");
-    }
-  }
-
-  @Test
   public void testCastVarbinaryToInt() throws Exception {
     test("explain plan for select cast(a as int) \n" +
       "from cp.`tpch/region.parquet`");
@@ -191,5 +179,22 @@ public class TestFunctionsWithTypeExpoQueries extends BaseTestQuery {
     final String[] expectedPlan = {"Filter.*condition=\\[=\\(.*, 1\\)\\]\\)"};
     final String[] excludedPlan = {};
     PlanTestBase.testPlanMatchingPatterns(query, expectedPlan, excludedPlan);
+  }
+
+  @Test
+  @Ignore
+  public void testNegativeInterval() throws Exception {
+    final String query = "explain plan including all attributes for select * from cp.`tpch/region.parquet` \n" +
+        "where r_regionkey = negative(INTERVAL '1-2' year to month)";
+
+    test(query);
+  }
+
+  @Test
+  @Ignore
+  public void testNegativeIntervalInSelect() throws Exception {
+    final String query = "explain plan including all attributes for SELECT  negative(INTERVAL '1-2' year to month) FROM (VALUES(1));";
+
+    test(query);
   }
 }

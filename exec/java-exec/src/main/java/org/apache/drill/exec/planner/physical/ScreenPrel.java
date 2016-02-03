@@ -19,10 +19,13 @@ package org.apache.drill.exec.planner.physical;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.drill.common.expression.SchemaPath;
@@ -44,18 +47,19 @@ import org.apache.drill.exec.record.SchemaBuilder;
 public class ScreenPrel extends DrillScreenRelBase implements Prel {
   //private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ScreenPrel.class);
   // private final BatchSchema schemaInPlanning;
-  private List<TypeProtos.MinorType> schemaInPlanning;
+  private Map<String, TypeProtos.MinorType> schemaInPlanning;
 
   public ScreenPrel(RelOptCluster cluster, RelTraitSet traits, RelNode child) {
     super(Prel.DRILL_PHYSICAL, cluster, traits, child);
-    schemaInPlanning = Lists.newArrayList();
+    schemaInPlanning = Maps.newHashMap();
     final List<RelDataTypeField> fieldList = child.getRowType().getFieldList();
     for(RelDataTypeField relDataTypeField : fieldList) {
       if(relDataTypeField.getName().equals(StarColumnHelper.STAR_COLUMN)) {
         schemaInPlanning.clear();
         break;
       }
-      schemaInPlanning.add(DrillConstExecutor.getDrillTypeFromCalcite(relDataTypeField.getType()));
+      schemaInPlanning.put(relDataTypeField.getName(),
+          DrillConstExecutor.getDrillTypeFromCalcite(relDataTypeField.getType()));
     }
   }
 

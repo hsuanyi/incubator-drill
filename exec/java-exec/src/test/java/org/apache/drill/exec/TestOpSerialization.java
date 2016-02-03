@@ -21,6 +21,7 @@ package org.apache.drill.exec;
 import static org.junit.Assert.assertEquals;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 
 import org.apache.commons.lang3.tuple.Pair;
@@ -58,7 +59,7 @@ public class TestOpSerialization {
     f.setOperatorId(2);
     UnionExchange e = new UnionExchange(f);
     e.setOperatorId(1);
-    Screen screen = new Screen(e, CoordinationProtos.DrillbitEndpoint.getDefaultInstance(), new ArrayList<TypeProtos.MinorType>());
+    Screen screen = new Screen(e, CoordinationProtos.DrillbitEndpoint.getDefaultInstance(), new HashMap<String, TypeProtos.MinorType>());
     screen.setOperatorId(0);
 
     boolean reversed = false;

@@ -41,13 +41,14 @@ import java.util.List;
 public class DrillCalciteSqlAggFunctionWrapper extends SqlAggFunction {
   private final SqlAggFunction operator;
   private final List<SqlOperator> sqlOperators;
+  private final RelDataType relDataType;
   private final SqlOperandTypeChecker operandTypeChecker = new Checker();
 
   public SqlAggFunction getOperator() {
     return operator;
   }
 
-  public DrillCalciteSqlAggFunctionWrapper(SqlAggFunction sqlAggFunction, List<SqlOperator> sqlOperators) {
+  public DrillCalciteSqlAggFunctionWrapper(SqlAggFunction sqlAggFunction, List<SqlOperator> sqlOperators, RelDataType relDataType) {
     super(sqlAggFunction.getName(),
         sqlAggFunction.getSqlIdentifier(),
         sqlAggFunction.getKind(),
@@ -59,6 +60,11 @@ public class DrillCalciteSqlAggFunctionWrapper extends SqlAggFunction {
         sqlAggFunction.requiresOver());
     this.operator = sqlAggFunction;
     this.sqlOperators = sqlOperators;
+    this.relDataType = relDataType;
+  }
+
+  public DrillCalciteSqlAggFunctionWrapper(SqlAggFunction sqlAggFunction, List<SqlOperator> sqlOperators) {
+    this(sqlAggFunction, sqlOperators, null);
   }
 
     @Override
@@ -129,6 +135,10 @@ public class DrillCalciteSqlAggFunctionWrapper extends SqlAggFunction {
   @Override
   public RelDataType inferReturnType(SqlOperatorBinding opBinding) {
     if(sqlOperators.isEmpty()) {
+        if(relDataType != null) {
+            return relDataType;
+        }
+
       return opBinding.getTypeFactory()
           .createTypeWithNullability(opBinding.getTypeFactory().createSqlType(SqlTypeName.ANY), true);
     }

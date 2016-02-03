@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.Map;
 
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.drill.common.expression.SchemaPath;
 import org.apache.drill.common.types.TypeProtos;
@@ -46,14 +47,15 @@ public class Screen extends AbstractStore {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(Screen.class);
 
   private final DrillbitEndpoint endpoint;
-  private final List<TypeProtos.MinorType> schemaInPlanning;
+  private final Map<String, TypeProtos.MinorType> schemaInPlanning;
 
-  public Screen(@JsonProperty("child") PhysicalOperator child, @JacksonInject DrillbitEndpoint endpoint, @JsonProperty("schemaInPlanning") List<TypeProtos.MinorType> schemaInPlanning) {
+  public Screen(@JsonProperty("child") PhysicalOperator child, @JacksonInject DrillbitEndpoint endpoint,
+      @JsonProperty("schemaInPlanning") Map<String, TypeProtos.MinorType> schemaInPlanning) {
     super(child);
     assert (endpoint!=null);
     this.endpoint = endpoint;
     if(schemaInPlanning == null) {
-      this.schemaInPlanning = Lists.newArrayList();
+      this.schemaInPlanning = Maps.newHashMap();
     } else {
       this.schemaInPlanning = schemaInPlanning;
     }
@@ -115,7 +117,7 @@ public class Screen extends AbstractStore {
     return CoreOperatorType.SCREEN_VALUE;
   }
 
-  public final List<TypeProtos.MinorType> getSchemaInPlanning() {
+  public final Map<String, TypeProtos.MinorType> getSchemaInPlanning() {
     return schemaInPlanning;
   }
 }

@@ -66,6 +66,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 
@@ -227,7 +228,7 @@ public class BasicOptimizer extends Optimizer {
       if (!iterator.hasNext()) {
         throw new OptimizerException("Store node in logical plan does not have a child.");
       }
-      return new Screen(iterator.next().accept(this, obj), queryContext.getCurrentEndpoint(), new ArrayList<MinorType>());
+      return new Screen(iterator.next().accept(this, obj), queryContext.getCurrentEndpoint(), new HashMap<String, MinorType>());
     }
 
     @Override

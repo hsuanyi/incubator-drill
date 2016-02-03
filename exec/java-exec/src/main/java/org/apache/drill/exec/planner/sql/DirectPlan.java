@@ -19,6 +19,7 @@ package org.apache.drill.exec.planner.sql;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Iterator;
 
 import org.apache.commons.lang3.tuple.Pair;
@@ -54,7 +55,7 @@ public class DirectPlan {
   public static <T> PhysicalPlan createDirectPlan(DrillbitEndpoint endpoint, Iterator<T> iterator, Class<T> clazz){
     PojoRecordReader<T> reader = new PojoRecordReader<T>(clazz, iterator);
     DirectGroupScan scan = new DirectGroupScan(reader);
-    Screen screen = new Screen(scan, endpoint, new ArrayList<TypeProtos.MinorType>());
+    Screen screen = new Screen(scan, endpoint, new HashMap<String, TypeProtos.MinorType>());
 
     PlanPropertiesBuilder propsBuilder = PlanProperties.builder();
     propsBuilder.type(PlanType.APACHE_DRILL_PHYSICAL);

@@ -27,7 +27,8 @@ public class TestFunctionsWithTypeExpoQueries extends BaseTestQuery {
   public void testViewAverage() throws Exception {
     try {
       test("use dfs_test.tmp;");
-      test("create view TestFunctionsWithTypeExpoQueries_testViewAverage as \n select avg(n_nationkey) from cp.`tpch/nation.parquet`;");
+      test("create view TestFunctionsWithTypeExpoQueries_testViewAverage as \n" +
+          "select avg(n_nationkey) from cp.`tpch/nation.parquet`;");
       test("select * from TestFunctionsWithTypeExpoQueries_testViewAverage;");
     } finally {
       test("drop view TestFunctionsWithTypeExpoQueries_testViewAverage;");

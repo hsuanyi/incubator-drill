@@ -18,6 +18,7 @@
 package org.apache.drill.exec.physical.impl;
 
 import java.util.List;
+import java.util.Map;
 
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.drill.common.exceptions.ExecutionSetupException;
@@ -61,7 +62,7 @@ public class ScreenCreator implements RootCreator<Screen> {
     private final FragmentContext context;
     private final AccountingUserConnection userConnection;
     private RecordMaterializer materializer;
-    private final List<TypeProtos.MinorType> schemaInPlanning;
+    private final Map<String, TypeProtos.MinorType> schemaInPlanning;
     private boolean isSchemaValidation;
 
     private boolean firstBatch = true;
@@ -116,12 +117,10 @@ public class ScreenCreator implements RootCreator<Screen> {
         return false;
       case OK_NEW_SCHEMA:
          if(isSchemaValidation) {
-          final int numOfCols = schemaInPlanning.size();
-          assert numOfCols == incoming.getSchema().getFieldCount();
-
-          for(int i = 0; i < numOfCols; ++i) {
-            if(schemaInPlanning.get(i) != TypeProtos.MinorType.LATE) {
-              assert schemaInPlanning.get(i)
+          for(int i = 0; i < incoming.getSchema().getFieldCount(); ++i) {
+            final String col = incoming.getSchema().getColumn(i).getPath().getRootSegment().getPath();
+            if(schemaInPlanning.containsKey(col) && schemaInPlanning.get(col) != TypeProtos.MinorType.LATE) {
+              assert schemaInPlanning.get(col)
                   == incoming.getSchema().getColumn(i).getType().getMinorType();
             }
           }

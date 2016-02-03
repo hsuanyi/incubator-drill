@@ -50,6 +50,7 @@ import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexUtil;
+import org.apache.calcite.sql.SqlAggFunction;
 import org.apache.calcite.sql.SqlBasicCall;
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlExplainLevel;
@@ -57,6 +58,8 @@ import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlOperandCountRange;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.TypedSqlNode;
+import org.apache.calcite.sql.fun.SqlAvgAggFunction;
+import org.apache.calcite.sql.fun.SqlSumAggFunction;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.sql.util.SqlShuttle;
 import org.apache.calcite.sql.util.SqlVisitor;
@@ -484,8 +487,12 @@ public class DefaultSqlHandler extends AbstractSqlHandler {
       public SqlNode visit(SqlCall sqlCall) {
         if((sqlCall instanceof SqlBasicCall)) {
           final SqlOperator sqlOperator = sqlCall.getOperator();
+
           if(sqlOperator instanceof DrillCalciteSqlAggFunctionWrapper) {
-          //  ((SqlBasicCall) sqlCall).setOperator(((DrillCalciteSqlAggFunctionWrapper) sqlOperator).getOperator());
+            final SqlAggFunction sqlAggFunction = ((DrillCalciteSqlAggFunctionWrapper) sqlOperator).getOperator();
+            if(!(sqlAggFunction instanceof SqlAvgAggFunction) && !(sqlAggFunction instanceof SqlSumAggFunction)) {
+              ((SqlBasicCall) sqlCall).setOperator(((DrillCalciteSqlAggFunctionWrapper) sqlOperator).getOperator());
+            }
           } else if(sqlOperator instanceof DrillCalciteSqlFunctionWrapper) {
             ((SqlBasicCall) sqlCall).setOperator(((DrillCalciteSqlFunctionWrapper) sqlOperator).getWrappedSqlFunction());
           } else if(sqlOperator instanceof DrillCalciteSqlOperatorWrapper) {

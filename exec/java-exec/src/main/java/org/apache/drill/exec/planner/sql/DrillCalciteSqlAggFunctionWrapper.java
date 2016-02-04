@@ -136,9 +136,9 @@ public class DrillCalciteSqlAggFunctionWrapper extends SqlAggFunction implements
   @Override
   public RelDataType inferReturnType(SqlOperatorBinding opBinding) {
     if(sqlOperators.isEmpty()) {
-        if(relDataType != null) {
-            return relDataType;
-        }
+      if(relDataType != null) {
+        return relDataType;
+      }
 
       return opBinding.getTypeFactory()
           .createTypeWithNullability(opBinding.getTypeFactory().createSqlType(SqlTypeName.ANY), true);

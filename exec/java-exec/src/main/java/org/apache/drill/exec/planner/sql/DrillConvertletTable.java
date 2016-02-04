@@ -51,7 +51,7 @@ public class DrillConvertletTable implements SqlRexConvertletTable{
     SqlRexConvertlet convertlet;
     if(call.getOperator() instanceof DrillCalciteSqlWrapper) {
       SqlOperator wrapped = ((DrillCalciteSqlWrapper) call.getOperator()).getOperator();
-      //((SqlBasicCall) call).setOperator(wrapped);
+      ((SqlBasicCall) call).setOperator(wrapped);
     }
 
     if ((convertlet = map.get(call.getOperator())) != null) {

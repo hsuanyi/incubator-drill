@@ -117,7 +117,7 @@ public class ScreenCreator implements RootCreator<Screen> {
          if(schemaInPlanning.size() > 0) {
           for(int i = 0; i < incoming.getSchema().getFieldCount(); ++i) {
             final String col = incoming.getSchema().getColumn(i).getPath().getRootSegment().getPath();
-            if(schemaInPlanning.containsKey(col) && schemaInPlanning.get(col) != TypeProtos.MinorType.LATE) {
+            if(false && schemaInPlanning.containsKey(col) && schemaInPlanning.get(col) != TypeProtos.MinorType.LATE) {
               assert schemaInPlanning.get(col) == incoming.getSchema().getColumn(i).getType().getMinorType()
                   : "Types for column `" + col + "` do not match \n "
                       + "Planning: " + schemaInPlanning.get(col) + "\n"

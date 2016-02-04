@@ -48,8 +48,9 @@ import java.util.List;
 public class DrillCalciteSqlFunctionWrapper extends SqlFunction implements DrillCalciteSqlWrapper  {
   public final SqlFunction operator;
   private SqlOperandTypeChecker operandTypeChecker = new Checker();
+  private List<SqlOperator> sqlOperators;
 
-  public DrillCalciteSqlFunctionWrapper(final SqlFunction wrappedFunction) {
+  public DrillCalciteSqlFunctionWrapper(final SqlFunction wrappedFunction, List<SqlOperator> sqlOperators) {
     super(wrappedFunction.getName(),
         wrappedFunction.getSqlIdentifier(),
         wrappedFunction.getKind(),
@@ -59,6 +60,7 @@ public class DrillCalciteSqlFunctionWrapper extends SqlFunction implements Drill
         wrappedFunction.getParamTypes(),
         wrappedFunction.getFunctionType());
     this.operator = wrappedFunction;
+    this.sqlOperators = sqlOperators;
   }
 
   @Override
@@ -146,6 +148,16 @@ public class DrillCalciteSqlFunctionWrapper extends SqlFunction implements Drill
           opBinding.getOperandType(0).getIntervalQualifier().getStartUnit(),
           opBinding.getOperandType(1).isNullable());
       return returnType;
+    } else if(name.equals("SUBSTRING")) {
+      RelDataType type = factory.createSqlType(SqlTypeName.VARCHAR, DrillSqlOperator.MAX_VARCHAR_LENGTH);
+      if(opBinding.getOperandType(0).isNullable()) {
+        type =  factory.createTypeWithNullability(type, true);
+      }
+      return type;
+    }
+
+    if(!sqlOperators.isEmpty()) {
+      return sqlOperators.get(0).inferReturnType(opBinding);
     }
 
     return operator.inferReturnType(opBinding);
@@ -186,5 +198,19 @@ public class DrillCalciteSqlFunctionWrapper extends SqlFunction implements Drill
     return operator.deriveType(validator,
         scope,
         call);
+  }
+
+  @Override
+  public String toString() {
+    return operator.toString();
+  }
+
+  @Override
+  public void unparse(
+      SqlWriter writer,
+      SqlCall call,
+      int leftPrec,
+      int rightPrec) {
+    operator.unparse(writer, call, leftPrec, rightPrec);
   }
 }

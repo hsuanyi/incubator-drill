@@ -24,6 +24,11 @@ import org.junit.Test;
 
 public class TestFunctionsWithTypeExpoQueries extends BaseTestQuery {
   @Test
+  public void testAverage() throws Exception {
+    test("select avg(cast(n_nationkey as integer)) from cp.`tpch/nation.parquet`;");
+  }
+
+  @Test
   public void testViewAverage() throws Exception {
     try {
       test("use dfs_test.tmp;");
@@ -196,5 +201,12 @@ public class TestFunctionsWithTypeExpoQueries extends BaseTestQuery {
     final String query = "explain plan including all attributes for SELECT  negative(INTERVAL '1-2' year to month) FROM (VALUES(1));";
 
     test(query);
+  }
+
+  @Test
+  public void test() throws Exception {
+    test("explain plan including all attributes for SELECT " +
+         "SUM((CASE WHEN ((CAST(EXTRACT(YEAR FROM CAST(`rfm_sales`.`business_date` AS DATE)) AS INTEGER) = 2014) AND (CAST((EXTRACT(MONTH FROM CAST(`rfm_sales`.`business_date` AS DATE)) - 1) / 3 + 1 AS INTEGER) <= 4)) THEN `rfm_sales`.`pos_netsales` ELSE NULL END)) AS `sum_Calculation_CIDBACJBCCCBHDGB_ok` \n" +
+         "from cp.`tpch/region.parquet` `rfm_sales` GROUP BY CAST(EXTRACT(MONTH FROM CAST(`rfm_sales`.`business_date` AS DATE)) AS INTEGER)");
   }
 }

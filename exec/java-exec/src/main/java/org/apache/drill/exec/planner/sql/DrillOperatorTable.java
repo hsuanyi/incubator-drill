@@ -104,7 +104,7 @@ public class DrillOperatorTable extends SqlStdOperatorTable {
         final SqlOperator wrap = new DrillCalciteSqlAggFunctionWrapper((SqlAggFunction) calciteOperator, opMap.get(opName.getSimple().toLowerCase()));
         operatorList.add(wrap);
       } else if(calciteOperator instanceof SqlFunction) {
-        final SqlOperator wrap = new DrillCalciteSqlFunctionWrapper((SqlFunction) calciteOperator);
+        final SqlOperator wrap = new DrillCalciteSqlFunctionWrapper((SqlFunction) calciteOperator, opMap.get(opName.getSimple().toLowerCase()));
         operatorList.add(wrap);
       } else {
         final SqlOperator wrap = new DrillCalciteSqlOperatorWrapper(calciteOperator);

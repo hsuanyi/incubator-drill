@@ -26,16 +26,15 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.calcite.plan.RelOptCluster;
-import org.apache.calcite.plan.RelTraitSet;
+import org.apache.calcite.rel.RelCollation;
 import org.apache.calcite.rel.core.Aggregate;
 import org.apache.calcite.rel.logical.LogicalAggregate;
+import org.apache.calcite.rex.RexCallBinding;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.fun.SqlCountAggFunction;
 import org.apache.calcite.sql.type.SqlTypeName;
-import org.apache.calcite.util.ImmutableBitSet;
 import org.apache.drill.exec.planner.sql.DrillCalciteSqlAggFunctionWrapper;
-import org.apache.drill.exec.planner.sql.DrillSqlAggOperator;
+import org.apache.drill.exec.planner.sql.DrillCalciteSqlWrapper;
 import org.apache.drill.exec.planner.sql.DrillSqlOperator;
 import org.apache.calcite.rel.core.AggregateCall;
 import org.apache.calcite.rel.RelNode;
@@ -106,8 +105,8 @@ public class DrillReduceAggregatesRule extends RelOptRule {
   private boolean containsAvgStddevVarCall(List<AggregateCall> aggCallList) {
     for (AggregateCall call : aggCallList) {
       SqlAggFunction sqlAggFunction = call.getAggregation();
-      if(sqlAggFunction instanceof DrillCalciteSqlAggFunctionWrapper) {
-        sqlAggFunction = ((DrillCalciteSqlAggFunctionWrapper) sqlAggFunction).getOperator();
+      if(sqlAggFunction instanceof DrillCalciteSqlWrapper) {
+        sqlAggFunction = (SqlAggFunction) ((DrillCalciteSqlWrapper) sqlAggFunction).getOperator();
       }
 
       if (sqlAggFunction instanceof SqlAvgAggFunction
@@ -209,8 +208,8 @@ public class DrillReduceAggregatesRule extends RelOptRule {
       Map<AggregateCall, RexNode> aggCallMapping,
       List<RexNode> inputExprs) {
     SqlAggFunction sqlAggFunction = oldCall.getAggregation();
-    if(sqlAggFunction instanceof DrillCalciteSqlAggFunctionWrapper) {
-      sqlAggFunction = ((DrillCalciteSqlAggFunctionWrapper) sqlAggFunction).getOperator();
+    if(sqlAggFunction instanceof DrillCalciteSqlWrapper) {
+      sqlAggFunction = (SqlAggFunction) ((DrillCalciteSqlWrapper) sqlAggFunction).getOperator();
     }
 
     if (sqlAggFunction instanceof SqlSumAggFunction) {
@@ -375,8 +374,12 @@ public class DrillReduceAggregatesRule extends RelOptRule {
             SqlStdOperatorTable.DIVIDE,
             numeratorRef,
             denominatorRef);
-    return rexBuilder.makeCast(
-        typeFactory.createSqlType(SqlTypeName.ANY), divideRef);
+
+    RelDataType type = typeFactory.createSqlType(oldCall.getType().getSqlTypeName());
+    if(oldCall.getType().isNullable()) {
+      type = typeFactory.createTypeWithNullability(type, true);
+    }
+    return rexBuilder.makeCast(type, divideRef);
   }
 
   private RexNode reduceSum(
@@ -402,8 +405,10 @@ public class DrillReduceAggregatesRule extends RelOptRule {
             oldCall.getArgList(),
             sumType,
             null);
+
     final SqlCountAggFunction countAgg = (SqlCountAggFunction) SqlStdOperatorTable.COUNT;
     final RelDataType countType = countAgg.getReturnType(typeFactory);
+
     AggregateCall countCall =
         new AggregateCall(
             countAgg,
@@ -422,6 +427,13 @@ public class DrillReduceAggregatesRule extends RelOptRule {
             newCalls,
             aggCallMapping,
             ImmutableList.of(argType));
+
+    RelDataType type = typeFactory.createSqlType(oldCall.getType().getSqlTypeName());
+    if(oldCall.getType().isNullable()) {
+      type = typeFactory.createTypeWithNullability(type, true);
+    }
+    sumZeroRef =  rexBuilder.makeCast(type, sumZeroRef);
+
     if (!oldCall.getType().isNullable()) {
       // If SUM(x) is not nullable, the validator must have determined that
       // nulls are impossible (because the group is never empty and x is never
@@ -437,10 +449,12 @@ public class DrillReduceAggregatesRule extends RelOptRule {
             aggCallMapping,
             ImmutableList.of(argType));
     return rexBuilder.makeCall(SqlStdOperatorTable.CASE,
-        rexBuilder.makeCall(SqlStdOperatorTable.EQUALS,
-            countRef, rexBuilder.makeExactLiteral(BigDecimal.ZERO)),
-            rexBuilder.constantNull(),
-            sumZeroRef);
+        rexBuilder.makeCall(
+            SqlStdOperatorTable.EQUALS,
+            countRef,
+            rexBuilder.makeExactLiteral(BigDecimal.ZERO)),
+        rexBuilder.constantNull(),
+        sumZeroRef);
   }
 
   private RexNode reduceStddev(
@@ -594,8 +608,12 @@ public class DrillReduceAggregatesRule extends RelOptRule {
      * this if we add cast after rewriting the aggregate we add an additional cast which
      * would cause wrong results. So we simply add a cast to ANY.
      */
-    return rexBuilder.makeCast(
-        typeFactory.createSqlType(SqlTypeName.ANY), result);
+
+    RelDataType type = typeFactory.createSqlType(oldCall.getType().getSqlTypeName());
+    if(oldCall.getType().isNullable()) {
+      type = typeFactory.createTypeWithNullability(type, true);
+    }
+    return rexBuilder.makeCast(type, result);
   }
 
   /**

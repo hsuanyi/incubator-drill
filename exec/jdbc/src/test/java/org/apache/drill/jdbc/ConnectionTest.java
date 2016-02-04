@@ -81,7 +81,6 @@ public class ConnectionTest extends JdbcTestBase {
   // Simplest cases of createStatement, prepareStatement, prepareCall:
 
   @Test
-  @Ignore
   public void testCreateStatementBasicCaseWorks() throws SQLException {
     Statement stmt = connection.createStatement();
     ResultSet rs = stmt.executeQuery( "VALUES 1" );
@@ -89,7 +88,6 @@ public class ConnectionTest extends JdbcTestBase {
   }
 
   @Test
-  @Ignore
   public void testPrepareStatementBasicCaseWorks() throws SQLException {
     PreparedStatement stmt = connection.prepareStatement( "VALUES 1" );
     ResultSet rs = stmt.executeQuery();

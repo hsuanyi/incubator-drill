@@ -112,6 +112,7 @@ import org.apache.drill.exec.planner.physical.visitor.SwapHashJoinVisitor;
 import org.apache.drill.exec.planner.sql.DrillCalciteSqlAggFunctionWrapper;
 import org.apache.drill.exec.planner.sql.DrillCalciteSqlFunctionWrapper;
 import org.apache.drill.exec.planner.sql.DrillCalciteSqlOperatorWrapper;
+import org.apache.drill.exec.planner.sql.DrillCalciteSqlWrapper;
 import org.apache.drill.exec.planner.sql.DrillSqlWorker;
 import org.apache.drill.exec.planner.sql.parser.UnsupportedOperatorsVisitor;
 import org.apache.drill.exec.server.options.OptionManager;
@@ -488,18 +489,13 @@ public class DefaultSqlHandler extends AbstractSqlHandler {
         if((sqlCall instanceof SqlBasicCall)) {
           final SqlOperator sqlOperator = sqlCall.getOperator();
 
-          if(sqlOperator instanceof DrillCalciteSqlAggFunctionWrapper) {
-            final SqlAggFunction sqlAggFunction = ((DrillCalciteSqlAggFunctionWrapper) sqlOperator).getOperator();
-            if(!(sqlAggFunction instanceof SqlAvgAggFunction) && !(sqlAggFunction instanceof SqlSumAggFunction)) {
-              ((SqlBasicCall) sqlCall).setOperator(((DrillCalciteSqlAggFunctionWrapper) sqlOperator).getOperator());
+          if(sqlOperator instanceof DrillCalciteSqlWrapper) {
+            SqlOperator wrapped = ((DrillCalciteSqlWrapper) sqlOperator).getOperator();
+            if(!(wrapped instanceof SqlAvgAggFunction) && !(wrapped instanceof SqlSumAggFunction)) {
+              ((SqlBasicCall) sqlCall).setOperator(wrapped);
             }
-          } else if(sqlOperator instanceof DrillCalciteSqlFunctionWrapper) {
-            ((SqlBasicCall) sqlCall).setOperator(((DrillCalciteSqlFunctionWrapper) sqlOperator).getWrappedSqlFunction());
-          } else if(sqlOperator instanceof DrillCalciteSqlOperatorWrapper) {
-            ((SqlBasicCall) sqlCall).setOperator(((DrillCalciteSqlOperatorWrapper) sqlOperator).getWrappedSqlOperator());
           }
         }
-
         return sqlCall.getOperator().acceptCall(this, sqlCall);
       }
     });

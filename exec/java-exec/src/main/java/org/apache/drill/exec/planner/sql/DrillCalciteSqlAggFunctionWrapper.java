@@ -38,13 +38,14 @@ import org.apache.calcite.sql.validate.SqlValidatorScope;
 
 import java.util.List;
 
-public class DrillCalciteSqlAggFunctionWrapper extends SqlAggFunction {
+public class DrillCalciteSqlAggFunctionWrapper extends SqlAggFunction implements DrillCalciteSqlWrapper {
   private final SqlAggFunction operator;
   private final List<SqlOperator> sqlOperators;
   private final RelDataType relDataType;
   private final SqlOperandTypeChecker operandTypeChecker = new Checker();
 
-  public SqlAggFunction getOperator() {
+  @Override
+  public SqlOperator getOperator() {
     return operator;
   }
 
@@ -178,8 +179,8 @@ public class DrillCalciteSqlAggFunctionWrapper extends SqlAggFunction {
         SqlValidator validator,
         SqlValidatorScope scope,
         SqlCall call) {
-        return operator.deriveType(validator,
-                scope,
-                call);
+      return operator.deriveType(validator,
+          scope,
+          call);
     }
 }

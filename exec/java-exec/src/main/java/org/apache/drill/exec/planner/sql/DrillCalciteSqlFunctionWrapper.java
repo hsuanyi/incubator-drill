@@ -45,8 +45,8 @@ import org.apache.calcite.sql.validate.SqlValidatorScope;
 
 import java.util.List;
 
-public class DrillCalciteSqlFunctionWrapper extends SqlFunction {
-  public final SqlFunction wrappedFunction;
+public class DrillCalciteSqlFunctionWrapper extends SqlFunction implements DrillCalciteSqlWrapper  {
+  public final SqlFunction operator;
   private SqlOperandTypeChecker operandTypeChecker = new Checker();
 
   public DrillCalciteSqlFunctionWrapper(final SqlFunction wrappedFunction) {
@@ -58,12 +58,12 @@ public class DrillCalciteSqlFunctionWrapper extends SqlFunction {
         wrappedFunction.getOperandTypeChecker(),
         wrappedFunction.getParamTypes(),
         wrappedFunction.getFunctionType());
-
-    this.wrappedFunction = wrappedFunction;
+    this.operator = wrappedFunction;
   }
 
-  public final SqlFunction getWrappedSqlFunction() {
-    return wrappedFunction;
+  @Override
+  public SqlOperator getOperator() {
+    return operator;
   }
 
   @Override
@@ -73,57 +73,57 @@ public class DrillCalciteSqlFunctionWrapper extends SqlFunction {
 
   @Override
   public String getAllowedSignatures(String opNameToUse) {
-    return wrappedFunction.getAllowedSignatures(opNameToUse);
+    return operator.getAllowedSignatures(opNameToUse);
   }
 
   @Override
   public SqlOperandTypeInference getOperandTypeInference() {
-    return wrappedFunction.getOperandTypeInference();
+    return operator.getOperandTypeInference();
   }
 
   @Override
   public boolean isAggregator() {
-    return wrappedFunction.isAggregator();
+    return operator.isAggregator();
   }
 
   @Override
   public boolean requiresOrder() {
-    return wrappedFunction.requiresOrder();
+    return operator.requiresOrder();
   }
 
   @Override
   public boolean allowsFraming() {
-    return wrappedFunction.allowsFraming();
+    return operator.allowsFraming();
   }
 
   @Override
   public SqlReturnTypeInference getReturnTypeInference() {
-    return wrappedFunction.getReturnTypeInference();
+    return operator.getReturnTypeInference();
   }
 
   @Override
   public SqlMonotonicity getMonotonicity(SqlOperatorBinding call) {
-    return wrappedFunction.getMonotonicity(call);
+    return operator.getMonotonicity(call);
   }
 
   @Override
   public boolean isDeterministic() {
-    return wrappedFunction.isDeterministic();
+    return operator.isDeterministic();
   }
 
   @Override
   public boolean isDynamicFunction() {
-    return wrappedFunction.isDynamicFunction();
+    return operator.isDynamicFunction();
   }
 
   @Override
   public boolean requiresDecimalExpansion() {
-    return wrappedFunction.requiresDecimalExpansion();
+    return operator.requiresDecimalExpansion();
   }
 
   @Override
   public boolean argumentMustBeScalar(int ordinal) {
-    return wrappedFunction.argumentMustBeScalar(ordinal);
+    return operator.argumentMustBeScalar(ordinal);
   }
 
   @Override
@@ -148,7 +148,7 @@ public class DrillCalciteSqlFunctionWrapper extends SqlFunction {
       return returnType;
     }
 
-    return wrappedFunction.inferReturnType(opBinding);
+    return operator.inferReturnType(opBinding);
   }
 
   @Override
@@ -160,22 +160,22 @@ public class DrillCalciteSqlFunctionWrapper extends SqlFunction {
 
   @Override
   public SqlSyntax getSyntax() {
-    return wrappedFunction.getSyntax();
+    return operator.getSyntax();
   }
 
   @Override
   public List<String> getParamNames() {
-    return wrappedFunction.getParamNames();
+    return operator.getParamNames();
   }
 
   @Override
   public String getSignatureTemplate(final int operandsCount) {
-    return wrappedFunction.getSignatureTemplate(operandsCount);
+    return operator.getSignatureTemplate(operandsCount);
   }
 
   @Override
   public boolean isQuantifierAllowed() {
-    return wrappedFunction.isQuantifierAllowed();
+    return operator.isQuantifierAllowed();
   }
 
   @Override
@@ -183,7 +183,7 @@ public class DrillCalciteSqlFunctionWrapper extends SqlFunction {
       SqlValidator validator,
       SqlValidatorScope scope,
       SqlCall call) {
-    return wrappedFunction.deriveType(validator,
+    return operator.deriveType(validator,
         scope,
         call);
   }

@@ -39,24 +39,25 @@ import org.apache.calcite.sql.validate.SqlMonotonicity;
 import org.apache.calcite.sql.validate.SqlValidator;
 import org.apache.calcite.sql.validate.SqlValidatorScope;
 
-public class DrillCalciteSqlOperatorWrapper extends SqlOperator {
-  public final SqlOperator wrappedOperator;
+public class DrillCalciteSqlOperatorWrapper extends SqlOperator implements DrillCalciteSqlWrapper {
+  public final SqlOperator sqlOperator;
   private SqlOperandTypeChecker operandTypeChecker = new Checker();
 
-  public DrillCalciteSqlOperatorWrapper(SqlOperator wrappedOperator) {
+  public DrillCalciteSqlOperatorWrapper(SqlOperator sqlOperator) {
     super(
-        wrappedOperator.getName(),
-        wrappedOperator.getKind(),
-        wrappedOperator.getLeftPrec(),
-        wrappedOperator.getRightPrec(),
-        wrappedOperator.getReturnTypeInference(),
-        wrappedOperator.getOperandTypeInference(),
-        wrappedOperator.getOperandTypeChecker());
-    this.wrappedOperator = wrappedOperator;
+        sqlOperator.getName(),
+        sqlOperator.getKind(),
+        sqlOperator.getLeftPrec(),
+        sqlOperator.getRightPrec(),
+        sqlOperator.getReturnTypeInference(),
+        sqlOperator.getOperandTypeInference(),
+        sqlOperator.getOperandTypeChecker());
+    this.sqlOperator = sqlOperator;
   }
 
-  public final SqlOperator getWrappedSqlOperator() {
-    return wrappedOperator;
+  @Override
+  public SqlOperator getOperator() {
+    return sqlOperator;
   }
 
   @Override
@@ -71,7 +72,7 @@ public class DrillCalciteSqlOperatorWrapper extends SqlOperator {
 
   @Override
   public SqlSyntax getSyntax() {
-        return wrappedOperator.getSyntax();
+        return sqlOperator.getSyntax();
     }
 
   @Override
@@ -79,12 +80,12 @@ public class DrillCalciteSqlOperatorWrapper extends SqlOperator {
       SqlLiteral functionQualifier,
       SqlParserPos pos,
       SqlNode... operands) {
-    return wrappedOperator.createCall(functionQualifier, pos, operands);
+    return sqlOperator.createCall(functionQualifier, pos, operands);
   }
 
     @Override
     public SqlNode rewriteCall(SqlValidator validator, SqlCall call) {
-        return wrappedOperator.rewriteCall(validator, call);
+        return sqlOperator.rewriteCall(validator, call);
     }
 
     @Override
@@ -93,7 +94,7 @@ public class DrillCalciteSqlOperatorWrapper extends SqlOperator {
             SqlCall call,
             int leftPrec,
             int rightPrec) {
-        wrappedOperator.unparse(writer, call, leftPrec, rightPrec);
+      sqlOperator.unparse(writer, call, leftPrec, rightPrec);
     }
 
   @Override
@@ -109,17 +110,17 @@ public class DrillCalciteSqlOperatorWrapper extends SqlOperator {
       }
     }
 
-    return wrappedOperator.inferReturnType(opBinding);
+    return sqlOperator.inferReturnType(opBinding);
   }
 
   @Override
   public RelDataType deriveType(
-            SqlValidator validator,
-            SqlValidatorScope scope,
-            SqlCall call) {
-        return wrappedOperator.deriveType(validator,
-                scope,
-                call);
+      SqlValidator validator,
+      SqlValidatorScope scope,
+      SqlCall call) {
+    return sqlOperator.deriveType(validator,
+        scope,
+        call);
   }
 
   @Override
@@ -136,61 +137,61 @@ public class DrillCalciteSqlOperatorWrapper extends SqlOperator {
 
   @Override
   public String getSignatureTemplate(final int operandsCount) {
-    return wrappedOperator.getSignatureTemplate(operandsCount);
+    return sqlOperator.getSignatureTemplate(operandsCount);
   }
 
   @Override
   public String getAllowedSignatures(String opNameToUse) {
-        return wrappedOperator.getAllowedSignatures(opNameToUse);
+        return sqlOperator.getAllowedSignatures(opNameToUse);
     }
 
   @Override
   public SqlOperandTypeInference getOperandTypeInference() {
-        return wrappedOperator.getOperandTypeInference();
+        return sqlOperator.getOperandTypeInference();
     }
 
   @Override
   public boolean isAggregator() {
-    return wrappedOperator.isAggregator();
+    return sqlOperator.isAggregator();
   }
 
   @Override
   public boolean requiresOrder() {
-        return wrappedOperator.requiresOrder();
+        return sqlOperator.requiresOrder();
     }
 
   @Override
   public boolean allowsFraming() {
-        return wrappedOperator.allowsFraming();
+        return sqlOperator.allowsFraming();
     }
 
   @Override
   public SqlReturnTypeInference getReturnTypeInference() {
-        return wrappedOperator.getReturnTypeInference();
+        return sqlOperator.getReturnTypeInference();
     }
 
   @Override
   public SqlMonotonicity getMonotonicity(SqlOperatorBinding call) {
-        return wrappedOperator.getMonotonicity(call);
+        return sqlOperator.getMonotonicity(call);
     }
 
   @Override
   public boolean isDeterministic() {
-        return wrappedOperator.isDeterministic();
+        return sqlOperator.isDeterministic();
     }
 
   @Override
   public boolean isDynamicFunction() {
-        return wrappedOperator.isDynamicFunction();
+        return sqlOperator.isDynamicFunction();
     }
 
   @Override
   public boolean requiresDecimalExpansion() {
-        return wrappedOperator.requiresDecimalExpansion();
+        return sqlOperator.requiresDecimalExpansion();
     }
 
   @Override
   public boolean argumentMustBeScalar(int ordinal) {
-        return wrappedOperator.argumentMustBeScalar(ordinal);
+        return sqlOperator.argumentMustBeScalar(ordinal);
     }
 }

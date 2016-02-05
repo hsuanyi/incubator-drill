@@ -23,6 +23,42 @@ import org.junit.Ignore;
 import org.junit.Test;
 
 public class TestFunctionsWithTypeExpoQueries extends BaseTestQuery {
+
+  @Test
+  public void testViewShield() throws Exception {
+    try {
+      test("use dfs_test.tmp;");
+      final String view1 =
+          "create view TestFunctionsWithTypeExpoQueries_testViewShield1 as \n" +
+              "select rnum, position_id, " +
+              "   ntile(4) over(order by position_id) " +
+              " from (select position_id, row_number() " +
+              "       over(order by position_id) as rnum " +
+              "       from cp.`employee.json`)";
+
+
+      final String view2 =
+          "create view TestFunctionsWithTypeExpoQueries_testViewShield2 as \n" +
+              "select row_number() over(order by position_id) as rnum, " +
+              "    position_id, " +
+              "    ntile(4) over(order by position_id) " +
+              " from cp.`employee.json`";
+
+      test(view1);
+      test(view2);
+
+      testBuilder()
+          .sqlQuery("select * from TestFunctionsWithTypeExpoQueries_testViewShield1")
+          .ordered()
+          .sqlBaselineQuery("select * from TestFunctionsWithTypeExpoQueries_testViewShield2")
+          .build()
+          .run();
+    } finally {
+      test("drop view TestFunctionsWithTypeExpoQueries_testViewShield1;");
+      test("drop view TestFunctionsWithTypeExpoQueries_testViewShield2;");
+    }
+  }
+
   @Test
   public void testAverage() throws Exception {
     test("select avg(cast(n_nationkey as integer)) from cp.`tpch/nation.parquet`;");

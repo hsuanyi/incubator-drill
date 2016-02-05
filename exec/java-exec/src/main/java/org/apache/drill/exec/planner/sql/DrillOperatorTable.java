@@ -20,6 +20,7 @@ package org.apache.drill.exec.planner.sql;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import org.apache.calcite.linq4j.Ord;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
@@ -67,6 +68,7 @@ import org.apache.drill.exec.planner.physical.PrelUtil;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 
 import static org.apache.calcite.util.Static.RESOURCE;
 
@@ -79,6 +81,7 @@ public class DrillOperatorTable extends SqlStdOperatorTable {
 
   private static final SqlOperatorTable inner = SqlStdOperatorTable.instance();
   private List<SqlOperator> operators;
+  private Map<SqlOperator, SqlOperator> calciteToWrapper = Maps.newHashMap();
   private ArrayListMultimap<String, SqlOperator> opMap = ArrayListMultimap.create();
 
   public DrillOperatorTable(FunctionImplementationRegistry registry) {
@@ -99,24 +102,30 @@ public class DrillOperatorTable extends SqlStdOperatorTable {
 
     final List<SqlOperator> calciteOperatorList = Lists.newArrayList();
     inner.lookupOperatorOverloads(opName, category, syntax, calciteOperatorList);
-    for(final SqlOperator calciteOperator : calciteOperatorList) {
-      if(calciteOperator instanceof SqlAggFunction) {
-        final SqlOperator wrap = new DrillCalciteSqlAggFunctionWrapper((SqlAggFunction) calciteOperator, opMap.get(opName.getSimple().toLowerCase()));
-        operatorList.add(wrap);
-      } else if(calciteOperator instanceof SqlFunction) {
-        final SqlOperator wrap = new DrillCalciteSqlFunctionWrapper((SqlFunction) calciteOperator, opMap.get(opName.getSimple().toLowerCase()));
-        operatorList.add(wrap);
-      } else {
-        final SqlOperator wrap = new DrillCalciteSqlOperatorWrapper(calciteOperator);
-        operatorList.add(wrap);
+    if(!calciteOperatorList.isEmpty()) {
+      for(final SqlOperator calciteOperator : calciteOperatorList) {
+        if(calciteToWrapper.containsKey(calciteOperator)) {
+          operatorList.add(calciteToWrapper.get(calciteOperator));
+        } else {
+          final SqlOperator wrap;
+          if(calciteOperator instanceof SqlAggFunction) {
+            wrap = new DrillCalciteSqlAggFunctionWrapper((SqlAggFunction) calciteOperator, opMap.get(opName.getSimple().toLowerCase()));
+          } else if(calciteOperator instanceof SqlFunction) {
+            wrap = new DrillCalciteSqlFunctionWrapper((SqlFunction) calciteOperator, opMap.get(opName.getSimple().toLowerCase()));
+          } else {
+            wrap = new DrillCalciteSqlOperatorWrapper(calciteOperator);
+          }
+          operatorList.add(wrap);
+          calciteToWrapper.put(calciteOperator, wrap);
+        }
       }
-    }
-
-    // if no function is found, check in Drill UDFs
-    if (operatorList.isEmpty() && syntax == SqlSyntax.FUNCTION && opName.isSimple()) {
-      List<SqlOperator> drillOps = opMap.get(opName.getSimple().toLowerCase());
-      if (drillOps != null && !drillOps.isEmpty()) {
-        operatorList.addAll(drillOps);
+    } else {
+      // if no function is found, check in Drill UDFs
+      if (operatorList.isEmpty() && syntax == SqlSyntax.FUNCTION && opName.isSimple()) {
+        List<SqlOperator> drillOps = opMap.get(opName.getSimple().toLowerCase());
+        if (drillOps != null && !drillOps.isEmpty()) {
+          operatorList.addAll(drillOps);
+        }
       }
     }
   }

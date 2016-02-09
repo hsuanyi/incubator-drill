@@ -20,7 +20,6 @@ package org.apache.drill.exec.planner.types;
 
 import org.apache.calcite.rel.type.RelDataTypeSystem;
 import org.apache.calcite.rel.type.RelDataTypeSystemImpl;
-import org.apache.calcite.sql.type.SqlTypeName;
 
 public class DrillRelDataTypeSystem extends RelDataTypeSystemImpl {
 
@@ -35,5 +34,4 @@ public class DrillRelDataTypeSystem extends RelDataTypeSystemImpl {
   public int getMaxNumericPrecision() {
     return 38;
   }
-
 }

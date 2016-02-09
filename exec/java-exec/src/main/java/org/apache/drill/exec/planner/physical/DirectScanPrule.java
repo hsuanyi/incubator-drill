@@ -6,39 +6,35 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * <p/>
+ *
  * http://www.apache.org/licenses/LICENSE-2.0
- * <p/>
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.drill.exec.store.direct;
+package org.apache.drill.exec.planner.physical;
 
-import org.apache.drill.exec.physical.base.AbstractSubScan;
-import org.apache.drill.exec.proto.UserBitShared.CoreOperatorType;
-import org.apache.drill.exec.store.RecordReader;
+import org.apache.calcite.plan.RelOptRule;
+import org.apache.calcite.plan.RelOptRuleCall;
+import org.apache.calcite.plan.RelTraitSet;
+import org.apache.drill.exec.planner.logical.DrillDirectScanRel;
+import org.apache.drill.exec.planner.logical.RelOptHelper;
 
-public class DirectSubScan extends AbstractSubScan {
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(DirectSubScan.class);
+public class DirectScanPrule extends Prule {
 
-  private final RecordReader reader;
+  public static final RelOptRule INSTANCE = new DirectScanPrule();
 
-  public DirectSubScan(RecordReader reader) {
-    super(null);
-    this.reader = reader;
-  }
-
-  public RecordReader getReader() {
-    return reader;
+  public DirectScanPrule() {
+    super(RelOptHelper.any(DrillDirectScanRel.class), "Prel.DirectScanPrule");
   }
 
   @Override
-  public int getOperatorType() {
-    return CoreOperatorType.DIRECT_SUB_SCAN_VALUE;
+  public void onMatch(RelOptRuleCall call) {
+    final DrillDirectScanRel scan = call.rel(0);
+    final RelTraitSet traits = scan.getTraitSet().plus(Prel.DRILL_PHYSICAL);
+    call.transformTo(new DrillDirectScanRel(scan.getCluster(), traits, scan.getGroupScan(), scan.getRowType()));
   }
-
-
 }

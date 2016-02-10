@@ -77,7 +77,9 @@ public class AddDataSourceContextColumnVisitor extends BasePrelVisitor<Prel, Voi
     final List<RelDataTypeField> projFields = Lists.newArrayList(prel.getRowType().getFieldList());
     projFields.add(new RelDataTypeFieldImpl(DATA_SOURCE_CONTEXT, projFields.size(), DATA_SOURCE_CONTEXT_TYPE));
     final List<RexNode> projList = Lists.newArrayList(prel.getChildExps());
-    projList.add(new RexInputRef(prel.getRowType().getFieldCount(), DATA_SOURCE_CONTEXT_TYPE));
+
+    final int refIndes = child.getRowType().getFieldCount() - 1;
+    projList.add(new RexInputRef(refIndes, DATA_SOURCE_CONTEXT_TYPE));
     prel = (ProjectPrel) prel.copy(prel.getTraitSet(), child, projList, new RelRecordType(projFields));
     return prel;
   }

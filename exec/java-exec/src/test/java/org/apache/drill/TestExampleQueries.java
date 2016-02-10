@@ -33,18 +33,6 @@ import org.junit.Test;
 public class TestExampleQueries extends BaseTestQuery {
 //  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TestExampleQueries.class);
 
-    @Test
-    public void test() throws Exception {
-        String root = FileUtils.getResourceAsFile("/store/text/data/").toURI().toString();
-        String query = String.format("select * from dfs_test.`%s`", root);
-        testBuilder()
-                .sqlQuery(query)
-                .ordered()
-                .csvBaselineFile("testframework/testExampleQueries/testConcatOperatorInputTypeCombination.tsv")
-                .baselineTypes(TypeProtos.MinorType.VARCHAR)
-                .baselineColumns("CONCAT")
-                .build().run();    }
-
   @Test // see DRILL-2328
   public void testConcatOnNull() throws Exception {
     try {

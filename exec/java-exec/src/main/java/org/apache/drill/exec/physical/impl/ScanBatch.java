@@ -82,6 +82,7 @@ public class ScanBatch implements CloseableRecordBatch {
   private final OperatorContext oContext;
   private Iterator<RecordReader> readers;
   private RecordReader currentReader;
+  private int rowNumber;
   private BatchSchema schema;
   private final Mutator mutator = new Mutator();
   private Iterator<String[]> partitionColumns;
@@ -106,6 +107,7 @@ public class ScanBatch implements CloseableRecordBatch {
       throw new ExecutionSetupException("A scan batch must contain at least one reader.");
     }
     currentReader = readers.next();
+    rowNumber = 0;
     this.oContext = oContext;
 
     boolean setup = false;
@@ -228,6 +230,8 @@ public class ScanBatch implements CloseableRecordBatch {
 
           currentReader.close();
           currentReader = readers.next();
+          rowNumber = 0;
+
           partitionValues = partitionColumns.hasNext() ? partitionColumns.next() : null;
           currentReader.setup(oContext, mutator);
           try {
@@ -332,6 +336,10 @@ public class ScanBatch implements CloseableRecordBatch {
 
   private void populateDataSourceVector() {
     final List<Pair<String, String>> columnNameToVal = currentReader.getDataSourceContext();
+    if(columnNameToVal.isEmpty()) {
+      return;
+    }
+
     int lengthEachRow = 0;
     final List<byte[]> eachRow = Lists.newArrayList();
     for(int i = 0; i < columnNameToVal.size(); ++i) {
@@ -339,15 +347,18 @@ public class ScanBatch implements CloseableRecordBatch {
       eachRow.add(val);
       lengthEachRow += val.length;
     }
+
     AllocationHelper.allocate(dataSourceVector, recordCount, lengthEachRow);
 
-
-    for (int i = 0; i < recordCount; i++) {
+    for (int i = 0; i < recordCount; ++i) {
+      dataSourceVector.getMutator().startNewValue(i);
       for(int j = 0; j < eachRow.size(); ++j) {
-          dataSourceVector.getMutator().add(i, eachRow.get(j));
+        dataSourceVector.getMutator().addSafe(i, eachRow.get(j));
       }
+      dataSourceVector.getMutator().addSafe(i, String.valueOf(i).getBytes());
     }
     dataSourceVector.getMutator().setValueCount(recordCount);
+    rowNumber+= recordCount;
   }
 
   @Override

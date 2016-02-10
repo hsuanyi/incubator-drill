@@ -33,7 +33,6 @@ public class TestSkipInvalidRecords extends BaseTestQuery {
   @BeforeClass
   public static void setupOptions() throws Exception {
     test(String.format("alter session set `%s` = true", ExecConstants.ENABLE_SKIP_INVALID_RECORD_KEY));
-    test(String.format("alter session set `%s` = 10", ExecConstants.SKIP_INVALID_RECORD_THRESHOLD_KEY));
   }
 
   @Test
@@ -45,6 +44,10 @@ public class TestSkipInvalidRecords extends BaseTestQuery {
     String queryLog = String.format("select `Row_Number` \n" +
         "from dfs.`/Users/hyichu/Desktop/skip`");
 
+
+    test(query);
+
+    /*
     testBuilder()
         .sqlQuery(query)
         .unOrdered()
@@ -62,7 +65,7 @@ public class TestSkipInvalidRecords extends BaseTestQuery {
         .baselineValues(0l)
         .baselineValues(1l)
         .build()
-        .run();
+        .run();*/
   }
 
   @Test
@@ -116,11 +119,8 @@ public class TestSkipInvalidRecords extends BaseTestQuery {
 
   @AfterClass
   public static void shutdownOptions() throws Exception {
-    test(String.format("alter session set `%s` = `%s`",
+    test(String.format("alter session set `%s` = %s",
         ExecConstants.ENABLE_SKIP_INVALID_RECORD_KEY,
             ExecConstants.ENABLE_SKIP_INVALID_RECORD.getDefault().bool_val));
-    test(String.format("alter session set `%s` = `%s`",
-        ExecConstants.SKIP_INVALID_RECORD_THRESHOLD_KEY,
-            ExecConstants.SKIP_INVALID_RECORD_THRESHOLD.getDefault().num_val));
   }
 }

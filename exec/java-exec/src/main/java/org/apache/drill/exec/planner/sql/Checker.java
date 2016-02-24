@@ -17,33 +17,43 @@
  */
 package org.apache.drill.exec.planner.sql;
 
+import com.google.common.collect.Maps;
 import org.apache.calcite.sql.SqlCallBinding;
 import org.apache.calcite.sql.SqlOperandCountRange;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.type.SqlOperandCountRanges;
 import org.apache.calcite.sql.type.SqlOperandTypeChecker;
+import org.apache.commons.lang3.tuple.Pair;
+
+import java.util.Map;
 
 class Checker implements SqlOperandTypeChecker {
   private SqlOperandCountRange range;
 
-  /**
-   * During Calcite's validation, the SqlOperators whose number of arguments do not match with that in the given SQL query
-   * will be filtered out. If the number of argument(s) is not supposed to be a criterion to filter a SqlOperator,
-   * use this SqlOperandTypeChecker.
-   *
-   * For example, CONCAT can take arbitrary number of argument(s), so there is no reason
-   * to let Calcite filter CONCAT simply based on the number of argument(s).
-   */
-  public Checker() {
-    range = SqlOperandCountRanges.any();
+  private static Map<Pair<Integer, Integer>, Checker> checkerMap = Maps.newHashMap();
+
+  public static Checker getChecker(int min, int max) {
+    final Pair<Integer, Integer> range = Pair.of(min, max);
+    if(checkerMap.containsKey(range)) {
+      return checkerMap.get(range);
+    }
+
+    final Checker newChecker;
+    if(min == max) {
+      newChecker = new Checker(min);
+    } else {
+      newChecker = new Checker(min, max);
+    }
+
+    checkerMap.put(range, newChecker);
+    return newChecker;
   }
 
-  public Checker(int size) {
+  private Checker(int size) {
     range = new FixedRange(size);
   }
 
-  public Checker(int min, int max) {
-    assert min <= max;
+  private Checker(int min, int max) {
     range = SqlOperandCountRanges.between(min, max);
   }
 

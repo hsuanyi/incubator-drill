@@ -105,9 +105,17 @@ public class DrillConstExecutor implements RelOptPlanner.Executor {
     this.plannerSettings = plannerSettings;
   }
 
-  private RelDataType createCalciteTypeWithNullability(RelDataTypeFactory typeFactory,
-                                                       SqlTypeName sqlTypeName,
-                                                       boolean isNullable) {
+  /**
+   * Given a {@link SqlTypeName} and nullability, create a RelDataType from the RelDataTypeFactory
+   *
+   * @param typeFactory RelDataTypeFactory used to create the RelDataType
+   * @param sqlTypeName the given SqlTypeName
+   * @param isNullable  the nullability of the created RelDataType
+   * @return RelDataType Type of call
+   */
+  public static RelDataType createCalciteTypeWithNullability(RelDataTypeFactory typeFactory,
+                                                             SqlTypeName sqlTypeName,
+                                                             boolean isNullable) {
     RelDataType type;
     if (sqlTypeName == SqlTypeName.INTERVAL_DAY_TIME) {
       type = typeFactory.createSqlIntervalType(

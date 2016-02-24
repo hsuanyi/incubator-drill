@@ -126,8 +126,7 @@ public class DrillFunctionRegistry {
         //
         // However,  partition-pruning will be initiated "only" for the deterministic DrillSqlOperator.
         // Thus, an additional logic is added to PruneScanRule to help decide if partition-pruning can be taken.
-        if(!func.isDeterministic()
-            || DrillConstExecutor.NON_REDUCIBLE_TYPES.contains(func.getReturnType().getMinorType())) {
+        if(!func.isDeterministic()) {
           isDeterministic = false;
         }
       }
@@ -180,15 +179,20 @@ public class DrillFunctionRegistry {
       case "concat":
         return Pair.of(1, Integer.MAX_VALUE);
 
+      // Drill does not have a FunctionTemplate for the lpad/rpad with two arguments.
+      // It relies on DrillOptiq.java to add a third dummy argument to be acceptable
+      // by the FunctionTemplate in StringFunctions.java
       case "lpad":
       case "rpad":
         return Pair.of(2, 3);
 
+      // Similar to the reason above, DrillOptiq.java is used for rewritting
       case "ltrim":
       case "rtrim":
       case "btrim":
         return Pair.of(1, 2);
 
+      // Similar to the reason above, DrillOptiq.java is used for rewritting
       case "length":
         return Pair.of(1, 2);
 

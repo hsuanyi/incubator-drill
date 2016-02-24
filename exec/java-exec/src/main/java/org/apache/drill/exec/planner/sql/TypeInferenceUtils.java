@@ -41,7 +41,9 @@ import org.apache.drill.common.expression.FunctionCall;
 import org.apache.drill.common.expression.LogicalExpression;
 import org.apache.drill.common.types.TypeProtos;
 import org.apache.drill.common.types.Types;
+import org.apache.drill.exec.expr.TypeHelper;
 import org.apache.drill.exec.expr.fn.DrillFuncHolder;
+import org.apache.drill.exec.planner.logical.DrillConstExecutor;
 import org.apache.drill.exec.resolver.FunctionResolver;
 import org.apache.drill.exec.resolver.FunctionResolverFactory;
 
@@ -51,8 +53,6 @@ public class TypeInferenceUtils {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TypeInferenceUtils.class);
 
   public static final TypeProtos.MajorType UNKNOWN_TYPE = TypeProtos.MajorType.getDefaultInstance();
-  public static final int MAX_VARCHAR_LENGTH = 65535;
-
   private static ImmutableMap<TypeProtos.MinorType, SqlTypeName> DRILL_TO_CALCITE_TYPE_MAPPING =
       ImmutableMap.<TypeProtos.MinorType, SqlTypeName> builder()
           .put(TypeProtos.MinorType.INT, SqlTypeName.INTEGER)
@@ -110,8 +110,8 @@ public class TypeInferenceUtils {
 
           // (3) Calcite types currently not supported by Drill, nor defined in the Drill type list:
           //      - SYMBOL, MULTISET, DISTINCT, STRUCTURED, ROW, OTHER, CURSOR, COLUMN_LIST
-          //.put(SqlTypeName.MAP, TypeProtos.MinorType.MAP)
-          //.put(SqlTypeName.ARRAY, TypeProtos.MinorType.LIST)
+          // .put(SqlTypeName.MAP, TypeProtos.MinorType.MAP)
+          // .put(SqlTypeName.ARRAY, TypeProtos.MinorType.LIST)
           .build();
 
   /**
@@ -147,6 +147,9 @@ public class TypeInferenceUtils {
     return getDrillSqlReturnTypeInference(name, functions);
   }
 
+  /**
+   *
+   */
   public static SqlReturnTypeInference getDrillSqlReturnTypeInference(
       final String name,
       final List<DrillFuncHolder> functions) {
@@ -155,10 +158,23 @@ public class TypeInferenceUtils {
         return DrillDatePartSqlReturnTypeInference.INSTANCE;
 
       case "SUM":
-        return new DrillSUMSqlReturnTypeInference(functions);
+        return new DrillSumSqlReturnTypeInference(functions);
+
+      case "COUNT":
+        return DrillCountSqlReturnTypeInference.INSTANCE;
 
       case "CONCAT":
         return DrillConcatSqlReturnTypeInference.INSTANCE;
+
+      case "LENGTH":
+        return DrillLengthSqlReturnTypeInference.INSTANCE;
+
+      case "LPAD":
+      case "RPAD":
+      case "LTRIM":
+      case "RTRIM":
+      case "BTRIM":
+        return DrillPadTrimSqlReturnTypeInference.INSTANCE;
 
       case "CONVERT_TO":
         return DrillConvertToSqlReturnTypeInference.INSTANCE;
@@ -172,7 +188,7 @@ public class TypeInferenceUtils {
       case "FLATTEN":
       case "KVGEN":
       case "CONVERT_FROM":
-        return DrillDynamicOutputSqlReturnTypeInference.INSTANCE;
+        return DrillDeferToExecSqlReturnTypeInference.INSTANCE;
 
       default:
         return new DrillDefaultSqlReturnTypeInference(functions);
@@ -191,20 +207,21 @@ public class TypeInferenceUtils {
       final RelDataTypeFactory factory = opBinding.getTypeFactory();
       if (functions.isEmpty()) {
         return factory.createTypeWithNullability(
-            opBinding.getTypeFactory().createSqlType(SqlTypeName.ANY), true);
+            factory.createSqlType(SqlTypeName.ANY),
+            true);
       }
 
 
       boolean allBooleanOutput = true;
-      for(DrillFuncHolder function : functions) {
-        if(function.getReturnType().getMinorType() != TypeProtos.MinorType.BIT) {
+      for (DrillFuncHolder function : functions) {
+        if (function.getReturnType().getMinorType() != TypeProtos.MinorType.BIT) {
           allBooleanOutput = false;
           break;
         }
       }
-      if(allBooleanOutput) {
+      if (allBooleanOutput) {
         return factory
-            .createSqlType(SqlTypeName.BOOLEAN);
+                .createSqlType(SqlTypeName.BOOLEAN);
       }
 
       // The following logic is just a safe play:
@@ -212,25 +229,14 @@ public class TypeInferenceUtils {
       // it "might" still be possible to determine the return type based on other non-ANY types
       for (RelDataType type : opBinding.collectOperandTypes()) {
         if (type.getSqlTypeName() == SqlTypeName.ANY || type.getSqlTypeName() == SqlTypeName.DECIMAL) {
-          return factory
-              .createTypeWithNullability(factory.createSqlType(SqlTypeName.ANY), true);
+          return factory.createTypeWithNullability(
+              factory.createSqlType(SqlTypeName.ANY),
+              true);
         }
       }
 
       final DrillFuncHolder func = resolveDrillFuncHolder(opBinding, functions);
-
-      // If the return type is VarChar,
-      // set the precision as the maximum
-      RelDataType returnType = getReturnType(opBinding, func);
-      if (returnType.getSqlTypeName() == SqlTypeName.VARCHAR) {
-        final boolean isNullable = returnType.isNullable();
-        returnType = factory.createSqlType(SqlTypeName.VARCHAR, MAX_VARCHAR_LENGTH);
-
-        if (isNullable) {
-          returnType = factory.createTypeWithNullability(returnType, true);
-        }
-      }
-
+      final RelDataType returnType = getReturnType(opBinding, func);
       return returnType;
     }
 
@@ -238,8 +244,9 @@ public class TypeInferenceUtils {
       final RelDataTypeFactory factory = opBinding.getTypeFactory();
 
       // least restrictive type (nullable ANY type)
-      final RelDataType anyType = factory.createSqlType(SqlTypeName.ANY);
-      final RelDataType nullableAnyType = factory.createTypeWithNullability(anyType, true);
+      final RelDataType nullableAnyType = factory.createTypeWithNullability(
+          factory.createSqlType(SqlTypeName.ANY),
+          true);
 
       final TypeProtos.MajorType returnType = func.getReturnType();
       if (UNKNOWN_TYPE.equals(returnType)) {
@@ -249,37 +256,22 @@ public class TypeInferenceUtils {
       final TypeProtos.MinorType minorType = returnType.getMinorType();
       final SqlTypeName sqlTypeName = getCalciteTypeFromDrillType(minorType);
       if (sqlTypeName == null) {
-        return factory.createTypeWithNullability(nullableAnyType, true);
+        return nullableAnyType;
       }
 
-      final RelDataType relReturnType;
-      switch (sqlTypeName) {
-        case INTERVAL_DAY_TIME:
-          relReturnType = factory.createSqlIntervalType(
-              new SqlIntervalQualifier(
-                  TimeUnit.DAY,
-                  TimeUnit.MINUTE,
-                  SqlParserPos.ZERO));
-          break;
-        case INTERVAL_YEAR_MONTH:
-          relReturnType = factory.createSqlIntervalType(
-              new SqlIntervalQualifier(
-                  TimeUnit.YEAR,
-                  TimeUnit.MONTH,
-                  SqlParserPos.ZERO));
-          break;
-        default:
-          relReturnType = factory.createSqlType(sqlTypeName);
-          break;
-      }
-
+      final boolean isNullable;
       switch (returnType.getMode()) {
+        case REPEATED:
         case OPTIONAL:
-          return factory.createTypeWithNullability(relReturnType, true);
+          isNullable = true;
+          break;
+
         case REQUIRED:
           switch (func.getNullHandling()) {
             case INTERNAL:
-              return relReturnType;
+              isNullable = false;
+              break;
+
             case NULL_IF_NULL:
               boolean isNull = false;
               for (int i = 0; i < opBinding.getOperandCount(); ++i) {
@@ -289,58 +281,80 @@ public class TypeInferenceUtils {
                 }
               }
 
-              if (isNull) {
-                return factory.createTypeWithNullability(relReturnType, true);
-              } else {
-                return relReturnType;
-              }
+              isNullable = isNull;
+              break;
             default:
               throw new UnsupportedOperationException();
           }
-        case REPEATED:
-          return relReturnType;
+          break;
+
         default:
           throw new UnsupportedOperationException();
       }
+
+      return DrillConstExecutor.createCalciteTypeWithNullability(
+          factory,
+          sqlTypeName,
+          isNullable);
     }
   }
 
-  private static class DrillDynamicOutputSqlReturnTypeInference implements SqlReturnTypeInference {
-    private static DrillDynamicOutputSqlReturnTypeInference INSTANCE = new DrillDynamicOutputSqlReturnTypeInference();
+  private static class DrillDeferToExecSqlReturnTypeInference implements SqlReturnTypeInference {
+    private static DrillDeferToExecSqlReturnTypeInference INSTANCE = new DrillDeferToExecSqlReturnTypeInference();
 
     @Override
     public RelDataType inferReturnType(SqlOperatorBinding opBinding) {
-      return opBinding
-          .getTypeFactory()
-          .createTypeWithNullability(opBinding.getTypeFactory().createSqlType(SqlTypeName.ANY), true);
+      final RelDataTypeFactory factory = opBinding.getTypeFactory();
+      return factory.createTypeWithNullability(
+          factory.createSqlType(SqlTypeName.ANY),
+          true);
     }
   }
 
-  private static class DrillSUMSqlReturnTypeInference implements SqlReturnTypeInference {
+  private static class DrillSumSqlReturnTypeInference implements SqlReturnTypeInference {
     private final List<DrillFuncHolder> functions;
-    public DrillSUMSqlReturnTypeInference(List<DrillFuncHolder> functions) {
+    public DrillSumSqlReturnTypeInference(List<DrillFuncHolder> functions) {
       this.functions = functions;
     }
 
     @Override
     public RelDataType inferReturnType(SqlOperatorBinding opBinding) {
       final RelDataTypeFactory factory = opBinding.getTypeFactory();
+      // If there is group-by and the imput type is Non-nullable,
+      // the output is Non-nullable;
+      // Otherwise, the output is nullable.
+      final boolean isNullable = opBinding.getGroupCount() == 0
+          || opBinding.getOperandType(0).isNullable();
+      if(opBinding.getOperandType(0).getSqlTypeName() == SqlTypeName.ANY) {
+        return DrillConstExecutor.createCalciteTypeWithNullability(
+            factory,
+            SqlTypeName.ANY,
+            isNullable);
+      }
+
       final DrillFuncHolder drillFuncHolder = resolveDrillFuncHolder(opBinding, functions);
       final TypeProtos.MinorType minorType = drillFuncHolder
           .getReturnType()
           .getMinorType();
-      final RelDataType relDataType = opBinding
-          .getTypeFactory()
-          .createSqlType(getCalciteTypeFromDrillType(minorType));
+      final SqlTypeName type = getCalciteTypeFromDrillType(minorType);
+      return DrillConstExecutor.createCalciteTypeWithNullability(
+          factory,
+          type,
+          isNullable);
+    }
+  }
 
-      // If there is group-by and the imput type is Non-nullable,
-      // the output is Non-nullable;
-      // Otherwise, the output is nullable.
-      if(opBinding.getGroupCount() > 0 && !opBinding.getOperandType(0).isNullable()) {
-        return relDataType;
-      } else {
-        return factory.createTypeWithNullability(relDataType, true);
-      }
+  private static class DrillCountSqlReturnTypeInference implements SqlReturnTypeInference {
+    private static DrillCountSqlReturnTypeInference INSTANCE = new DrillCountSqlReturnTypeInference();
+
+    @Override
+    public RelDataType inferReturnType(SqlOperatorBinding opBinding) {
+      final RelDataTypeFactory factory = opBinding.getTypeFactory();
+      final SqlTypeName type = SqlTypeName.BIGINT;
+      return DrillConstExecutor.createCalciteTypeWithNullability(
+          factory,
+          type,
+          false);
     }
   }
 
@@ -350,9 +364,7 @@ public class TypeInferenceUtils {
     @Override
     public RelDataType inferReturnType(SqlOperatorBinding opBinding) {
       final RelDataTypeFactory factory = opBinding.getTypeFactory();
-      final RelDataType type = factory.createSqlType(
-          SqlTypeName.VARCHAR,
-          TypeInferenceUtils.MAX_VARCHAR_LENGTH);
+      final SqlTypeName type = SqlTypeName.VARCHAR;
 
       boolean isNullable = true;
       for(RelDataType relDataType : opBinding.collectOperandTypes()) {
@@ -362,11 +374,48 @@ public class TypeInferenceUtils {
         }
       }
 
-      if(isNullable) {
-        return factory.createTypeWithNullability(type, true);
-      } else {
-        return type;
+      return DrillConstExecutor.createCalciteTypeWithNullability(
+          factory,
+          type,
+          isNullable);
+    }
+  }
+
+  private static class DrillLengthSqlReturnTypeInference implements SqlReturnTypeInference {
+    private static DrillLengthSqlReturnTypeInference INSTANCE = new DrillLengthSqlReturnTypeInference();
+
+    @Override
+    public RelDataType inferReturnType(SqlOperatorBinding opBinding) {
+      final RelDataTypeFactory factory = opBinding.getTypeFactory();
+      final SqlTypeName sqlTypeName = SqlTypeName.BIGINT;
+
+      // We need to check only the first argument because
+      // the second one is used to represent encoding type
+      final boolean isNullable = opBinding.getOperandType(0).isNullable();
+      return DrillConstExecutor.createCalciteTypeWithNullability(
+          factory,
+          sqlTypeName,
+          isNullable);
+    }
+  }
+
+  private static class DrillPadTrimSqlReturnTypeInference implements SqlReturnTypeInference {
+    private static DrillPadTrimSqlReturnTypeInference INSTANCE = new DrillPadTrimSqlReturnTypeInference();
+
+    @Override
+    public RelDataType inferReturnType(SqlOperatorBinding opBinding) {
+      final RelDataTypeFactory factory = opBinding.getTypeFactory();
+      final SqlTypeName sqlTypeName = SqlTypeName.VARCHAR;
+
+      for(int i = 0; i < opBinding.getOperandCount(); ++i) {
+        if(opBinding.getOperandType(i).isNullable()) {
+          return DrillConstExecutor.createCalciteTypeWithNullability(
+              factory, sqlTypeName, true);
+        }
       }
+
+      return DrillConstExecutor.createCalciteTypeWithNullability(
+          factory, sqlTypeName, false);
     }
   }
 
@@ -376,13 +425,10 @@ public class TypeInferenceUtils {
     @Override
     public RelDataType inferReturnType(SqlOperatorBinding opBinding) {
       final RelDataTypeFactory factory = opBinding.getTypeFactory();
-      final RelDataType type = factory.createSqlType(
-          SqlTypeName.VARBINARY);
-      if(opBinding.getOperandType(0).isNullable()) {
-        return factory.createTypeWithNullability(type, true);
-      } else {
-        return type;
-      }
+      final SqlTypeName type = SqlTypeName.VARBINARY;
+
+      return DrillConstExecutor.createCalciteTypeWithNullability(
+          factory, type, opBinding.getOperandType(0).isNullable());
     }
   }
 
@@ -396,14 +442,10 @@ public class TypeInferenceUtils {
       final boolean isNullable = opBinding.getOperandType(1).isNullable();
 
       final SqlTypeName sqlTypeName = getSqlTypeNameForTimeUnit(timeUnit.name());
-      final RelDataType type;
-      if(isNullable) {
-        type = factory.createTypeWithNullability(
-            factory.createSqlType(sqlTypeName), true);
-      } else {
-        type = factory.createSqlType(sqlTypeName);
-      }
-      return type;
+      return DrillConstExecutor.createCalciteTypeWithNullability(
+          factory,
+          sqlTypeName,
+          isNullable);
     }
 
     private static SqlTypeName getSqlTypeNameForTimeUnit(String timeUnit) {
@@ -434,14 +476,9 @@ public class TypeInferenceUtils {
 
       final SqlNode firstOperand = ((SqlCallBinding) opBinding).operand(0);
       if(!(firstOperand instanceof SqlCharStringLiteral)) {
-        final RelDataType type;
-        if(opBinding.getOperandType(1).isNullable()) {
-          type = factory.createTypeWithNullability(
-              factory.createSqlType(SqlTypeName.ANY), true);
-        } else {
-          type = factory.createSqlType(SqlTypeName.ANY);
-        }
-        return type;
+        return DrillConstExecutor.createCalciteTypeWithNullability(factory,
+            SqlTypeName.ANY,
+            opBinding.getOperandType(1).isNullable());
       }
 
       final String part = ((SqlCharStringLiteral) firstOperand)
@@ -450,16 +487,11 @@ public class TypeInferenceUtils {
           .toUpperCase();
 
       final SqlTypeName sqlTypeName = DrillExtractSqlReturnTypeInference.getSqlTypeNameForTimeUnit(part);
-
       final boolean isNullable = opBinding.getOperandType(1).isNullable();
-      final RelDataType type;
-      if(isNullable) {
-        type = factory.createTypeWithNullability(
-            factory.createSqlType(sqlTypeName), true);
-      } else {
-        type = factory.createSqlType(sqlTypeName);
-      }
-      return type;
+      return DrillConstExecutor.createCalciteTypeWithNullability(
+          factory,
+          sqlTypeName,
+          isNullable);
     }
   }
 
@@ -472,11 +504,10 @@ public class TypeInferenceUtils {
           .getOperandType(0)
           .isNullable();
 
-      return opBinding
-          .getTypeFactory()
-          .createTypeWithNullability(
-              opBinding.getOperandType(1),
-              isNullable);
+      return DrillConstExecutor.createCalciteTypeWithNullability(
+          opBinding.getTypeFactory(),
+          opBinding.getOperandType(1).getSqlTypeName(),
+          isNullable);
     }
   }
 

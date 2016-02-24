@@ -342,12 +342,14 @@ public class FindPartitionConditions extends RexVisitorImpl<Void> {
   }
 
   private boolean isDeterministic(SqlOperator sqlOperator) {
-    if(sqlOperator.isDeterministic()) {
-      return true;
-    }
-
-    if(sqlOperator instanceof DrillSqlOperator) {
-      DrillSqlOperator drillSqlOperator = (DrillSqlOperator) sqlOperator;
+    // DrillSqlOperator.isDeterministic() is enforced to be false for a list of types that cannot be folded
+    // at planning time (see DrillConstExecutor.NON_REDUCIBLE_TYPES),
+    //
+    // However, whether Partition Pruning should happen is supposed to be based on the deterministic property of the
+    // actual DrillFuncHolder
+    if(!sqlOperator.isDeterministic()
+        && sqlOperator instanceof DrillSqlOperator) {
+      final DrillSqlOperator drillSqlOperator = (DrillSqlOperator) sqlOperator;
 
       for(DrillFuncHolder drillFuncHolder : drillSqlOperator.getFunctions()) {
         if(!drillFuncHolder.isDeterministic()) {
@@ -356,8 +358,8 @@ public class FindPartitionConditions extends RexVisitorImpl<Void> {
       }
 
       return true;
+    } else {
+      return sqlOperator.isDeterministic();
     }
-
-    return false;
   }
 }

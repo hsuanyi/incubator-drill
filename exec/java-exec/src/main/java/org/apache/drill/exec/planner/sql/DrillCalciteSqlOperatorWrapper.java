@@ -37,7 +37,6 @@ import org.apache.calcite.sql.validate.SqlValidatorScope;
 
 public class DrillCalciteSqlOperatorWrapper extends SqlOperator implements DrillCalciteSqlWrapper {
   public final SqlOperator operator;
-  private SqlOperandTypeChecker operandTypeChecker = new Checker();
 
   public DrillCalciteSqlOperatorWrapper(SqlOperator operator) {
     super(
@@ -54,16 +53,6 @@ public class DrillCalciteSqlOperatorWrapper extends SqlOperator implements Drill
   @Override
   public SqlOperator getOperator() {
     return operator;
-  }
-
-  @Override
-  public SqlOperandTypeChecker getOperandTypeChecker() {
-    return operandTypeChecker;
-  }
-
-  @Override
-  public SqlOperandCountRange getOperandCountRange() {
-    return operandTypeChecker.getOperandCountRange();
   }
 
   @Override

@@ -41,7 +41,7 @@ public class DrillSqlAggOperator extends SqlAggFunction {
             name,
             functions),
         null,
-        new Checker(argCount),
+        Checker.getChecker(argCount, argCount),
         SqlFunctionCategory.USER_DEFINED_FUNCTION);
     this.functions = functions;
   }

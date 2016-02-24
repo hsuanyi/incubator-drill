@@ -28,6 +28,40 @@ import java.util.List;
 
 public class TestFunctionsWithTypeExpoQueries extends BaseTestQuery {
   @Test
+  public void test() throws Exception {
+    test("explain plan including all attributes for select  t1.a1, \n" +
+            "        t1.b1, \n" +
+            "        count(distinct t1.a1) as distinct_a1,\n" +
+            "        count(distinct t2.a2) as distinct_a2,\n" +
+            "        count(distinct t1.b1) as distinct_b1,\n" +
+            "        count(distinct t2.b2) as distinct_b2,\n" +
+            "        count(distinct t1.c1) as distinct_c1,\n" +
+            "        count(distinct t2.c2) as distinct_c2,\n" +
+            "        sum(t1.a1) as sum_a1, \n" +
+            "        sum(t2.a2) as sum_a1, \n" +
+            "        avg(t1.a1) as sum_a1, \n" +
+            "        avg(t2.a2) as sum_a1, \n" +
+            "        count(t1.c1) as count_a1, \n" +
+            "        count(*) as count_star\n" +
+            "from \n" +
+            "        dfs.`/Users/hyichu/Desktop/t/t1` t1,  \n" +
+            "        dfs.`/Users/hyichu/Desktop/t/t2` t2   \n" +
+            "where\n" +
+            "        t1.a1 = t2.a2 and t1.b1 = t2.b2\n" +
+            "group by \n" +
+            "        t1.a1, \n" +
+            "        t1.b1,\n" +
+            "        t2.a2,\n" +
+            "        t2.b2\n" +
+            "order by \n" +
+            "        t1.a1, \n" +
+            "        t1.b1,\n" +
+            "        t2.a2,\n" +
+            "        t2.b2");
+  }
+
+
+  @Test
   public void testConcatWithMoreThanTwoArgs() throws Exception {
     final String query = "select concat(r_name, r_name, r_name) as col \n" +
         "from cp.`tpch/region.parquet` limit 0";

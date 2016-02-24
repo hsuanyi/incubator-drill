@@ -44,17 +44,16 @@ import java.util.List;
 
 public class DrillCalciteSqlFunctionWrapper extends SqlFunction implements DrillCalciteSqlWrapper  {
   private final SqlFunction operator;
-  private final SqlOperandTypeChecker operandTypeChecker = new Checker();
 
   public DrillCalciteSqlFunctionWrapper(
       final SqlFunction wrappedFunction,
-      final ArrayListMultimap<String, SqlOperator> opMap) {
+      final List<DrillFuncHolder> functions) {
     super(wrappedFunction.getName(),
         wrappedFunction.getSqlIdentifier(),
         wrappedFunction.getKind(),
         TypeInferenceUtils.getDrillSqlReturnTypeInference(
             wrappedFunction.getName(),
-            opMap),
+            functions),
         wrappedFunction.getOperandTypeInference(),
         wrappedFunction.getOperandTypeChecker(),
         wrappedFunction.getParamTypes(),
@@ -120,16 +119,6 @@ public class DrillCalciteSqlFunctionWrapper extends SqlFunction implements Drill
   @Override
   public boolean argumentMustBeScalar(int ordinal) {
     return operator.argumentMustBeScalar(ordinal);
-  }
-
-  @Override
-  public SqlOperandTypeChecker getOperandTypeChecker() {
-    return operandTypeChecker;
-  }
-
-  @Override
-  public SqlOperandCountRange getOperandCountRange() {
-    return operandTypeChecker.getOperandCountRange();
   }
 
   @Override

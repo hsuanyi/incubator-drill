@@ -22,22 +22,24 @@ import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlCallBinding;
 import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
-import org.apache.calcite.sql.SqlOperandCountRange;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlOperatorBinding;
 import org.apache.calcite.sql.SqlSyntax;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
-import org.apache.calcite.sql.type.SqlOperandTypeChecker;
-import org.apache.calcite.sql.type.SqlOperandTypeInference;
-import org.apache.calcite.sql.type.SqlReturnTypeInference;
 import org.apache.calcite.sql.validate.SqlMonotonicity;
 import org.apache.calcite.sql.validate.SqlValidator;
 import org.apache.calcite.sql.validate.SqlValidatorScope;
 
+/**
+ * This class serves as a wrapper class for SqlOperator. The motivation is to plug-in the return type inference and operand
+ * type check algorithms of Drill into Calcite's sql validation procedure.
+ *
+ * Except for the methods which are relevant to the return type inference and operand type check algorithms, the wrapper
+ * simply forwards the method calls to the wrapped SqlOperator.
+ */
 public class DrillCalciteSqlOperatorWrapper extends SqlOperator implements DrillCalciteSqlWrapper {
   public final SqlOperator operator;
-  private SqlOperandTypeChecker operandTypeChecker = new Checker();
 
   public DrillCalciteSqlOperatorWrapper(SqlOperator operator) {
     super(
@@ -47,23 +49,13 @@ public class DrillCalciteSqlOperatorWrapper extends SqlOperator implements Drill
         operator.getRightPrec(),
         operator.getReturnTypeInference(),
         operator.getOperandTypeInference(),
-        operator.getOperandTypeChecker());
+        Checker.ANY_CHECKER);
     this.operator = operator;
   }
 
   @Override
   public SqlOperator getOperator() {
     return operator;
-  }
-
-  @Override
-  public SqlOperandTypeChecker getOperandTypeChecker() {
-    return operandTypeChecker;
-  }
-
-  @Override
-  public SqlOperandCountRange getOperandCountRange() {
-    return operandTypeChecker.getOperandCountRange();
   }
 
   @Override
@@ -122,31 +114,6 @@ public class DrillCalciteSqlOperatorWrapper extends SqlOperator implements Drill
   }
 
   @Override
-  public SqlOperandTypeInference getOperandTypeInference() {
-    return operator.getOperandTypeInference();
-  }
-
-  @Override
-  public boolean isAggregator() {
-    return operator.isAggregator();
-  }
-
-  @Override
-  public boolean requiresOrder() {
-    return operator.requiresOrder();
-  }
-
-  @Override
-  public boolean allowsFraming() {
-    return operator.allowsFraming();
-  }
-
-  @Override
-  public SqlReturnTypeInference getReturnTypeInference() {
-    return operator.getReturnTypeInference();
-  }
-
-  @Override
   public SqlMonotonicity getMonotonicity(SqlOperatorBinding call) {
     return operator.getMonotonicity(call);
   }
@@ -154,11 +121,6 @@ public class DrillCalciteSqlOperatorWrapper extends SqlOperator implements Drill
   @Override
   public boolean isDeterministic() {
     return operator.isDeterministic();
-  }
-
-  @Override
-  public boolean isDynamicFunction() {
-    return operator.isDynamicFunction();
   }
 
   @Override

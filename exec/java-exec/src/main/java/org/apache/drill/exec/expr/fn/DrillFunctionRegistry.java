@@ -121,13 +121,7 @@ public class DrillFunctionRegistry {
           functions.put(argNumerRange, func);
         }
 
-        // In order to prevent Drill from folding constant functions with types that cannot be materialized into literals,
-        // the deterministic property of the DrillSqlOperator which has any least one function with NON_REDUCIBLE_TYPES will be set to false.
-        //
-        // However,  partition-pruning will be initiated "only" for the deterministic DrillSqlOperator.
-        // Thus, an additional logic is added to PruneScanRule to help decide if partition-pruning can be taken.
-        if(!func.isDeterministic()
-            || DrillConstExecutor.NON_REDUCIBLE_TYPES.contains(func.getReturnType().getMinorType())) {
+        if(!func.isDeterministic()) {
           isDeterministic = false;
         }
       }
@@ -160,6 +154,7 @@ public class DrillFunctionRegistry {
     final String convert_to = "CONVERT_TO";
     final String convert_from = "CONVERT_FROM";
     final String flatten = "FLATTEN";
+    final String date_part = "DATE_PART";
 
     operatorTable.add(convert_to,
         new DrillSqlOperator(convert_to,
@@ -173,23 +168,32 @@ public class DrillFunctionRegistry {
         new DrillSqlOperator(flatten,
             1,
             true));
+    operatorTable.add(date_part,
+        new DrillSqlOperator(date_part,
+            2,
+            true));
   }
 
   private Pair<Integer, Integer> getArgNumerRange(final String name, final DrillFuncHolder func) {
-    switch(name) {
-      case "concat":
+    switch(name.toUpperCase()) {
+      case "CONCAT":
         return Pair.of(1, Integer.MAX_VALUE);
 
-      case "lpad":
-      case "rpad":
+      // Drill does not have a FunctionTemplate for the lpad/rpad with two arguments.
+      // It relies on DrillOptiq.java to add a third dummy argument to be acceptable
+      // by the FunctionTemplate in StringFunctions.java
+      case "LPAD":
+      case "RPAD":
         return Pair.of(2, 3);
 
-      case "ltrim":
-      case "rtrim":
-      case "btrim":
+      // Similar to the reason above, DrillOptiq.java is used for rewritting
+      case "LTRIM":
+      case "RTRIM":
+      case "BTRIM":
         return Pair.of(1, 2);
 
-      case "length":
+      // Similar to the reason above, DrillOptiq.java is used for rewritting
+      case "LENGTH":
         return Pair.of(1, 2);
 
       default:

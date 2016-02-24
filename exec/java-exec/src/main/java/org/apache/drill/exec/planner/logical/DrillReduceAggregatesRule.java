@@ -18,6 +18,7 @@
 
 package org.apache.drill.exec.planner.logical;
 
+import com.google.common.collect.ImmutableList;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
@@ -26,16 +27,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.calcite.rel.RelCollation;
 import org.apache.calcite.rel.core.Aggregate;
 import org.apache.calcite.rel.logical.LogicalAggregate;
-import org.apache.calcite.rex.RexCallBinding;
-import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.fun.SqlCountAggFunction;
-import org.apache.calcite.sql.type.SqlTypeName;
-import org.apache.drill.exec.planner.sql.DrillCalciteSqlAggFunctionWrapper;
-import org.apache.drill.exec.planner.sql.DrillCalciteSqlWrapper;
-import org.apache.drill.exec.planner.sql.DrillSqlOperator;
 import org.apache.calcite.rel.core.AggregateCall;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.plan.RelOptRule;
@@ -57,7 +51,9 @@ import org.apache.calcite.util.CompositeList;
 import org.apache.calcite.util.ImmutableIntList;
 import org.apache.calcite.util.Util;
 
-import com.google.common.collect.ImmutableList;
+import org.apache.drill.exec.planner.sql.DrillCalciteSqlAggFunctionWrapper;
+import org.apache.drill.exec.planner.sql.DrillCalciteSqlWrapper;
+import org.apache.drill.exec.planner.sql.DrillSqlOperator;
 
 /**
  * Rule to reduce aggregates to simpler forms. Currently only AVG(x) to
@@ -369,17 +365,13 @@ public class DrillReduceAggregatesRule extends RelOptRule {
             newCalls,
             aggCallMapping,
             ImmutableList.of(avgInputType));
-    final RexNode divideRef =
+    RexNode divideRef =
         rexBuilder.makeCall(
             SqlStdOperatorTable.DIVIDE,
             numeratorRef,
             denominatorRef);
 
-    RelDataType type = typeFactory.createSqlType(oldCall.getType().getSqlTypeName());
-    if(oldCall.getType().isNullable()) {
-      type = typeFactory.createTypeWithNullability(type, true);
-    }
-    return rexBuilder.makeCast(type, divideRef);
+    return divideRef;
   }
 
   private RexNode reduceSum(
@@ -405,10 +397,8 @@ public class DrillReduceAggregatesRule extends RelOptRule {
             oldCall.getArgList(),
             sumType,
             null);
-
     final SqlCountAggFunction countAgg = (SqlCountAggFunction) SqlStdOperatorTable.COUNT;
     final RelDataType countType = countAgg.getReturnType(typeFactory);
-
     AggregateCall countCall =
         new AggregateCall(
             countAgg,
@@ -428,11 +418,13 @@ public class DrillReduceAggregatesRule extends RelOptRule {
             aggCallMapping,
             ImmutableList.of(argType));
 
-    RelDataType type = typeFactory.createSqlType(oldCall.getType().getSqlTypeName());
-    if(oldCall.getType().isNullable()) {
-      type = typeFactory.createTypeWithNullability(type, true);
+    if(!sumZeroRef.getType().equals(oldCall.getType())) {
+      final RelDataType type = DrillConstExecutor.createCalciteTypeWithNullability(
+          typeFactory,
+          oldCall.getType().getSqlTypeName(),
+          oldCall.getType().isNullable());
+      sumZeroRef = rexBuilder.makeCast(type, sumZeroRef);
     }
-    sumZeroRef =  rexBuilder.makeCast(type, sumZeroRef);
 
     if (!oldCall.getType().isNullable()) {
       // If SUM(x) is not nullable, the validator must have determined that
@@ -608,12 +600,14 @@ public class DrillReduceAggregatesRule extends RelOptRule {
      * this if we add cast after rewriting the aggregate we add an additional cast which
      * would cause wrong results. So we simply add a cast to ANY.
      */
-
-    RelDataType type = typeFactory.createSqlType(oldCall.getType().getSqlTypeName());
-    if(oldCall.getType().isNullable()) {
-      type = typeFactory.createTypeWithNullability(type, true);
+    if(!result.getType().equals(oldCall.getType())) {
+      final RelDataType type = DrillConstExecutor.createCalciteTypeWithNullability(
+          typeFactory,
+          oldCall.getType().getSqlTypeName(),
+          oldCall.getType().isNullable());
+      result = rexBuilder.makeCast(type, result);
     }
-    return rexBuilder.makeCast(type, result);
+    return result;
   }
 
   /**

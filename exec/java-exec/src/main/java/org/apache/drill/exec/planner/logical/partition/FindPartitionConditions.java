@@ -286,7 +286,7 @@ public class FindPartitionConditions extends RexVisitorImpl<Void> {
 
     // Even if all operands are PUSH, the call itself may
     // be non-deterministic.
-    if (!isDeterministic(call.getOperator())) {
+    if (!call.getOperator().isDeterministic()) {
       callPushDirFilter = PushDirFilter.NO_PUSH;
     } else if (call.getOperator().isDynamicFunction()) {
       // For now, treat it same as non-deterministic.
@@ -339,25 +339,5 @@ public class FindPartitionConditions extends RexVisitorImpl<Void> {
 
   public Void visitFieldAccess(RexFieldAccess fieldAccess) {
     return pushVariable();
-  }
-
-  private boolean isDeterministic(SqlOperator sqlOperator) {
-    if(sqlOperator.isDeterministic()) {
-      return true;
-    }
-
-    if(sqlOperator instanceof DrillSqlOperator) {
-      DrillSqlOperator drillSqlOperator = (DrillSqlOperator) sqlOperator;
-
-      for(DrillFuncHolder drillFuncHolder : drillSqlOperator.getFunctions()) {
-        if(!drillFuncHolder.isDeterministic()) {
-          return false;
-        }
-      }
-
-      return true;
-    }
-
-    return false;
   }
 }

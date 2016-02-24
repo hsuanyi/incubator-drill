@@ -17,34 +17,31 @@
  */
 package org.apache.drill.exec.planner.sql;
 
-import com.google.common.collect.ArrayListMultimap;
-import com.google.common.collect.Lists;
-import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.sql.SqlAggFunction;
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlCallBinding;
-import org.apache.calcite.sql.SqlFunction;
-import org.apache.calcite.sql.SqlFunctionCategory;
-import org.apache.calcite.sql.SqlIdentifier;
-import org.apache.calcite.sql.SqlOperandCountRange;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlOperatorBinding;
 import org.apache.calcite.sql.SqlSyntax;
-import org.apache.calcite.sql.SqlWriter;
-import org.apache.calcite.sql.type.SqlOperandTypeChecker;
-import org.apache.calcite.sql.type.SqlOperandTypeInference;
+import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.sql.type.SqlReturnTypeInference;
-import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.sql.validate.SqlMonotonicity;
 import org.apache.calcite.sql.validate.SqlValidator;
 import org.apache.calcite.sql.validate.SqlValidatorScope;
+
 import org.apache.drill.exec.expr.fn.DrillFuncHolder;
 
 import java.util.List;
 
+/**
+ * This class serves as a wrapper class for SqlAggFunction. The motivation is to plug-in the return type inference and operand
+ * type check algorithms of Drill into Calcite's sql validation procedure.
+ *
+ * Except for the methods which are relevant to the return type inference and operand type check algorithms, the wrapper
+ * simply forwards the method calls to the wrapped SqlAggFunction.
+ */
 public class DrillCalciteSqlAggFunctionWrapper extends SqlAggFunction implements DrillCalciteSqlWrapper {
   private final SqlAggFunction operator;
-  private final SqlOperandTypeChecker operandTypeChecker = new Checker();
 
   @Override
   public SqlOperator getOperator() {
@@ -59,7 +56,7 @@ public class DrillCalciteSqlAggFunctionWrapper extends SqlAggFunction implements
         sqlAggFunction.getKind(),
         sqlReturnTypeInference,
         sqlAggFunction.getOperandTypeInference(),
-        sqlAggFunction.getOperandTypeChecker(),
+        Checker.ANY_CHECKER,
         sqlAggFunction.getFunctionType(),
         sqlAggFunction.requiresOrder(),
         sqlAggFunction.requiresOver());
@@ -68,11 +65,11 @@ public class DrillCalciteSqlAggFunctionWrapper extends SqlAggFunction implements
 
   public DrillCalciteSqlAggFunctionWrapper(
       SqlAggFunction sqlAggFunction,
-      ArrayListMultimap<String, SqlOperator> opMap) {
+      List<DrillFuncHolder> functions) {
     this(sqlAggFunction,
         TypeInferenceUtils.getDrillSqlReturnTypeInference(
             sqlAggFunction.getName(),
-            opMap));
+            functions));
   }
 
   public DrillCalciteSqlAggFunctionWrapper(
@@ -94,11 +91,6 @@ public class DrillCalciteSqlAggFunctionWrapper extends SqlAggFunction implements
   @Override
   public String getAllowedSignatures(String opNameToUse) {
     return operator.getAllowedSignatures(opNameToUse);
-  }
-
-  @Override
-  public SqlOperandTypeInference getOperandTypeInference() {
-    return operator.getOperandTypeInference();
   }
 
   @Override
@@ -137,16 +129,6 @@ public class DrillCalciteSqlAggFunctionWrapper extends SqlAggFunction implements
   }
 
   @Override
-  public SqlOperandTypeChecker getOperandTypeChecker() {
-    return operandTypeChecker;
-  }
-
-  @Override
-  public SqlOperandCountRange getOperandCountRange() {
-    return operandTypeChecker.getOperandCountRange();
-  }
-
-  @Override
   public boolean checkOperandTypes(
       SqlCallBinding callBinding,
       boolean throwOnFailure) {
@@ -166,11 +148,6 @@ public class DrillCalciteSqlAggFunctionWrapper extends SqlAggFunction implements
   @Override
   public String getSignatureTemplate(final int operandsCount) {
     return operator.getSignatureTemplate(operandsCount);
-  }
-
-  @Override
-  public boolean isQuantifierAllowed() {
-    return operator.isQuantifierAllowed();
   }
 
   @Override

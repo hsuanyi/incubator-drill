@@ -22,6 +22,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import org.apache.calcite.sql.SqlAggFunction;
 import org.apache.calcite.sql.SqlFunction;
+import org.apache.drill.exec.expr.fn.DrillFuncHolder;
 import org.apache.drill.exec.expr.fn.FunctionImplementationRegistry;
 import org.apache.calcite.sql.SqlFunctionCategory;
 import org.apache.calcite.sql.SqlIdentifier;
@@ -91,13 +92,35 @@ public class DrillOperatorTable extends SqlStdOperatorTable {
     for(SqlOperator calciteOperator : inner.getOperatorList()) {
       final SqlOperator wrapper;
       if(calciteOperator instanceof SqlAggFunction) {
-        wrapper = new DrillCalciteSqlAggFunctionWrapper((SqlAggFunction) calciteOperator, opMap);
+        wrapper = new DrillCalciteSqlAggFunctionWrapper((SqlAggFunction) calciteOperator,
+            getFunctionList(calciteOperator.getName()));
       } else if(calciteOperator instanceof SqlFunction) {
-        wrapper = new DrillCalciteSqlFunctionWrapper((SqlFunction) calciteOperator, opMap);
+        wrapper = new DrillCalciteSqlFunctionWrapper((SqlFunction) calciteOperator,
+            getFunctionList(calciteOperator.getName()));
       } else {
         wrapper = new DrillCalciteSqlOperatorWrapper(calciteOperator);
       }
       calciteToWrapper.put(calciteOperator, wrapper);
     }
+  }
+
+  private List<DrillFuncHolder> getFunctionList(String name) {
+    final List<DrillFuncHolder> functions = Lists.newArrayList();
+    for(SqlOperator sqlOperator : opMap.get(name.toLowerCase())) {
+      if(sqlOperator instanceof DrillSqlOperator) {
+        final List<DrillFuncHolder> list = ((DrillSqlOperator) sqlOperator).getFunctions();
+        if(list != null) {
+          functions.addAll(list);
+        }
+      }
+
+      if(sqlOperator instanceof DrillSqlAggOperator) {
+        final List<DrillFuncHolder> list = ((DrillSqlAggOperator) sqlOperator).getFunctions();
+        if(list != null) {
+          functions.addAll(list);
+        }
+      }
+    }
+    return functions;
   }
 }

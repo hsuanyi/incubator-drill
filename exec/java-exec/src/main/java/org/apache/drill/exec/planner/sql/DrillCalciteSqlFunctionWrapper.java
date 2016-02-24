@@ -17,23 +17,14 @@
  */
 package org.apache.drill.exec.planner.sql;
 
-import com.google.common.collect.ArrayListMultimap;
-import com.google.common.collect.Lists;
-
 import org.apache.calcite.rel.type.RelDataType;
-import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlCallBinding;
 import org.apache.calcite.sql.SqlFunction;
-import org.apache.calcite.sql.SqlOperandCountRange;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlOperatorBinding;
 import org.apache.calcite.sql.SqlSyntax;
 import org.apache.calcite.sql.SqlWriter;
-import org.apache.calcite.sql.fun.SqlStdOperatorTable;
-import org.apache.calcite.sql.type.SqlOperandTypeChecker;
-import org.apache.calcite.sql.type.SqlOperandTypeInference;
-import org.apache.calcite.sql.type.SqlReturnTypeInference;
 import org.apache.calcite.sql.validate.SqlMonotonicity;
 import org.apache.calcite.sql.validate.SqlValidator;
 import org.apache.calcite.sql.validate.SqlValidatorScope;
@@ -42,21 +33,27 @@ import org.apache.drill.exec.expr.fn.DrillFuncHolder;
 
 import java.util.List;
 
+/**
+ * This class serves as a wrapper class for SqlFunction. The motivation is to plug-in the return type inference and operand
+ * type check algorithms of Drill into Calcite's sql validation procedure.
+ *
+ * Except for the methods which are relevant to the return type inference and operand type check algorithms, the wrapper
+ * simply forwards the method calls to the wrapped SqlFunction.
+ */
 public class DrillCalciteSqlFunctionWrapper extends SqlFunction implements DrillCalciteSqlWrapper  {
   private final SqlFunction operator;
-  private final SqlOperandTypeChecker operandTypeChecker = new Checker();
 
   public DrillCalciteSqlFunctionWrapper(
       final SqlFunction wrappedFunction,
-      final ArrayListMultimap<String, SqlOperator> opMap) {
+    final List<DrillFuncHolder> functions) {
     super(wrappedFunction.getName(),
         wrappedFunction.getSqlIdentifier(),
         wrappedFunction.getKind(),
         TypeInferenceUtils.getDrillSqlReturnTypeInference(
             wrappedFunction.getName(),
-            opMap),
+            functions),
         wrappedFunction.getOperandTypeInference(),
-        wrappedFunction.getOperandTypeChecker(),
+        Checker.ANY_CHECKER,
         wrappedFunction.getParamTypes(),
         wrappedFunction.getFunctionType());
     this.operator = wrappedFunction;
@@ -75,26 +72,6 @@ public class DrillCalciteSqlFunctionWrapper extends SqlFunction implements Drill
   @Override
   public String getAllowedSignatures(String opNameToUse) {
     return operator.getAllowedSignatures(opNameToUse);
-  }
-
-  @Override
-  public boolean isAggregator() {
-    return operator.isAggregator();
-  }
-
-  @Override
-  public boolean requiresOrder() {
-    return operator.requiresOrder();
-  }
-
-  @Override
-  public boolean allowsFraming() {
-    return operator.allowsFraming();
-  }
-
-  @Override
-  public SqlReturnTypeInference getReturnTypeInference() {
-    return operator.getReturnTypeInference();
   }
 
   @Override
@@ -123,16 +100,6 @@ public class DrillCalciteSqlFunctionWrapper extends SqlFunction implements Drill
   }
 
   @Override
-  public SqlOperandTypeChecker getOperandTypeChecker() {
-    return operandTypeChecker;
-  }
-
-  @Override
-  public SqlOperandCountRange getOperandCountRange() {
-    return operandTypeChecker.getOperandCountRange();
-  }
-
-  @Override
   public boolean checkOperandTypes(
       SqlCallBinding callBinding,
       boolean throwOnFailure) {
@@ -152,11 +119,6 @@ public class DrillCalciteSqlFunctionWrapper extends SqlFunction implements Drill
   @Override
   public String getSignatureTemplate(final int operandsCount) {
     return operator.getSignatureTemplate(operandsCount);
-  }
-
-  @Override
-  public boolean isQuantifierAllowed() {
-    return operator.isQuantifierAllowed();
   }
 
   @Override

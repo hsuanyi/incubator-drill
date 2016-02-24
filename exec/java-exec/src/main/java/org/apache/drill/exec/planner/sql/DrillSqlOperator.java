@@ -42,7 +42,7 @@ public class DrillSqlOperator extends SqlFunction {
             name,
             functions),
         null,
-        new Checker(argCountMin, argCountMax),
+        Checker.getChecker(argCountMin, argCountMax),
         null,
         SqlFunctionCategory.USER_DEFINED_FUNCTION);
     this.functions = functions;

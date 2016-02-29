@@ -153,7 +153,6 @@ public class DrillFunctionRegistry {
   private void registerCalcitePlaceHolderFunction(DrillOperatorTable operatorTable) {
     final String convert_to = "CONVERT_TO";
     final String convert_from = "CONVERT_FROM";
-    final String flatten = "FLATTEN";
     final String date_part = "DATE_PART";
 
     operatorTable.add(convert_to,
@@ -163,10 +162,6 @@ public class DrillFunctionRegistry {
     operatorTable.add(convert_from,
         new DrillSqlOperator(convert_from,
             2,
-            true));
-    operatorTable.add(flatten,
-        new DrillSqlOperator(flatten,
-            1,
             true));
     operatorTable.add(date_part,
         new DrillSqlOperator(date_part,

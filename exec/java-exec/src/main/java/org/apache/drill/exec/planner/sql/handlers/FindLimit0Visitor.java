@@ -210,7 +210,7 @@ public class FindLimit0Visitor extends RelShuttleImpl {
             .setMode(dataModes.get(i))
             .setMinorType(TYPES.get(columnTypes.get(i)))
             .build();
-        final MaterializedField field = MaterializedField.create(SchemaPath.getSimplePath(columnNames.get(i)), type);
+        final MaterializedField field = MaterializedField.create(SchemaPath.getSimplePath(columnNames.get(i)).toString(), type);
         final Class vvClass = TypeHelper.getValueVectorClass(type.getMinorType(), type.getMode());
         try {
           output.addField(field, vvClass);

@@ -22,6 +22,7 @@ import com.google.common.collect.Lists;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelShuttleImpl;
+import org.apache.calcite.rel.core.JoinRelType;
 import org.apache.calcite.rel.logical.LogicalAggregate;
 import org.apache.calcite.rel.logical.LogicalIntersect;
 import org.apache.calcite.rel.logical.LogicalJoin;
@@ -161,20 +162,56 @@ public class FindLimit0Visitor extends RelShuttleImpl {
     return super.visit(sort);
   }
 
+  @Override
+  public RelNode visit(LogicalJoin join) {
+    JoinRelType joinRelType = join.getJoinType();
+    switch(joinRelType) {
+      case INNER:
+        if(containsLimit0(join.getLeft()) || containsLimit0(join.getRight())) {
+          contains = true;
+        }
+        break;
+      case LEFT:
+        if(containsLimit0(join.getLeft())) {
+          contains = true;
+        }
+        break;
+      case RIGHT:
+        if(containsLimit0(join.getRight())) {
+          contains = true;
+        }
+        break;
+      case FULL:
+        if(containsLimit0(join.getLeft()) && containsLimit0(join.getRight())) {
+          contains = true;
+        }
+        break;
+      default:
+        throw new IllegalStateException();
+    }
+    return join;
+  }
+
+  @Override
+  public RelNode visit(LogicalUnion union) {
+    boolean allZero = true;
+    for(RelNode child : union.getInputs()) {
+      if(!containsLimit0(child)) {
+        allZero = false;
+        break;
+      }
+    }
+
+    if(allZero) {
+      contains = true;
+    }
+    return union;
+  }
+
   // The following set of RelNodes should terminate a search for the limit 0 pattern.
   @Override
   public RelNode visit(LogicalAggregate aggregate) {
     return aggregate;
-  }
-
-  @Override
-  public RelNode visit(LogicalIntersect intersect) {
-    return intersect;
-  }
-
-  @Override
-  public RelNode visit(LogicalJoin join) {
-    return join;
   }
 
   @Override
@@ -183,8 +220,8 @@ public class FindLimit0Visitor extends RelShuttleImpl {
   }
 
   @Override
-  public RelNode visit(LogicalUnion union) {
-    return union;
+  public RelNode visit(LogicalIntersect intersect) {
+    return intersect;
   }
 
   /**

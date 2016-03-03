@@ -246,6 +246,12 @@ public class DefaultSqlHandler extends AbstractSqlHandler {
         // If the query contains a limit 0 clause, disable distributed mode since it is overkill for determining schema.
         if (FindLimit0Visitor.containsLimit0(convertedRelNodeWithSum0)) {
           context.getPlannerSettings().forceSingleMode();
+          // if the schema is known, return the schema directly
+          final DrillRel shortPath;
+          if (context.getOptions().getOption(ExecConstants.ENABLE_LIMIT0_OPT) &&
+              (shortPath = FindLimit0Visitor.getDirectScanRelIfFullySchemaed(relNode)) != null) {
+            return shortPath;
+          }
         }
 
         return drillRel;

@@ -30,8 +30,8 @@ import java.util.Map;
 class Checker implements SqlOperandTypeChecker {
   private SqlOperandCountRange range;
 
-  public static Checker ANY_CHECKER = new Checker();
-  private static Map<Pair<Integer, Integer>, Checker> checkerMap = Maps.newHashMap();
+  public static final Checker ANY_CHECKER = new Checker();
+  private static final Map<Pair<Integer, Integer>, Checker> checkerMap = Maps.newHashMap();
 
   public static Checker getChecker(int min, int max) {
     final Pair<Integer, Integer> range = Pair.of(min, max);

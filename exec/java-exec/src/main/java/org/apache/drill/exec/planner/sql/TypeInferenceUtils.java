@@ -20,16 +20,17 @@ package org.apache.drill.exec.planner.sql;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 
-import com.google.common.collect.Maps;
 import org.apache.calcite.avatica.util.TimeUnit;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.sql.SqlCallBinding;
 import org.apache.calcite.sql.SqlCharStringLiteral;
 import org.apache.calcite.sql.SqlDynamicParam;
+import org.apache.calcite.sql.SqlIntervalQualifier;
 import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlOperatorBinding;
+import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.sql.type.SqlReturnTypeInference;
 import org.apache.calcite.sql.type.SqlTypeName;
 
@@ -48,74 +49,93 @@ import org.apache.drill.exec.resolver.FunctionResolverFactory;
 import org.apache.drill.exec.resolver.TypeCastRules;
 
 import java.util.List;
-import java.util.Map;
 
 public class TypeInferenceUtils {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TypeInferenceUtils.class);
 
   public static final TypeProtos.MajorType UNKNOWN_TYPE = TypeProtos.MajorType.getDefaultInstance();
-  private static ImmutableMap<TypeProtos.MinorType, SqlTypeName> DRILL_TO_CALCITE_TYPE_MAPPING =
-      ImmutableMap.<TypeProtos.MinorType, SqlTypeName> builder()
-          .put(TypeProtos.MinorType.INT, SqlTypeName.INTEGER)
-          .put(TypeProtos.MinorType.BIGINT, SqlTypeName.BIGINT)
-          .put(TypeProtos.MinorType.FLOAT4, SqlTypeName.FLOAT)
-          .put(TypeProtos.MinorType.FLOAT8, SqlTypeName.DOUBLE)
-          .put(TypeProtos.MinorType.VARCHAR, SqlTypeName.VARCHAR)
-          .put(TypeProtos.MinorType.BIT, SqlTypeName.BOOLEAN)
-          .put(TypeProtos.MinorType.DATE, SqlTypeName.DATE)
-          .put(TypeProtos.MinorType.DECIMAL9, SqlTypeName.DECIMAL)
-          .put(TypeProtos.MinorType.DECIMAL18, SqlTypeName.DECIMAL)
-          .put(TypeProtos.MinorType.DECIMAL28SPARSE, SqlTypeName.DECIMAL)
-          .put(TypeProtos.MinorType.DECIMAL38SPARSE, SqlTypeName.DECIMAL)
-          .put(TypeProtos.MinorType.TIME, SqlTypeName.TIME)
-          .put(TypeProtos.MinorType.TIMESTAMP, SqlTypeName.TIMESTAMP)
-          .put(TypeProtos.MinorType.VARBINARY, SqlTypeName.VARBINARY)
-          .put(TypeProtos.MinorType.INTERVALYEAR, SqlTypeName.INTERVAL_YEAR_MONTH)
-          .put(TypeProtos.MinorType.INTERVALDAY, SqlTypeName.INTERVAL_DAY_TIME)
-          .put(TypeProtos.MinorType.MAP, SqlTypeName.MAP)
-          .put(TypeProtos.MinorType.LIST, SqlTypeName.ARRAY)
-          .put(TypeProtos.MinorType.LATE, SqlTypeName.ANY)
-          .build();
+  private static final ImmutableMap<TypeProtos.MinorType, SqlTypeName> DRILL_TO_CALCITE_TYPE_MAPPING = ImmutableMap.<TypeProtos.MinorType, SqlTypeName> builder()
+      .put(TypeProtos.MinorType.INT, SqlTypeName.INTEGER)
+      .put(TypeProtos.MinorType.BIGINT, SqlTypeName.BIGINT)
+      .put(TypeProtos.MinorType.FLOAT4, SqlTypeName.FLOAT)
+      .put(TypeProtos.MinorType.FLOAT8, SqlTypeName.DOUBLE)
+      .put(TypeProtos.MinorType.VARCHAR, SqlTypeName.VARCHAR)
+      .put(TypeProtos.MinorType.BIT, SqlTypeName.BOOLEAN)
+      .put(TypeProtos.MinorType.DATE, SqlTypeName.DATE)
+      .put(TypeProtos.MinorType.DECIMAL9, SqlTypeName.DECIMAL)
+      .put(TypeProtos.MinorType.DECIMAL18, SqlTypeName.DECIMAL)
+      .put(TypeProtos.MinorType.DECIMAL28SPARSE, SqlTypeName.DECIMAL)
+      .put(TypeProtos.MinorType.DECIMAL38SPARSE, SqlTypeName.DECIMAL)
+      .put(TypeProtos.MinorType.TIME, SqlTypeName.TIME)
+      .put(TypeProtos.MinorType.TIMESTAMP, SqlTypeName.TIMESTAMP)
+      .put(TypeProtos.MinorType.VARBINARY, SqlTypeName.VARBINARY)
+      .put(TypeProtos.MinorType.INTERVALYEAR, SqlTypeName.INTERVAL_YEAR_MONTH)
+      .put(TypeProtos.MinorType.INTERVALDAY, SqlTypeName.INTERVAL_DAY_TIME)
+      .put(TypeProtos.MinorType.MAP, SqlTypeName.MAP)
+      .put(TypeProtos.MinorType.LIST, SqlTypeName.ARRAY)
+      .put(TypeProtos.MinorType.LATE, SqlTypeName.ANY)
 
-  private static ImmutableMap<SqlTypeName, TypeProtos.MinorType> CALCITE_TO_DRILL_MAPPING =
-      ImmutableMap.<SqlTypeName, TypeProtos.MinorType> builder()
-          .put(SqlTypeName.INTEGER, TypeProtos.MinorType.INT)
-          .put(SqlTypeName.BIGINT, TypeProtos.MinorType.BIGINT)
-          .put(SqlTypeName.FLOAT, TypeProtos.MinorType.FLOAT4)
-          .put(SqlTypeName.DOUBLE, TypeProtos.MinorType.FLOAT8)
-          .put(SqlTypeName.VARCHAR, TypeProtos.MinorType.VARCHAR)
-          .put(SqlTypeName.BOOLEAN, TypeProtos.MinorType.BIT)
-          .put(SqlTypeName.DATE, TypeProtos.MinorType.DATE)
-          .put(SqlTypeName.TIME, TypeProtos.MinorType.TIME)
-          .put(SqlTypeName.TIMESTAMP, TypeProtos.MinorType.TIMESTAMP)
-          .put(SqlTypeName.VARBINARY, TypeProtos.MinorType.VARBINARY)
-          .put(SqlTypeName.INTERVAL_YEAR_MONTH, TypeProtos.MinorType.INTERVALYEAR)
-          .put(SqlTypeName.INTERVAL_DAY_TIME, TypeProtos.MinorType.INTERVALDAY)
-          .put(SqlTypeName.CHAR, TypeProtos.MinorType.VARCHAR)
-          .put(SqlTypeName.DECIMAL, TypeProtos.MinorType.FLOAT8)
-          .build();
+      // These are defined in the Drill type system but have been turned off for now
+      // .put(TypeProtos.MinorType.TINYINT, SqlTypeName.TINYINT)
+      // .put(TypeProtos.MinorType.SMALLINT, SqlTypeName.SMALLINT)
+      // Calcite types currently not supported by Drill, nor defined in the Drill type list:
+      //      - CHAR, SYMBOL, MULTISET, DISTINCT, STRUCTURED, ROW, OTHER, CURSOR, COLUMN_LIST
+      .build();
 
-  private static Map<String, SqlReturnTypeInference> funcNameToInference = Maps.newHashMap();
-  static {
-    funcNameToInference.put("DATE_PART", DrillDatePartSqlReturnTypeInference.INSTANCE);
-    funcNameToInference.put("SUM", DrillSumSqlReturnTypeInference.INSTANCE);
-    funcNameToInference.put("COUNT", DrillCountSqlReturnTypeInference.INSTANCE);
-    funcNameToInference.put("CONCAT", DrillConcatSqlReturnTypeInference.INSTANCE);
-    funcNameToInference.put("LENGTH", DrillLengthSqlReturnTypeInference.INSTANCE);
-    funcNameToInference.put("LPAD", DrillPadTrimSqlReturnTypeInference.INSTANCE);
-    funcNameToInference.put("RPAD", DrillPadTrimSqlReturnTypeInference.INSTANCE);
-    funcNameToInference.put("LTRIM", DrillPadTrimSqlReturnTypeInference.INSTANCE);
-    funcNameToInference.put("RTRIM", DrillPadTrimSqlReturnTypeInference.INSTANCE);
-    funcNameToInference.put("BTRIM", DrillPadTrimSqlReturnTypeInference.INSTANCE);
-    funcNameToInference.put("TRIM", DrillPadTrimSqlReturnTypeInference.INSTANCE);
-    funcNameToInference.put("CONVERT_TO", DrillConvertToSqlReturnTypeInference.INSTANCE);
-    funcNameToInference.put("EXTRACT", DrillExtractSqlReturnTypeInference.INSTANCE);
-    funcNameToInference.put("SQRT", DrillSqrtSqlReturnTypeInference.INSTANCE);
-    funcNameToInference.put("CAST", DrillCastSqlReturnTypeInference.INSTANCE);
-    funcNameToInference.put("FLATTEN", DrillDeferToExecSqlReturnTypeInference.INSTANCE);
-    funcNameToInference.put("KVGEN", DrillDeferToExecSqlReturnTypeInference.INSTANCE);
-    funcNameToInference.put("CONVERT_FROM", DrillDeferToExecSqlReturnTypeInference.INSTANCE);
-  }
+  private static final ImmutableMap<SqlTypeName, TypeProtos.MinorType> CALCITE_TO_DRILL_MAPPING = ImmutableMap.<SqlTypeName, TypeProtos.MinorType> builder()
+      .put(SqlTypeName.INTEGER, TypeProtos.MinorType.INT)
+      .put(SqlTypeName.BIGINT, TypeProtos.MinorType.BIGINT)
+      .put(SqlTypeName.FLOAT, TypeProtos.MinorType.FLOAT4)
+      .put(SqlTypeName.DOUBLE, TypeProtos.MinorType.FLOAT8)
+      .put(SqlTypeName.VARCHAR, TypeProtos.MinorType.VARCHAR)
+      .put(SqlTypeName.BOOLEAN, TypeProtos.MinorType.BIT)
+      .put(SqlTypeName.DATE, TypeProtos.MinorType.DATE)
+      .put(SqlTypeName.TIME, TypeProtos.MinorType.TIME)
+      .put(SqlTypeName.TIMESTAMP, TypeProtos.MinorType.TIMESTAMP)
+      .put(SqlTypeName.VARBINARY, TypeProtos.MinorType.VARBINARY)
+      .put(SqlTypeName.INTERVAL_YEAR_MONTH, TypeProtos.MinorType.INTERVALYEAR)
+      .put(SqlTypeName.INTERVAL_DAY_TIME, TypeProtos.MinorType.INTERVALDAY)
+
+      // SqlTypeName.CHAR is the type for Literals in Calcite, Drill treats Literals as VARCHAR also
+      .put(SqlTypeName.CHAR, TypeProtos.MinorType.VARCHAR)
+
+      // The following types are not added due to a variety of reasons:
+      // (1) Disabling decimal type
+      //.put(SqlTypeName.DECIMAL, TypeProtos.MinorType.DECIMAL9)
+      //.put(SqlTypeName.DECIMAL, TypeProtos.MinorType.DECIMAL18)
+      //.put(SqlTypeName.DECIMAL, TypeProtos.MinorType.DECIMAL28SPARSE)
+      //.put(SqlTypeName.DECIMAL, TypeProtos.MinorType.DECIMAL38SPARSE)
+
+      // (2) These 2 types are defined in the Drill type system but have been turned off for now
+      // .put(SqlTypeName.TINYINT, TypeProtos.MinorType.TINYINT)
+      // .put(SqlTypeName.SMALLINT, TypeProtos.MinorType.SMALLINT)
+
+      // (3) Calcite types currently not supported by Drill, nor defined in the Drill type list:
+      //      - SYMBOL, MULTISET, DISTINCT, STRUCTURED, ROW, OTHER, CURSOR, COLUMN_LIST
+      // .put(SqlTypeName.MAP, TypeProtos.MinorType.MAP)
+      // .put(SqlTypeName.ARRAY, TypeProtos.MinorType.LIST)
+      .build();
+
+  private static final ImmutableMap<String, SqlReturnTypeInference> funcNameToInference = ImmutableMap.<String, SqlReturnTypeInference> builder()
+      .put("DATE_PART", DrillDatePartSqlReturnTypeInference.INSTANCE)
+      .put("SUM", DrillSumSqlReturnTypeInference.INSTANCE)
+      .put("COUNT", DrillCountSqlReturnTypeInference.INSTANCE)
+      .put("CONCAT", DrillConcatSqlReturnTypeInference.INSTANCE)
+      .put("LENGTH", DrillLengthSqlReturnTypeInference.INSTANCE)
+      .put("LPAD", DrillPadTrimSqlReturnTypeInference.INSTANCE)
+      .put("RPAD", DrillPadTrimSqlReturnTypeInference.INSTANCE)
+      .put("LTRIM", DrillPadTrimSqlReturnTypeInference.INSTANCE)
+      .put("RTRIM", DrillPadTrimSqlReturnTypeInference.INSTANCE)
+      .put("BTRIM", DrillPadTrimSqlReturnTypeInference.INSTANCE)
+      .put("TRIM", DrillPadTrimSqlReturnTypeInference.INSTANCE)
+      .put("CONVERT_TO", DrillConvertToSqlReturnTypeInference.INSTANCE)
+      .put("EXTRACT", DrillExtractSqlReturnTypeInference.INSTANCE)
+      .put("SQRT", DrillSqrtSqlReturnTypeInference.INSTANCE)
+      .put("CAST", DrillCastSqlReturnTypeInference.INSTANCE)
+      .put("FLATTEN", DrillDeferToExecSqlReturnTypeInference.INSTANCE)
+      .put("KVGEN", DrillDeferToExecSqlReturnTypeInference.INSTANCE)
+      .put("CONVERT_FROM", DrillDeferToExecSqlReturnTypeInference.INSTANCE)
+      .build();
 
   /**
    * Given a Drill's TypeProtos.MinorType, return a Calcite's corresponding SqlTypeName
@@ -250,7 +270,7 @@ public class TypeInferenceUtils {
           throw new UnsupportedOperationException();
       }
 
-      return DrillConstExecutor.createCalciteTypeWithNullability(
+      return createCalciteTypeWithNullability(
           factory,
           sqlTypeName,
           isNullable);
@@ -258,7 +278,7 @@ public class TypeInferenceUtils {
   }
 
   private static class DrillDeferToExecSqlReturnTypeInference implements SqlReturnTypeInference {
-    private static DrillDeferToExecSqlReturnTypeInference INSTANCE = new DrillDeferToExecSqlReturnTypeInference();
+    private static final DrillDeferToExecSqlReturnTypeInference INSTANCE = new DrillDeferToExecSqlReturnTypeInference();
 
     @Override
     public RelDataType inferReturnType(SqlOperatorBinding opBinding) {
@@ -270,7 +290,7 @@ public class TypeInferenceUtils {
   }
 
   private static class DrillSumSqlReturnTypeInference implements SqlReturnTypeInference {
-    private static DrillSumSqlReturnTypeInference INSTANCE = new DrillSumSqlReturnTypeInference();
+    private static final DrillSumSqlReturnTypeInference INSTANCE = new DrillSumSqlReturnTypeInference();
 
     @Override
     public RelDataType inferReturnType(SqlOperatorBinding opBinding) {
@@ -283,22 +303,26 @@ public class TypeInferenceUtils {
 
       final SqlTypeName sqlTypeName = opBinding.getOperandType(0).getSqlTypeName();
       if(sqlTypeName == SqlTypeName.ANY) {
-        return DrillConstExecutor.createCalciteTypeWithNullability(
+        return createCalciteTypeWithNullability(
             factory,
             SqlTypeName.ANY,
             isNullable);
       }
 
-      final TypeProtos.MinorType inputMinorType = getDrillTypeFromCalciteType(opBinding.getOperandType(0));
+      final RelDataType operandType = convertToDoubleForDecimalLiteral(
+          opBinding.getTypeFactory(),
+          opBinding.getOperandType(0),
+          opBinding.getOperandLiteralValue(0));
+      final TypeProtos.MinorType inputMinorType = getDrillTypeFromCalciteType(operandType);
       if(TypeCastRules.getLeastRestrictiveType(Lists.newArrayList(inputMinorType, TypeProtos.MinorType.BIGINT))
           == TypeProtos.MinorType.BIGINT) {
-        return DrillConstExecutor.createCalciteTypeWithNullability(
+        return createCalciteTypeWithNullability(
             factory,
             SqlTypeName.BIGINT,
             isNullable);
       } else if(TypeCastRules.getLeastRestrictiveType(Lists.newArrayList(inputMinorType, TypeProtos.MinorType.FLOAT8))
           == TypeProtos.MinorType.FLOAT8) {
-        return DrillConstExecutor.createCalciteTypeWithNullability(
+        return createCalciteTypeWithNullability(
             factory,
             SqlTypeName.DOUBLE,
             isNullable);
@@ -314,13 +338,13 @@ public class TypeInferenceUtils {
   }
 
   private static class DrillCountSqlReturnTypeInference implements SqlReturnTypeInference {
-    private static DrillCountSqlReturnTypeInference INSTANCE = new DrillCountSqlReturnTypeInference();
+    private static final DrillCountSqlReturnTypeInference INSTANCE = new DrillCountSqlReturnTypeInference();
 
     @Override
     public RelDataType inferReturnType(SqlOperatorBinding opBinding) {
       final RelDataTypeFactory factory = opBinding.getTypeFactory();
       final SqlTypeName type = SqlTypeName.BIGINT;
-      return DrillConstExecutor.createCalciteTypeWithNullability(
+      return createCalciteTypeWithNullability(
           factory,
           type,
           false);
@@ -328,7 +352,7 @@ public class TypeInferenceUtils {
   }
 
   private static class DrillConcatSqlReturnTypeInference implements SqlReturnTypeInference {
-    private static DrillConcatSqlReturnTypeInference INSTANCE = new DrillConcatSqlReturnTypeInference();
+    private static final DrillConcatSqlReturnTypeInference INSTANCE = new DrillConcatSqlReturnTypeInference();
 
     @Override
     public RelDataType inferReturnType(SqlOperatorBinding opBinding) {
@@ -358,7 +382,7 @@ public class TypeInferenceUtils {
   }
 
   private static class DrillLengthSqlReturnTypeInference implements SqlReturnTypeInference {
-    private static DrillLengthSqlReturnTypeInference INSTANCE = new DrillLengthSqlReturnTypeInference();
+    private static final DrillLengthSqlReturnTypeInference INSTANCE = new DrillLengthSqlReturnTypeInference();
 
     @Override
     public RelDataType inferReturnType(SqlOperatorBinding opBinding) {
@@ -368,7 +392,7 @@ public class TypeInferenceUtils {
       // We need to check only the first argument because
       // the second one is used to represent encoding type
       final boolean isNullable = opBinding.getOperandType(0).isNullable();
-      return DrillConstExecutor.createCalciteTypeWithNullability(
+      return createCalciteTypeWithNullability(
           factory,
           sqlTypeName,
           isNullable);
@@ -376,7 +400,7 @@ public class TypeInferenceUtils {
   }
 
   private static class DrillPadTrimSqlReturnTypeInference implements SqlReturnTypeInference {
-    private static DrillPadTrimSqlReturnTypeInference INSTANCE = new DrillPadTrimSqlReturnTypeInference();
+    private static final DrillPadTrimSqlReturnTypeInference INSTANCE = new DrillPadTrimSqlReturnTypeInference();
 
     @Override
     public RelDataType inferReturnType(SqlOperatorBinding opBinding) {
@@ -385,31 +409,31 @@ public class TypeInferenceUtils {
 
       for(int i = 0; i < opBinding.getOperandCount(); ++i) {
         if(opBinding.getOperandType(i).isNullable()) {
-          return DrillConstExecutor.createCalciteTypeWithNullability(
+          return createCalciteTypeWithNullability(
               factory, sqlTypeName, true);
         }
       }
 
-      return DrillConstExecutor.createCalciteTypeWithNullability(
+      return createCalciteTypeWithNullability(
           factory, sqlTypeName, false);
     }
   }
 
   private static class DrillConvertToSqlReturnTypeInference implements SqlReturnTypeInference {
-    private static DrillConvertToSqlReturnTypeInference INSTANCE = new DrillConvertToSqlReturnTypeInference();
+    private static final DrillConvertToSqlReturnTypeInference INSTANCE = new DrillConvertToSqlReturnTypeInference();
 
     @Override
     public RelDataType inferReturnType(SqlOperatorBinding opBinding) {
       final RelDataTypeFactory factory = opBinding.getTypeFactory();
       final SqlTypeName type = SqlTypeName.VARBINARY;
 
-      return DrillConstExecutor.createCalciteTypeWithNullability(
+      return createCalciteTypeWithNullability(
           factory, type, opBinding.getOperandType(0).isNullable());
     }
   }
 
   private static class DrillExtractSqlReturnTypeInference implements SqlReturnTypeInference {
-    private static DrillExtractSqlReturnTypeInference INSTANCE = new DrillExtractSqlReturnTypeInference();
+    private static final DrillExtractSqlReturnTypeInference INSTANCE = new DrillExtractSqlReturnTypeInference();
 
     @Override
     public RelDataType inferReturnType(SqlOperatorBinding opBinding) {
@@ -418,7 +442,7 @@ public class TypeInferenceUtils {
       final boolean isNullable = opBinding.getOperandType(1).isNullable();
 
       final SqlTypeName sqlTypeName = getSqlTypeNameForTimeUnit(timeUnit.name());
-      return DrillConstExecutor.createCalciteTypeWithNullability(
+      return createCalciteTypeWithNullability(
           factory,
           sqlTypeName,
           isNullable);
@@ -426,13 +450,13 @@ public class TypeInferenceUtils {
   }
 
   private static class DrillSqrtSqlReturnTypeInference implements SqlReturnTypeInference {
-    private static DrillSqrtSqlReturnTypeInference INSTANCE = new DrillSqrtSqlReturnTypeInference();
+    private static final DrillSqrtSqlReturnTypeInference INSTANCE = new DrillSqrtSqlReturnTypeInference();
 
     @Override
     public RelDataType inferReturnType(SqlOperatorBinding opBinding) {
       final RelDataTypeFactory factory = opBinding.getTypeFactory();
       final boolean isNullable = opBinding.getOperandType(0).isNullable();
-      return DrillConstExecutor.createCalciteTypeWithNullability(
+      return createCalciteTypeWithNullability(
           factory,
           SqlTypeName.DOUBLE,
           isNullable);
@@ -440,7 +464,7 @@ public class TypeInferenceUtils {
   }
 
   private static class DrillDatePartSqlReturnTypeInference implements SqlReturnTypeInference {
-    private static DrillDatePartSqlReturnTypeInference INSTANCE = new DrillDatePartSqlReturnTypeInference();
+    private static final DrillDatePartSqlReturnTypeInference INSTANCE = new DrillDatePartSqlReturnTypeInference();
 
     @Override
     public RelDataType inferReturnType(SqlOperatorBinding opBinding) {
@@ -448,7 +472,7 @@ public class TypeInferenceUtils {
 
       final SqlNode firstOperand = ((SqlCallBinding) opBinding).operand(0);
       if(!(firstOperand instanceof SqlCharStringLiteral)) {
-        return DrillConstExecutor.createCalciteTypeWithNullability(factory,
+        return createCalciteTypeWithNullability(factory,
             SqlTypeName.ANY,
             opBinding.getOperandType(1).isNullable());
       }
@@ -460,7 +484,7 @@ public class TypeInferenceUtils {
 
       final SqlTypeName sqlTypeName = getSqlTypeNameForTimeUnit(part);
       final boolean isNullable = opBinding.getOperandType(1).isNullable();
-      return DrillConstExecutor.createCalciteTypeWithNullability(
+      return createCalciteTypeWithNullability(
           factory,
           sqlTypeName,
           isNullable);
@@ -468,7 +492,7 @@ public class TypeInferenceUtils {
   }
 
   private static class DrillCastSqlReturnTypeInference implements SqlReturnTypeInference {
-    private static DrillCastSqlReturnTypeInference INSTANCE = new DrillCastSqlReturnTypeInference();
+    private static final DrillCastSqlReturnTypeInference INSTANCE = new DrillCastSqlReturnTypeInference();
 
     @Override
     public RelDataType inferReturnType(SqlOperatorBinding opBinding) {
@@ -502,7 +526,12 @@ public class TypeInferenceUtils {
 
   private static DrillFuncHolder resolveDrillFuncHolder(final SqlOperatorBinding opBinding, final List<DrillFuncHolder> functions) {
     final List<LogicalExpression> args = Lists.newArrayList();
-    for (final RelDataType type : opBinding.collectOperandTypes()) {
+
+    for (int i = 0; i < opBinding.getOperandCount(); ++i) {
+      final RelDataType type = convertToDoubleForDecimalLiteral(
+          opBinding.getTypeFactory(),
+          opBinding.getOperandType(i),
+          opBinding.getOperandLiteralValue(i));
       final TypeProtos.MinorType minorType = getDrillTypeFromCalciteType(type);
       final TypeProtos.MajorType majorType;
       if (type.isNullable()) {
@@ -539,10 +568,18 @@ public class TypeInferenceUtils {
   }
 
   /**
-   * This class is not intended to be initiated
+   * Calcite represents decimal numbers such as 1.1, 3.2, etc, as SqlTypeName.DECIMAL,
+   * which Drill interprets as Double. This method helps Drill make the conversion more convenience
    */
-  private TypeInferenceUtils() {
-
+  private static RelDataType convertToDoubleForDecimalLiteral(RelDataTypeFactory relDataTypeFactory, RelDataType relDataType, Comparable comparable) {
+    if(relDataType.getSqlTypeName() == SqlTypeName.DECIMAL && comparable != null) {
+      return createCalciteTypeWithNullability(
+          relDataTypeFactory,
+          SqlTypeName.DOUBLE,
+          relDataType.isNullable());
+    } else {
+      return relDataType;
+    }
   }
 
   /**
@@ -564,5 +601,44 @@ public class TypeInferenceUtils {
             .message("extract function supports the following time units: YEAR, MONTH, DAY, HOUR, MINUTE, SECOND")
             .build(logger);
     }
+  }
+
+  /**
+   * Given a {@link SqlTypeName} and nullability, create a RelDataType from the RelDataTypeFactory
+   *
+   * @param typeFactory RelDataTypeFactory used to create the RelDataType
+   * @param sqlTypeName the given SqlTypeName
+   * @param isNullable  the nullability of the created RelDataType
+   * @return RelDataType Type of call
+   */
+  public static RelDataType createCalciteTypeWithNullability(RelDataTypeFactory typeFactory,
+                                                             SqlTypeName sqlTypeName,
+                                                             boolean isNullable) {
+    RelDataType type;
+    if (sqlTypeName == SqlTypeName.INTERVAL_DAY_TIME) {
+      type = typeFactory.createSqlIntervalType(
+          new SqlIntervalQualifier(
+              TimeUnit.DAY,
+              TimeUnit.MINUTE,
+              SqlParserPos.ZERO));
+    } else if (sqlTypeName == SqlTypeName.INTERVAL_YEAR_MONTH) {
+      type = typeFactory.createSqlIntervalType(
+          new SqlIntervalQualifier(
+              TimeUnit.YEAR,
+              TimeUnit.MONTH,
+              SqlParserPos.ZERO));
+    } else if (sqlTypeName == SqlTypeName.VARCHAR) {
+      type = typeFactory.createSqlType(sqlTypeName, TypeHelper.VARCHAR_DEFAULT_CAST_LEN);
+    } else {
+      type = typeFactory.createSqlType(sqlTypeName);
+    }
+    return typeFactory.createTypeWithNullability(type, isNullable);
+  }
+
+  /**
+   * This class is not intended to be instantiated
+   */
+  private TypeInferenceUtils() {
+
   }
 }

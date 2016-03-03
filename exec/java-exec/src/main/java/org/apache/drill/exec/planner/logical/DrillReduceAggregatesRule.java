@@ -59,6 +59,7 @@ import org.apache.calcite.util.trace.CalciteTrace;
 import org.apache.drill.exec.planner.sql.DrillCalciteSqlAggFunctionWrapper;
 import org.apache.drill.exec.planner.sql.DrillCalciteSqlWrapper;
 import org.apache.drill.exec.planner.sql.DrillSqlOperator;
+import org.apache.drill.exec.planner.sql.TypeInferenceUtils;
 
 /**
  * Rule to reduce aggregates to simpler forms. Currently only AVG(x) to
@@ -427,7 +428,7 @@ public class DrillReduceAggregatesRule extends RelOptRule {
             ImmutableList.of(argType));
 
     if(!sumZeroRef.getType().equals(oldCall.getType())) {
-      final RelDataType type = DrillConstExecutor.createCalciteTypeWithNullability(
+      final RelDataType type = TypeInferenceUtils.createCalciteTypeWithNullability(
           typeFactory,
           oldCall.getType().getSqlTypeName(),
           oldCall.getType().isNullable());
@@ -609,7 +610,7 @@ public class DrillReduceAggregatesRule extends RelOptRule {
      * would cause wrong results. So we simply add a cast to ANY.
      */
     if(!result.getType().equals(oldCall.getType())) {
-      final RelDataType type = DrillConstExecutor.createCalciteTypeWithNullability(
+      final RelDataType type = TypeInferenceUtils.createCalciteTypeWithNullability(
           typeFactory,
           oldCall.getType().getSqlTypeName(),
           oldCall.getType().isNullable());

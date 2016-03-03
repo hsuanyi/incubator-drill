@@ -24,11 +24,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.drill.common.scanner.persistence.AnnotatedClassDescriptor;
 import org.apache.drill.common.scanner.persistence.ScanResult;
+import org.apache.drill.common.types.TypeProtos;
 import org.apache.drill.exec.planner.logical.DrillConstExecutor;
 import org.apache.drill.exec.planner.sql.DrillOperatorTable;
 import org.apache.drill.exec.planner.sql.DrillSqlAggOperator;
@@ -45,22 +48,20 @@ public class DrillFunctionRegistry {
   // key: function name (lowercase) value: list of functions with that name
   private final ArrayListMultimap<String, DrillFuncHolder> registeredFunctions = ArrayListMultimap.create();
 
-  private static final Map<String, Pair<Integer, Integer>> drillFuncToRange = Maps.newHashMap();
-  static {
-    // CONCAT is allowed to take [1, infinity) number of arguments.
-    // Currently, this flexibility is offered by DrillOptiq to rewrite it as
-    // a nested structure
-    drillFuncToRange.put("CONCAT", Pair.of(1, Integer.MAX_VALUE));
+  private static final ImmutableMap<String, Pair<Integer, Integer>> drillFuncToRange = ImmutableMap.<String, Pair<Integer, Integer>> builder()
+      // CONCAT is allowed to take [1, infinity) number of arguments.
+      // Currently, this flexibility is offered by DrillOptiq to rewrite it as
+      // a nested structure
+      .put("CONCAT", Pair.of(1, Integer.MAX_VALUE))
 
-    // When LENGTH is given two arguments, this function relies on DrillOptiq to rewrite it as
-    // another function based on the second argument (encodingType)
-    drillFuncToRange.put("LENGTH", Pair.of(1, 2));
+      // When LENGTH is given two arguments, this function relies on DrillOptiq to rewrite it as
+      // another function based on the second argument (encodingType)
+      .put("LENGTH", Pair.of(1, 2))
 
-    // Dummy functions
-    drillFuncToRange.put("CONVERT_TO", Pair.of(2, 2));
-    drillFuncToRange.put("CONVERT_FROM", Pair.of(2, 2));
-    drillFuncToRange.put("FLATTEN", Pair.of(1, 1));
-  }
+      // Dummy functions
+      .put("CONVERT_TO", Pair.of(2, 2))
+      .put("CONVERT_FROM", Pair.of(2, 2))
+      .put("FLATTEN", Pair.of(1, 1)).build();
 
   public DrillFunctionRegistry(ScanResult classpathScan) {
     FunctionConverter converter = new FunctionConverter();
@@ -120,10 +121,6 @@ public class DrillFunctionRegistry {
     return this.registeredFunctions.get(name.toLowerCase());
   }
 
-  public Collection<DrillFuncHolder> getAllMethods() {
-    return Collections.unmodifiableCollection(registeredFunctions.values());
-  }
-
   public void register(DrillOperatorTable operatorTable) {
     for (Entry<String, Collection<DrillFuncHolder>> function : registeredFunctions.asMap().entrySet()) {
       final ArrayListMultimap<Pair<Integer, Integer>, DrillFuncHolder> functions = ArrayListMultimap.create();
@@ -135,13 +132,13 @@ public class DrillFunctionRegistry {
         if(func.isAggregating()) {
           aggregateFunctions.put(paramCount, func);
         } else {
-          final Pair<Integer, Integer> argNumerRange;
+          final Pair<Integer, Integer> argNumberRange;
           if(drillFuncToRange.containsKey(name)) {
-            argNumerRange = drillFuncToRange.get(name);
+            argNumberRange = drillFuncToRange.get(name);
           } else {
-            argNumerRange = Pair.of(func.getParamCount(), func.getParamCount());
+            argNumberRange = Pair.of(func.getParamCount(), func.getParamCount());
           }
-          functions.put(argNumerRange, func);
+          functions.put(argNumberRange, func);
         }
 
         if(!func.isDeterministic()) {

@@ -120,10 +120,6 @@ public class FunctionImplementationRegistry implements FunctionLookupContext {
     return functionResolver.getBestMatch(drillFuncRegistry.getMethods(functionReplacement(functionCall)), functionCall);
   }
 
-  public Collection<DrillFuncHolder> getAllMethods() {
-    return drillFuncRegistry.getAllMethods();
-  }
-
   // Check if this Function Replacement is needed; if yes, return a new name. otherwise, return the original name
   private String functionReplacement(FunctionCall functionCall) {
     String funcName = functionCall.getName();

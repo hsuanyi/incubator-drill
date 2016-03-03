@@ -295,7 +295,7 @@ public class TestFunctionsWithTypeExpoQueries extends BaseTestQuery {
 
   @Test
   public void testSQRT() throws Exception {
-    final String query = "SELECT sqrt(5) as col \n" +
+    final String query = "SELECT sqrt(5.1) as col \n" +
         "from cp.`tpch/nation.parquet` \n" +
         "limit 0";
 

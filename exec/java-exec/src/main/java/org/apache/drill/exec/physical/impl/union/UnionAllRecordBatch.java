@@ -162,6 +162,25 @@ public class UnionAllRecordBatch extends AbstractRecordBatch<UnionAll> {
     allocationVectors = Lists.newArrayList();
     transfers.clear();
 
+    // If both sides of Union-All are empty
+    if(unionAllInput.isBothSideEmpty()) {
+      for(int i = 0; i < outputFields.size(); ++i) {
+        final String colName = outputFields.get(i).getPath();
+        final MajorType majorType = MajorType.newBuilder()
+            .setMinorType(MinorType.INT)
+            .setMode(DataMode.OPTIONAL)
+            .build();
+
+        MaterializedField outputField = MaterializedField.create(colName, majorType);
+        ValueVector vv = container.addOrGet(outputField, callBack);
+        allocationVectors.add(vv);
+      }
+
+      container.buildSchema(BatchSchema.SelectionVectorMode.NONE);
+      return IterOutcome.OK_NEW_SCHEMA;
+    }
+
+
     final ClassGenerator<UnionAller> cg = CodeGenerator.getRoot(UnionAller.TEMPLATE_DEFINITION, context.getFunctionRegistry());
     int index = 0;
     for(VectorWrapper<?> vw : current) {
@@ -294,13 +313,41 @@ public class UnionAllRecordBatch extends AbstractRecordBatch<UnionAll> {
       rightSide = new OneSideInput(right);
     }
 
+    private boolean isBothSideEmpty() {
+      return leftIsFinish && rightIsFinish;
+    }
+
     public IterOutcome nextBatch() throws SchemaChangeException {
       if(upstream == RecordBatch.IterOutcome.NOT_YET) {
         IterOutcome iterLeft = leftSide.nextBatch();
         switch(iterLeft) {
           case OK_NEW_SCHEMA:
-            break;
+            whileLoop:
+            while(leftSide.getRecordBatch().getRecordCount() == 0) {
+              iterLeft = leftSide.nextBatch();
 
+              switch(iterLeft) {
+                case STOP:
+                case OUT_OF_MEMORY:
+                  return iterLeft;
+
+                case NONE:
+                  // Special Case: The left side was an empty input.
+                  leftIsFinish = true;
+                  break whileLoop;
+
+                case NOT_YET:
+                case OK_NEW_SCHEMA:
+                case OK:
+                  continue whileLoop;
+
+                default:
+                  throw new IllegalStateException(
+                      String.format("Unexpected state %s.", iterLeft));
+              }
+            }
+
+            break;
           case STOP:
           case OUT_OF_MEMORY:
             return iterLeft;
@@ -315,8 +362,11 @@ public class UnionAllRecordBatch extends AbstractRecordBatch<UnionAll> {
           case OK_NEW_SCHEMA:
             // Unless there is no record batch on the left side of the inputs,
             // always start processing from the left side.
-            unionAllRecordBatch.setCurrentRecordBatch(leftSide.getRecordBatch());
-
+            if(leftIsFinish) {
+              unionAllRecordBatch.setCurrentRecordBatch(rightSide.getRecordBatch());
+            } else {
+              unionAllRecordBatch.setCurrentRecordBatch(leftSide.getRecordBatch());
+            }
             // If the record count of the first batch from right input is zero,
             // there are two possibilities:
             // 1. The right side is an empty input (e.g., file).
@@ -325,16 +375,11 @@ public class UnionAllRecordBatch extends AbstractRecordBatch<UnionAll> {
               iterRight = rightSide.nextBatch();
 
               if (iterRight == IterOutcome.NONE) {
-                // Case 1: The right side was an empty input.
-                inferOutputFieldsFromLeftSide();
+                // Special Case: The right side was an empty input.
                 rightIsFinish = true;
-              } else {
-                // Case 2: There are more records carried by the latter batches.
-                inferOutputFields();
               }
-            } else {
-              inferOutputFields();
             }
+            inferOutputFields();
             break;
 
           case STOP:
@@ -349,6 +394,10 @@ public class UnionAllRecordBatch extends AbstractRecordBatch<UnionAll> {
         upstream = IterOutcome.OK_NEW_SCHEMA;
         return upstream;
       } else {
+        if(isBothSideEmpty()) {
+          return IterOutcome.NONE;
+        }
+
         unionAllRecordBatch.clearCurrentRecordBatch();
 
         if(leftIsFinish && rightIsFinish) {
@@ -431,9 +480,25 @@ public class UnionAllRecordBatch extends AbstractRecordBatch<UnionAll> {
       }
     }
 
+    private void inferOutputFields() {
+      if(!leftIsFinish && !rightIsFinish) {
+        // Both sides are non-empty
+        inferOutputFieldsBothSide();
+      } else if(!rightIsFinish) {
+        // Left side is non-empty
+        // While use left side's column names as output column names,
+        // use right side's column types as output column types.
+        inferOutputFieldsFromRightSide();
+      } else {
+        // Either right side is empty or both are empty
+        // Using left side's schema is sufficient
+        inferOutputFieldsFromLeftSide();
+      }
+    }
+
     // The output table's column names always follow the left table,
     // where the output type is chosen based on DRILL's implicit casting rules
-    private void inferOutputFields() {
+    private void inferOutputFieldsBothSide() {
       outputFields = Lists.newArrayList();
       leftSchema = leftSide.getRecordBatch().getSchema();
       rightSchema = rightSide.getRecordBatch().getSchema();
@@ -488,6 +553,25 @@ public class UnionAllRecordBatch extends AbstractRecordBatch<UnionAll> {
       while(iter.hasNext()) {
         MaterializedField field = iter.next();
         outputFields.add(MaterializedField.create(field.getPath(), field.getType()));
+      }
+    }
+
+    private void inferOutputFieldsFromRightSide() {
+      outputFields = Lists.newArrayList();
+
+      final List<String> outputColumnNames = Lists.newArrayList();
+
+      final Iterator<MaterializedField> iterForLeft
+          = leftSide.getRecordBatch().getSchema().iterator();
+      while(iterForLeft.hasNext()) {
+        outputColumnNames.add(iterForLeft.next().getPath());
+      }
+
+      final Iterator<MaterializedField> iterForRight
+          = rightSide.getRecordBatch().getSchema().iterator();
+      for(int i = 0; iterForRight.hasNext(); ++i) {
+        MaterializedField field = iterForRight.next();
+        outputFields.add(MaterializedField.create(outputColumnNames.get(i), field.getType()));
       }
     }
 

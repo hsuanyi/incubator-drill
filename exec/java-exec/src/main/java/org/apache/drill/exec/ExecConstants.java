@@ -267,7 +267,7 @@ public interface ExecConstants {
    * Option to check that planning and execution types match.
    */
   String ENABLE_RESULT_TYPE_CHECK_KEY = "drill.exec.testing.result_type_check";
-  BooleanValidator ENABLE_RESULT_TYPE_CHECK = new BooleanValidator(ENABLE_RESULT_TYPE_CHECK_KEY, true);
+  BooleanValidator ENABLE_RESULT_TYPE_CHECK = new BooleanValidator(ENABLE_RESULT_TYPE_CHECK_KEY, false);
 
   String NEW_VIEW_DEFAULT_PERMS_KEY = "new_view_default_permissions";
   OptionValidator NEW_VIEW_DEFAULT_PERMS_VALIDATOR =

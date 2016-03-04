@@ -43,7 +43,6 @@ import org.apache.drill.common.types.TypeProtos;
 import org.apache.drill.common.types.Types;
 import org.apache.drill.exec.expr.TypeHelper;
 import org.apache.drill.exec.expr.fn.DrillFuncHolder;
-import org.apache.drill.exec.planner.logical.DrillConstExecutor;
 import org.apache.drill.exec.resolver.FunctionResolver;
 import org.apache.drill.exec.resolver.FunctionResolverFactory;
 import org.apache.drill.exec.resolver.TypeCastRules;
@@ -309,10 +308,7 @@ public class TypeInferenceUtils {
             isNullable);
       }
 
-      final RelDataType operandType = convertToDoubleForDecimalLiteral(
-          opBinding.getTypeFactory(),
-          opBinding.getOperandType(0),
-          opBinding.getOperandLiteralValue(0));
+      final RelDataType operandType = opBinding.getOperandType(0);
       final TypeProtos.MinorType inputMinorType = getDrillTypeFromCalciteType(operandType);
       if(TypeCastRules.getLeastRestrictiveType(Lists.newArrayList(inputMinorType, TypeProtos.MinorType.BIGINT))
           == TypeProtos.MinorType.BIGINT) {
@@ -528,10 +524,7 @@ public class TypeInferenceUtils {
     final List<LogicalExpression> args = Lists.newArrayList();
 
     for (int i = 0; i < opBinding.getOperandCount(); ++i) {
-      final RelDataType type = convertToDoubleForDecimalLiteral(
-          opBinding.getTypeFactory(),
-          opBinding.getOperandType(i),
-          opBinding.getOperandLiteralValue(i));
+      final RelDataType type = opBinding.getOperandType(i);
       final TypeProtos.MinorType minorType = getDrillTypeFromCalciteType(type);
       final TypeProtos.MajorType majorType;
       if (type.isNullable()) {
@@ -565,21 +558,6 @@ public class TypeInferenceUtils {
           .build(logger);
     }
     return func;
-  }
-
-  /**
-   * Calcite represents decimal numbers such as 1.1, 3.2, etc, as SqlTypeName.DECIMAL,
-   * which Drill interprets as Double. This method helps Drill make the conversion more convenience
-   */
-  private static RelDataType convertToDoubleForDecimalLiteral(RelDataTypeFactory relDataTypeFactory, RelDataType relDataType, Comparable comparable) {
-    if(relDataType.getSqlTypeName() == SqlTypeName.DECIMAL && comparable != null) {
-      return createCalciteTypeWithNullability(
-          relDataTypeFactory,
-          SqlTypeName.DOUBLE,
-          relDataType.isNullable());
-    } else {
-      return relDataType;
-    }
   }
 
   /**

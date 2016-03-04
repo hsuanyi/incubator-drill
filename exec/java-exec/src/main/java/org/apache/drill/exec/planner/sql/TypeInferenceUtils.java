@@ -205,7 +205,7 @@ public class TypeInferenceUtils {
       // Even if any of the input arguments has ANY type,
       // it "might" still be possible to determine the return type based on other non-ANY types
       for (RelDataType type : opBinding.collectOperandTypes()) {
-        if (type.getSqlTypeName() == SqlTypeName.ANY) {
+        if (getDrillTypeFromCalciteType(type) == TypeProtos.MinorType.LATE) {
           return factory.createTypeWithNullability(
               factory.createSqlType(SqlTypeName.ANY),
               true);
@@ -300,8 +300,7 @@ public class TypeInferenceUtils {
       final boolean isNullable = opBinding.getGroupCount() == 0
           || opBinding.getOperandType(0).isNullable();
 
-      final SqlTypeName sqlTypeName = opBinding.getOperandType(0).getSqlTypeName();
-      if(sqlTypeName == SqlTypeName.ANY) {
+      if(getDrillTypeFromCalciteType(opBinding.getOperandType(0)) == TypeProtos.MinorType.LATE) {
         return createCalciteTypeWithNullability(
             factory,
             SqlTypeName.ANY,
@@ -327,7 +326,7 @@ public class TypeInferenceUtils {
             .functionError()
             .message(String.format("%s does not support operand types (%s)",
                 opBinding.getOperator().getName(),
-                sqlTypeName))
+                opBinding.getOperandType(0).getSqlTypeName()))
             .build(logger);
       }
     }

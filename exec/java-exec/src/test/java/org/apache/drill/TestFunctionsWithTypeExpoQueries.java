@@ -292,6 +292,7 @@ public class TestFunctionsWithTypeExpoQueries extends BaseTestQuery {
   }
 
   @Test
+  @Ignore
   public void testNegativeByInterpreter() throws Exception {
     final String query = "select * from cp.`tpch/region.parquet` \n" +
         "where r_regionkey = negative(-1)";

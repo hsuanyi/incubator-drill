@@ -31,6 +31,7 @@ import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.schema.Schema.TableType;
 import org.apache.calcite.schema.SchemaPlus;
 import org.apache.calcite.schema.Table;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.drill.exec.planner.logical.DrillViewInfoProvider;
 import org.apache.drill.exec.store.AbstractSchema;
 import org.apache.drill.exec.store.RecordReader;
@@ -124,23 +125,27 @@ public abstract class RecordGenerator {
 
     // Visit this schema and if requested ...
     if (shouldVisitSchema(schemaPath, schema) && visitSchema(schemaPath, schema)) {
-      // ... do for each of the schema's tables.
-      for (String tableName: schema.getTableNames()) {
-        Table table = schema.getTable(tableName);
+      visitTables(schemaPath, schema);
+    }
+  }
 
-        if (table == null) {
-          // Schema may return NULL for table if the query user doesn't have permissions to load the table. Ignore such
-          // tables as INFO SCHEMA is about showing tables which the use has access to query.
-          continue;
-        }
-
-        // Visit the table, and if requested ...
-        if (shouldVisitTable(schemaPath, tableName) && visitTable(schemaPath,  tableName, table)) {
-          // ... do for each of the table's fields.
-          RelDataType tableRow = table.getRowType(new JavaTypeFactoryImpl());
-          for (RelDataTypeField field: tableRow.getFieldList()) {
-            visitField(schemaPath,  tableName, field);
-          }
+  /**
+   * Visit the tables in the given schema. The
+   * @param  schemaPath  the path to the given schema
+   * @param  schema  the given schema
+   */
+  public void visitTables(String schemaPath, SchemaPlus schema) {
+    final AbstractSchema drillSchema = schema.unwrap(AbstractSchema.class);
+    final List<String> tableNames = Lists.newArrayList(schema.getTableNames());
+    for(Pair<String, ? extends Table> tableNameToTable : drillSchema.getFullyPopulatedTablesByNames(tableNames)) {
+      final String tableName = tableNameToTable.getKey();
+      final Table table = tableNameToTable.getValue();
+      // Visit the table, and if requested ...
+      if(shouldVisitTable(schemaPath, tableName) && visitTable(schemaPath,  tableName, table)) {
+        // ... do for each of the table's fields.
+        final RelDataType tableRow = table.getRowType(new JavaTypeFactoryImpl());
+        for (RelDataTypeField field: tableRow.getFieldList()) {
+          visitField(schemaPath, tableName, field);
         }
       }
     }
@@ -179,6 +184,21 @@ public abstract class RecordGenerator {
     @Override
     public RecordReader getRecordReader() {
       return new PojoRecordReader<>(Records.Table.class, records.iterator());
+    }
+
+    @Override
+    public void visitTables(String schemaPath, SchemaPlus schema) {
+      final AbstractSchema drillSchema = schema.unwrap(AbstractSchema.class);
+
+      final List<String> tableNames = Lists.newArrayList(schema.getTableNames());
+      for(Pair<String, ? extends Table> tableNameToTable : drillSchema.getTablesByNames(tableNames)) {
+        final String tableName = tableNameToTable.getKey();
+        final Table table = tableNameToTable.getValue();
+        // Visit the table, and if requested ...
+        if(shouldVisitTable(schemaPath, tableName)) {
+          visitTable(schemaPath, tableName, table);
+        }
+      }
     }
 
     @Override

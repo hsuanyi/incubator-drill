@@ -35,6 +35,7 @@ import org.apache.drill.exec.planner.logical.CreateTableEntry;
 
 import com.google.common.base.Joiner;
 import com.google.common.collect.Lists;
+import org.apache.drill.exec.store.ischema.RecordGenerator;
 
 public abstract class AbstractSchema implements Schema, SchemaPartitionExplorer, AutoCloseable {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(AbstractSchema.class);
@@ -193,5 +194,27 @@ public abstract class AbstractSchema implements Schema, SchemaPartitionExplorer,
     throw UserException.unsupportedError()
         .message("Dropping tables is not supported in schema [%s]", getSchemaPath())
         .build(logger);
+  }
+
+  /**
+   * Visit the tables in this schema and write to recordGenerator
+   * @param recordGenerator recordGenerator for the output
+   * @param schemaPath      the path to the given schema
+   */
+  public void visitTables(final RecordGenerator recordGenerator, final String schemaPath) {
+    // ... do for each of the schema's tables.
+    for (String tableName : getTableNames()) {
+      final Table table = getTable(tableName);
+      if (table == null) {
+        // Schema may return NULL for table if the query user doesn't have permissions to load the table. Ignore such
+        // tables as INFO SCHEMA is about showing tables which the use has access to query.
+        continue;
+      }
+
+      // Visit the table, and if requested ...
+      if(recordGenerator.shouldVisitTable(schemaPath, tableName)) {
+        recordGenerator.visitTable(schemaPath, tableName, table);
+      }
+    }
   }
 }

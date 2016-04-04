@@ -28,6 +28,7 @@ import java.util.Map;
 import org.apache.calcite.jdbc.JavaTypeFactoryImpl;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeField;
+import org.apache.calcite.schema.Schema;
 import org.apache.calcite.schema.Schema.TableType;
 import org.apache.calcite.schema.SchemaPlus;
 import org.apache.calcite.schema.Table;
@@ -90,7 +91,7 @@ public abstract class RecordGenerator {
     return true;
   }
 
-  protected boolean shouldVisitTable(String schemaName, String tableName) {
+  public boolean shouldVisitTable(String schemaName, String tableName) {
     Map<String, String> recordValues =
         ImmutableMap.of( SHRD_COL_TABLE_SCHEMA, schemaName,
                          SCHS_COL_SCHEMA_NAME, schemaName,
@@ -124,26 +125,18 @@ public abstract class RecordGenerator {
 
     // Visit this schema and if requested ...
     if (shouldVisitSchema(schemaPath, schema) && visitSchema(schemaPath, schema)) {
-      // ... do for each of the schema's tables.
-      for (String tableName: schema.getTableNames()) {
-        Table table = schema.getTable(tableName);
-
-        if (table == null) {
-          // Schema may return NULL for table if the query user doesn't have permissions to load the table. Ignore such
-          // tables as INFO SCHEMA is about showing tables which the use has access to query.
-          continue;
-        }
-
-        // Visit the table, and if requested ...
-        if (shouldVisitTable(schemaPath, tableName) && visitTable(schemaPath,  tableName, table)) {
-          // ... do for each of the table's fields.
-          RelDataType tableRow = table.getRowType(new JavaTypeFactoryImpl());
-          for (RelDataTypeField field: tableRow.getFieldList()) {
-            visitField(schemaPath,  tableName, field);
-          }
-        }
-      }
+      visitTables(schemaPath, schema);
     }
+  }
+
+  /**
+   * Visit the tables in the given schema
+   * @param  schemaPath  the path to the given schema
+   * @param  schema  the given schema
+   */
+  public void visitTables(String schemaPath, SchemaPlus schema) {
+    final AbstractSchema drillSchema = schema.unwrap(AbstractSchema.class);
+    drillSchema.visitTables(this, schemaPath);
   }
 
   public static class Catalogs extends RecordGenerator {
@@ -225,6 +218,29 @@ public abstract class RecordGenerator {
     public boolean visitField(String schemaName, String tableName, RelDataTypeField field) {
       records.add(new Records.Column(IS_CATALOG_NAME, schemaName, tableName, field));
       return false;
+    }
+
+    @Override
+    public void visitTables(String schemaPath, SchemaPlus schema) {
+      // ... do for each of the schema's tables.
+      for (String tableName: schema.getTableNames()) {
+        Table table = schema.getTable(tableName);
+
+        if (table == null) {
+          // Schema may return NULL for table if the query user doesn't have permissions to load the table. Ignore such
+          // tables as INFO SCHEMA is about showing tables which the use has access to query.
+          continue;
+        }
+
+        // Visit the table, and if requested ...
+        if(shouldVisitTable(schemaPath, tableName) && visitTable(schemaPath,  tableName, table)) {
+          // ... do for each of the table's fields.
+          RelDataType tableRow = table.getRowType(new JavaTypeFactoryImpl());
+          for (RelDataTypeField field: tableRow.getFieldList()) {
+            visitField(schemaPath, tableName, field);
+          }
+        }
+      }
     }
   }
 }

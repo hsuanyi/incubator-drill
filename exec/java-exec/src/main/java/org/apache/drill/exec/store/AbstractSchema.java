@@ -35,6 +35,7 @@ import org.apache.drill.exec.planner.logical.CreateTableEntry;
 
 import com.google.common.base.Joiner;
 import com.google.common.collect.Lists;
+import org.apache.drill.exec.store.ischema.RecordGenerator;
 
 public abstract class AbstractSchema implements Schema, SchemaPartitionExplorer, AutoCloseable {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(AbstractSchema.class);
@@ -193,5 +194,9 @@ public abstract class AbstractSchema implements Schema, SchemaPartitionExplorer,
     throw UserException.unsupportedError()
         .message("Dropping tables is not supported in schema [%s]", getSchemaPath())
         .build(logger);
+  }
+
+  public void visitTables(RecordGenerator recordGenerator, String schemaPath, SchemaPlus schema) {
+    recordGenerator.visitTables(schemaPath, schema);
   }
 }

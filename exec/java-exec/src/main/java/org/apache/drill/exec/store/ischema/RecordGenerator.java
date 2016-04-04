@@ -90,7 +90,7 @@ public abstract class RecordGenerator {
     return true;
   }
 
-  protected boolean shouldVisitTable(String schemaName, String tableName) {
+  public boolean shouldVisitTable(String schemaName, String tableName) {
     Map<String, String> recordValues =
         ImmutableMap.of( SHRD_COL_TABLE_SCHEMA, schemaName,
                          SCHS_COL_SCHEMA_NAME, schemaName,
@@ -124,23 +124,28 @@ public abstract class RecordGenerator {
 
     // Visit this schema and if requested ...
     if (shouldVisitSchema(schemaPath, schema) && visitSchema(schemaPath, schema)) {
-      // ... do for each of the schema's tables.
-      for (String tableName: schema.getTableNames()) {
-        Table table = schema.getTable(tableName);
+      final AbstractSchema drillSchema = schema.unwrap(AbstractSchema.class);
+      drillSchema.visitTables(this, schemaPath, schema);
+    }
+  }
 
-        if (table == null) {
-          // Schema may return NULL for table if the query user doesn't have permissions to load the table. Ignore such
-          // tables as INFO SCHEMA is about showing tables which the use has access to query.
-          continue;
-        }
+  public void visitTables(String schemaPath, SchemaPlus schema) {
+    // ... do for each of the schema's tables.
+    for (String tableName: schema.getTableNames()) {
+      Table table = schema.getTable(tableName);
 
-        // Visit the table, and if requested ...
-        if (shouldVisitTable(schemaPath, tableName) && visitTable(schemaPath,  tableName, table)) {
-          // ... do for each of the table's fields.
-          RelDataType tableRow = table.getRowType(new JavaTypeFactoryImpl());
-          for (RelDataTypeField field: tableRow.getFieldList()) {
-            visitField(schemaPath,  tableName, field);
-          }
+      if (table == null) {
+        // Schema may return NULL for table if the query user doesn't have permissions to load the table. Ignore such
+        // tables as INFO SCHEMA is about showing tables which the use has access to query.
+        continue;
+      }
+
+      // Visit the table, and if requested ...
+      if (shouldVisitTable(schemaPath, tableName) && visitTable(schemaPath,  tableName, table)) {
+        // ... do for each of the table's fields.
+        RelDataType tableRow = table.getRowType(new JavaTypeFactoryImpl());
+        for (RelDataTypeField field: tableRow.getFieldList()) {
+          visitField(schemaPath,  tableName, field);
         }
       }
     }

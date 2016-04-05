@@ -29,12 +29,12 @@ import org.apache.calcite.schema.Schema;
 import org.apache.calcite.schema.Statistic;
 import org.apache.calcite.schema.Table;
 
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.drill.exec.store.AbstractSchema;
 import org.apache.drill.exec.store.SchemaConfig;
 import org.apache.drill.exec.store.hive.DrillHiveMetaStoreClient;
 import org.apache.drill.exec.store.hive.HiveStoragePluginConfig;
 import org.apache.drill.exec.store.hive.schema.HiveSchemaFactory.HiveSchema;
-import org.apache.drill.exec.store.ischema.RecordGenerator;
 
 import org.apache.thrift.TException;
 
@@ -81,20 +81,21 @@ public class HiveDatabaseSchema extends AbstractSchema{
   }
 
   @Override
-  public void visitTables(final RecordGenerator recordGenerator, final String schemaPath) {
-    final List<String> tableNames = Lists.newArrayList(getTableNames());
+  public Set<Pair<String, Table>> getTablesByNames(final List<String> tableNames) {
+    final String schemaName = getName();
+    final Set<Pair<String, Table>> tableNameToTable = Sets.newHashSet();
     List<org.apache.hadoop.hive.metastore.api.Table> tables;
     // Retries once if the first call to fetch the metadata fails
     synchronized(mClient) {
       try {
-        tables = mClient.getTableObjectsByName(getName(), tableNames);
+        tables = mClient.getTableObjectsByName(schemaName, tableNames);
       } catch(TException tException) {
         try {
           mClient.reconnect();
-          tables = mClient.getTableObjectsByName(getName(), tableNames);
+          tables = mClient.getTableObjectsByName(schemaName, tableNames);
         } catch(Exception e) {
-          logger.warn("Exception occurred while trying to read tables from {}: {}", getName(), e.getCause());
-          return;
+          logger.warn("Exception occurred while trying to read tables from {}: {}", schemaName, e.getCause());
+          return tableNameToTable;
         }
       }
     }
@@ -112,24 +113,26 @@ public class HiveDatabaseSchema extends AbstractSchema{
         tableType = TableType.TABLE;
       }
 
-      if(recordGenerator.shouldVisitTable(schemaPath, tableName)) {
-        recordGenerator.visitTable(schemaPath, tableName, new Table() {
-          @Override
-          public RelDataType getRowType(RelDataTypeFactory typeFactory) {
-            throw new UnsupportedOperationException();
-          }
+      final Table t = new Table() {
+        @Override
+        public RelDataType getRowType(RelDataTypeFactory typeFactory) {
+          throw new UnsupportedOperationException();
+        }
 
-          @Override
-          public Statistic getStatistic() {
-            throw new UnsupportedOperationException();
-          }
+        @Override
+        public Statistic getStatistic() {
+          throw new UnsupportedOperationException();
+        }
 
-          @Override
-          public Schema.TableType getJdbcTableType() {
+        @Override
+        public Schema.TableType getJdbcTableType() {
             return tableType;
           }
-        });
-      }
+      };
+
+      tableNameToTable.add(Pair.of(tableName, t));
     }
+
+    return tableNameToTable;
   }
 }

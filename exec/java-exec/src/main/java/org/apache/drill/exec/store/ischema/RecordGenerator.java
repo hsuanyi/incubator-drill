@@ -24,6 +24,7 @@ import static org.apache.drill.exec.store.ischema.InfoSchemaConstants.SHRD_COL_T
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.apache.calcite.jdbc.JavaTypeFactoryImpl;
 import org.apache.calcite.rel.type.RelDataType;
@@ -32,6 +33,7 @@ import org.apache.calcite.schema.Schema;
 import org.apache.calcite.schema.Schema.TableType;
 import org.apache.calcite.schema.SchemaPlus;
 import org.apache.calcite.schema.Table;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.drill.exec.planner.logical.DrillViewInfoProvider;
 import org.apache.drill.exec.store.AbstractSchema;
 import org.apache.drill.exec.store.RecordReader;
@@ -135,8 +137,12 @@ public abstract class RecordGenerator {
    * @param  schema  the given schema
    */
   public void visitTables(String schemaPath, SchemaPlus schema) {
+    final String schemaName = schema.getName();
     final AbstractSchema drillSchema = schema.unwrap(AbstractSchema.class);
-    drillSchema.visitTables(this, schemaPath);
+    final List<String> tableNames = Lists.newArrayList(schema.getTableNames());
+    for(Pair<String, Table> tableNameToTable : drillSchema.getTablesByNames(tableNames)) {
+      visitTable(schemaName, tableNameToTable.getKey(), tableNameToTable.getValue());
+    }
   }
 
   public static class Catalogs extends RecordGenerator {

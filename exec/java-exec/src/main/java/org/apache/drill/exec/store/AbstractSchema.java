@@ -23,19 +23,20 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 
+import com.google.common.collect.Sets;
 import org.apache.calcite.linq4j.tree.DefaultExpression;
 import org.apache.calcite.linq4j.tree.Expression;
 import org.apache.calcite.schema.Function;
 import org.apache.calcite.schema.Schema;
 import org.apache.calcite.schema.SchemaPlus;
 import org.apache.calcite.schema.Table;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.drill.common.exceptions.UserException;
 import org.apache.drill.exec.dotdrill.View;
 import org.apache.drill.exec.planner.logical.CreateTableEntry;
 
 import com.google.common.base.Joiner;
 import com.google.common.collect.Lists;
-import org.apache.drill.exec.store.ischema.RecordGenerator;
 
 public abstract class AbstractSchema implements Schema, SchemaPartitionExplorer, AutoCloseable {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(AbstractSchema.class);
@@ -197,13 +198,16 @@ public abstract class AbstractSchema implements Schema, SchemaPartitionExplorer,
   }
 
   /**
-   * Visit the tables in this schema and write to recordGenerator
-   * @param recordGenerator recordGenerator for the output
-   * @param schemaPath      the path to the given schema
+   * Get the set of the tables specified in the tableNames. By default, getTable() is performed individually for each
+   * requested table. However, if the underlying storage supports bulk load, this method can be overridden to enhance
+   * the performance.
+   *
+   * @param  tableNames the requested tables, specified by table names
+   * @return the set of requested tables
    */
-  public void visitTables(final RecordGenerator recordGenerator, final String schemaPath) {
-    // ... do for each of the schema's tables.
-    for (String tableName : getTableNames()) {
+  public Set<Pair<String, Table>> getTablesByNames(final List<String> tableNames) {
+    final Set<Pair<String, Table>> tables = Sets.newHashSet();
+    for (String tableName : tableNames) {
       final Table table = getTable(tableName);
       if (table == null) {
         // Schema may return NULL for table if the query user doesn't have permissions to load the table. Ignore such
@@ -211,10 +215,9 @@ public abstract class AbstractSchema implements Schema, SchemaPartitionExplorer,
         continue;
       }
 
-      // Visit the table, and if requested ...
-      if(recordGenerator.shouldVisitTable(schemaPath, tableName)) {
-        recordGenerator.visitTable(schemaPath, tableName, table);
-      }
+      tables.add(Pair.of(tableName, table));
     }
+
+    return tables;
   }
 }

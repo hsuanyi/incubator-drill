@@ -89,13 +89,7 @@ public class HiveDatabaseSchema extends AbstractSchema{
     synchronized(mClient) {
       final List<String> tableNamesWithAuth = Lists.newArrayList();
       for(String tableName : tableNames) {
-        try {
-          if(mClient.tableExists(schemaName, tableName)) {
-            tableNamesWithAuth.add(tableName);
-          }
-        } catch(TException e) {
-          logger.warn("Exception occurred while trying to read table. {}.{}", schemaName, tableName, e.getCause());
-        }
+        tableNamesWithAuth.add(tableName);
       }
 
       try {

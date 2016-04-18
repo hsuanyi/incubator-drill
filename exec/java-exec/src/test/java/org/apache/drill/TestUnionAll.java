@@ -518,7 +518,7 @@ public class TestUnionAll extends BaseTestQuery{
     String queryRightEmpty = String.format(
         "select key from dfs_test.`%s` " +
         "union all " +
-        "select key from dfs_test.`%s`",
+        "select cast(key as boolean) as key from dfs_test.`%s`",
         rootSimple,
         rootEmpty);
 
@@ -537,7 +537,7 @@ public class TestUnionAll extends BaseTestQuery{
     final String rootSimple = FileUtils.getResourceAsFile("/store/json/booleanData.json").toURI().toString();
 
     final String queryLeftEmpty = String.format(
-        "select key from dfs_test.`%s` " +
+        "select cast(key as boolean) as key from dfs_test.`%s` " +
         "union all " +
         "select key from dfs_test.`%s`",
         rootEmpty,
@@ -630,7 +630,7 @@ public class TestUnionAll extends BaseTestQuery{
 
     final List<Pair<SchemaPath, TypeProtos.MajorType>> expectedSchema = Lists.newArrayList();
     final TypeProtos.MajorType majorType = TypeProtos.MajorType.newBuilder()
-        .setMinorType(TypeProtos.MinorType.INT)
+        .setMinorType(TypeProtos.MinorType.BIT)
         .setMode(TypeProtos.DataMode.OPTIONAL)
         .build();
     expectedSchema.add(Pair.of(SchemaPath.getSimplePath("key"), majorType));

@@ -518,7 +518,7 @@ public class TestUnionDistinct extends BaseTestQuery {
     String rootSimple = FileUtils.getResourceAsFile("/store/json/booleanData.json").toURI().toString();
 
     String queryRightEmpty = String.format(
-        "select key from dfs_test.`%s` \n" +
+        "select cast(key as boolean) from dfs_test.`%s` \n" +
         "union \n" +
         "select key from dfs_test.`%s`", rootSimple, rootEmpty);
 
@@ -538,7 +538,7 @@ public class TestUnionDistinct extends BaseTestQuery {
     final String rootSimple = FileUtils.getResourceAsFile("/store/json/booleanData.json").toURI().toString();
 
     final String queryLeftEmpty = String.format(
-        "select key from dfs_test.`%s` " +
+        "select cast(key as boolean) from dfs_test.`%s` " +
             "union " +
             "select key from dfs_test.`%s`",
         rootEmpty,
@@ -631,7 +631,7 @@ public class TestUnionDistinct extends BaseTestQuery {
 
     final List<Pair<SchemaPath, TypeProtos.MajorType>> expectedSchema = Lists.newArrayList();
     final TypeProtos.MajorType majorType = TypeProtos.MajorType.newBuilder()
-        .setMinorType(TypeProtos.MinorType.INT)
+        .setMinorType(TypeProtos.MinorType.BIT)
         .setMode(TypeProtos.DataMode.OPTIONAL)
         .build();
     expectedSchema.add(Pair.of(SchemaPath.getSimplePath("key"), majorType));

@@ -518,9 +518,9 @@ public class TestUnionDistinct extends BaseTestQuery {
     String rootSimple = FileUtils.getResourceAsFile("/store/json/booleanData.json").toURI().toString();
 
     String queryRightEmpty = String.format(
-        "select cast(key as boolean) from dfs_test.`%s` \n" +
+        "select key from dfs_test.`%s` \n" +
         "union \n" +
-        "select key from dfs_test.`%s`", rootSimple, rootEmpty);
+        "select cast(key as boolean) from dfs_test.`%s`", rootSimple, rootEmpty);
 
     testBuilder()
         .sqlQuery(queryRightEmpty)
@@ -538,7 +538,7 @@ public class TestUnionDistinct extends BaseTestQuery {
     final String rootSimple = FileUtils.getResourceAsFile("/store/json/booleanData.json").toURI().toString();
 
     final String queryLeftEmpty = String.format(
-        "select cast(key as boolean) from dfs_test.`%s` " +
+        "select cast(key as boolean) as key from dfs_test.`%s` " +
             "union " +
             "select key from dfs_test.`%s`",
         rootEmpty,

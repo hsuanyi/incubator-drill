@@ -29,6 +29,15 @@ import java.util.List;
 
 public class TestFunctionsWithTypeExpoQueries extends BaseTestQuery {
   @Test
+  public void test() throws Exception {
+    final String query = "select (cast(a as timestamp) - to_timestamp('2016-01-01 10:00:00','YYYY-MM-dd HH:mm:ss') < interval '5 10:00:00' day to second) \n" +
+        "from cp.`tpch/region.parquet` \n" +
+        "where (cast(a as timestamp) - to_timestamp('2016-01-01 10:00:00','YYYY-MM-dd HH:mm:ss') < interval '5 10:00:00' day to second)";
+
+    test(query);
+  }
+
+  @Test
   public void testConcatWithMoreThanTwoArgs() throws Exception {
     final String query = "select concat(r_name, r_name, r_name, 'f') as col \n" +
         "from cp.`tpch/region.parquet` limit 0";
